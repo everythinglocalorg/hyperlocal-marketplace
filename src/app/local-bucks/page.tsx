@@ -8,7 +8,7 @@ export default function LocalBucksPage() {
         <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-3xl text-4xl mb-6">🪙</div>
         <h1 className="text-4xl sm:text-5xl font-black text-gray-900 mb-4">Local Bucks</h1>
         <p className="text-xl text-gray-500 max-w-xl mx-auto">
-          The reward currency of <span className="font-bold text-green-600">Everything Local</span>. Earn them by showing up. Spend them on the things that grow your business.
+          This is the reward of shopping local. Earn them by showing up, helping out, and working together.
         </p>
       </section>
 
