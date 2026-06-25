@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import CommunityBoardClient from "./CommunityBoardClient";
 
-export default async function CommunityBoardPage({ params }: { params: { city: string } }) {
+export default async function CommunityBoardPage({ params }: { params: Promise<{ city: string }> }) {
   const supabase = await createClient();
-  const citySlug = params.city;
+  const { city: citySlug } = await params;
 
   const parts = citySlug.split("-");
   const stateCode = parts[parts.length - 1].toUpperCase();
