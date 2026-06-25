@@ -5,6 +5,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
+import BuyNowModal from "@/components/BuyNowModal";
+
+const BUY_NOW_CATEGORIES = [
+  "Products", "Clothing & Accessories", "Auto & Transportation",
+  "Health & Wellness", "Arts & Crafts", "Home & Garden",
+  "Sports & Outdoors", "Childcare & Education",
+];
 
 type Vendor = {
   id: string;
@@ -78,14 +85,15 @@ export default function VendorProfileClient({
   const [localReviews, setLocalReviews] = useState<Review[]>(reviews);
   const [bookingListing, setBookingListing] = useState<Listing | null>(null);
   const [bookingDurations, setBookingDurations] = useState<any[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null } | null>(null);
+  const [buyListing, setBuyListing] = useState<Listing | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
 
   useEffect(() => {
     const client = createClient();
     client.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
       const { data: profile } = await client.from("profiles").select("id, full_name").eq("id", user.id).single();
-      if (profile) setCurrentUser(profile);
+      if (profile) setCurrentUser({ ...profile, email: user.email });
     });
   }, []);
 
@@ -158,6 +166,15 @@ export default function VendorProfileClient({
   const orderedListings = [...featuredListings, ...regularListings];
 
   return (<>
+    {buyListing && (
+      <BuyNowModal
+        listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }}
+        vendor={{ id: vendor.id, business_name: vendor.business_name }}
+        currentUser={currentUser}
+        inquiryType="buy"
+        onClose={() => setBuyListing(null)}
+      />
+    )}
     {bookingListing && (
       <RentalBookingModal
         listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }}
@@ -410,6 +427,13 @@ export default function VendorProfileClient({
                             onClick={() => openBooking(listing)}
                             className="text-xs bg-green-600 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-green-700 transition-colors">
                             📅 Book Now
+                          </button>
+                        )}
+                        {listing.type !== "rental" && listing.type !== "thrift" && BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0])) && (
+                          <button
+                            onClick={() => setBuyListing(listing)}
+                            className="text-xs bg-green-600 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-green-700 transition-colors">
+                            🛒 Buy Now
                           </button>
                         )}
                         {listing.quantity !== null && listing.quantity > 0 && listing.type !== "rental" && (

@@ -8,7 +8,7 @@ import RentalSetup from "@/components/rental/RentalSetup";
 import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications";
 
 interface Props {
   vendor: {
@@ -58,6 +58,18 @@ type Listing = {
   created_at: string;
 };
 
+type Inquiry = {
+  id: string;
+  buyer_name: string;
+  buyer_email: string;
+  buyer_phone: string | null;
+  message: string | null;
+  inquiry_type: string;
+  listing_title: string;
+  is_read: boolean;
+  created_at: string;
+};
+
 type Booking = {
   id: string;
   status: string;
@@ -86,6 +98,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "bookings", label: "Bookings", icon: "📅", premiumOnly: true },
   { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
   { id: "referrals", label: "Referrals", icon: "🤝" },
+  { id: "notifications", label: "Notifications", icon: "🔔" },
 ];
 
 export default function VendorDashboardClient({ vendor, profile, isPremium, connectEnabled, connectAccountId }: Props) {
@@ -105,6 +118,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
   const [listings, setListings] = useState<Listing[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [stats, setStats] = useState({ totalViews: 0, totalClicks: 0, totalListings: 0, activeListings: 0, pendingBookings: 0, thisWeekViews: 0 });
   const [loadingListings, setLoadingListings] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -191,11 +206,30 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
     setCustomers(Array.from(map.values()).sort((a, b) => b.total_spent - a.total_spent));
   }, [supabase, vendor.id]);
 
+  const loadInquiries = useCallback(async () => {
+    const { data } = await supabase
+      .from("purchase_inquiries")
+      .select("*")
+      .eq("vendor_id", vendor.id)
+      .order("created_at", { ascending: false });
+    if (data) {
+      setInquiries(data);
+      setUnreadCount(data.filter((i) => !i.is_read).length);
+    }
+  }, [supabase, vendor.id]);
+
+  async function markInquiryRead(id: string) {
+    await supabase.from("purchase_inquiries").update({ is_read: true }).eq("id", id);
+    setInquiries((prev) => prev.map((i) => i.id === id ? { ...i, is_read: true } : i));
+    setUnreadCount((n) => Math.max(0, n - 1));
+  }
+
   useEffect(() => {
     loadListings();
     loadBookings();
+    loadInquiries();
     if (isPremium) loadCustomers();
-  }, [loadListings, loadBookings, loadCustomers, isPremium]);
+  }, [loadListings, loadBookings, loadCustomers, loadInquiries, isPremium]);
 
   async function toggleListingActive(id: string, current: boolean) {
     await supabase.from("listings").update({ is_active: !current }).eq("id", id);
@@ -341,6 +375,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
             >
               <span>{item.icon}</span>
               <span>{item.label}</span>
+              {item.id === "notifications" && unreadCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadCount}</span>
+              )}
               {item.premiumOnly && !isPremium && (
                 <span className="ml-auto text-xs text-gray-300">🔒</span>
               )}
@@ -663,6 +700,76 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
 
           {tab === "store" && (
             <StoreSettingsTab vendor={vendor} supabase={supabase} />
+          )}
+
+          {tab === "notifications" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900 text-lg">🔔 Notifications</h2>
+                {unreadCount > 0 && (
+                  <span className="text-xs text-gray-400">{unreadCount} unread</span>
+                )}
+              </div>
+              {inquiries.length === 0 ? (
+                <div className="text-center py-16 text-gray-400">
+                  <div className="text-5xl mb-3">🔔</div>
+                  <p className="font-medium text-gray-500">No inquiries yet</p>
+                  <p className="text-sm mt-1">Buy Now and Book Now requests will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {inquiries.map((inq) => (
+                    <div
+                      key={inq.id}
+                      onClick={() => !inq.is_read && markInquiryRead(inq.id)}
+                      className={`p-4 rounded-2xl border cursor-pointer transition-colors ${
+                        inq.is_read ? "bg-white border-gray-100" : "bg-green-50 border-green-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                              inq.inquiry_type === "buy"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-blue-100 text-blue-700"
+                            }`}>
+                              {inq.inquiry_type === "buy" ? "🛒 Buy Now" : "📅 Book Now"}
+                            </span>
+                            {!inq.is_read && (
+                              <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold text-gray-900">{inq.listing_title}</p>
+                          <div className="mt-2 space-y-0.5">
+                            <p className="text-sm text-gray-700 font-medium">{inq.buyer_name}</p>
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                              ✉️ <a href={`mailto:${inq.buyer_email}`} className="hover:underline text-green-700">{inq.buyer_email}</a>
+                            </p>
+                            {inq.buyer_phone && (
+                              <p className="text-xs text-gray-500 flex items-center gap-1">
+                                📞 <a href={`tel:${inq.buyer_phone}`} className="hover:underline text-green-700">{inq.buyer_phone}</a>
+                              </p>
+                            )}
+                            {inq.message && (
+                              <p className="text-xs text-gray-500 mt-1 italic">"{inq.message}"</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs text-gray-400">
+                            {new Date(inq.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {new Date(inq.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>
