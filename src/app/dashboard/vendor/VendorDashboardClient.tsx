@@ -373,34 +373,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-gray-100">
           <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
-        </div>
 
-        {/* Vendor info */}
-        <div className="p-4 border-b border-gray-100">
-          {/* Business row */}
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0">
-              {vendor.logo_url
-                ? <img src={vendor.logo_url} alt="" className="w-full h-full object-cover" />
-                : vendor.business_name[0]}
-            </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-gray-900 text-sm truncate">{vendor.business_name}</p>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPremium ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                {isAdmin ? "👑 Admin" : isPremium ? "⭐ Local Pro" : "Free"}
-              </span>
-            </div>
-          </div>
-
-          {/* Admin link */}
-          {isAdmin && (
-            <a href="/admin" className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors mb-1">
-              👑 Admin Panel
-            </a>
-          )}
-
-          {/* Personal account dropdown */}
-          <div className="relative" ref={dropdownRef}>
+          {/* Personal account dropdown — top-left of the dashboard */}
+          <div className="relative mt-3" ref={dropdownRef}>
             <button
               onClick={() => setShowDropdown(!showDropdown)}
               className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors text-left"
@@ -431,12 +406,38 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               </div>
             )}
           </div>
+        </div>
 
-          <div className="mt-2 bg-amber-50 rounded-lg px-3 py-2 flex items-center gap-2">
-            <span className="text-base">🪙</span>
-            <div>
-              <p className="text-xs font-bold text-amber-700">{formatLocalBucks(profile?.local_bucks ?? 0)}</p>
-              <p className="text-xs text-amber-600">Local Bucks balance</p>
+        {/* Vendor info */}
+        <div className="p-4 border-b border-gray-100">
+          {/* Business row */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0">
+              {vendor.logo_url
+                ? <img src={vendor.logo_url} alt="" className="w-full h-full object-cover" />
+                : vendor.business_name[0]}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-gray-900 text-sm truncate">{vendor.business_name}</p>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPremium ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
+                {isAdmin ? "👑 Admin" : isPremium ? "⭐ Local Pro" : "Free"}
+              </span>
+            </div>
+          </div>
+
+          {/* Admin link */}
+          {isAdmin && (
+            <a href="/admin" className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors mb-1">
+              👑 Admin Panel
+            </a>
+          )}
+
+          {/* Local Bucks balance — circle between Admin Panel and Manage My Store */}
+          <div className="mt-3 flex flex-col items-center">
+            <div className="w-24 h-24 rounded-full bg-amber-50 border-2 border-amber-200 flex flex-col items-center justify-center text-center shadow-sm">
+              <span className="text-base leading-none">🪙</span>
+              <span className="text-sm font-bold text-amber-700 leading-tight mt-0.5">{formatLocalBucks(profile?.local_bucks ?? 0)}</span>
+              <span className="text-[10px] text-amber-600 leading-tight px-1">Local Bucks</span>
             </div>
           </div>
 
