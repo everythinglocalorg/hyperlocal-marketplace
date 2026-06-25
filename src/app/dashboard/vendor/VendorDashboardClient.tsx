@@ -2465,7 +2465,7 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
             {/* Layout */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5">Layout</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {(["image-left", "image-right", "image-top", "image-only"] as const).map((l) => (
                   <button key={l} type="button" onClick={() => updateBlock(block.id, { layout: l })}
                     className={`text-xs py-2 rounded-xl border font-medium transition-colors ${block.layout === l ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>

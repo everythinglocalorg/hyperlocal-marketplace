@@ -184,7 +184,7 @@ export default function SearchClient() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-xl font-bold text-green-600 shrink-0">
+            <Link href="/" className="text-xl font-bold text-green-600 shrink-0 hidden sm:block">
               Everything Local
             </Link>
             <div className="flex-1">

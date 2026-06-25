@@ -154,12 +154,12 @@ export default function HomePage() {
     <div className="flex flex-col min-h-screen bg-white">
       {/* Header */}
       <header className="border-b border-gray-100 bg-white sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-green-600">Everything Local</span>
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">BETA</span>
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink">
+            <span className="text-lg sm:text-2xl font-bold text-green-600 truncate">Everything Local</span>
+            <span className="text-[10px] sm:text-xs bg-green-100 text-green-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium shrink-0">BETA</span>
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {!authChecked ? (
               <div className="w-24 h-8 bg-gray-100 rounded-full animate-pulse" />
             ) : user ? (
