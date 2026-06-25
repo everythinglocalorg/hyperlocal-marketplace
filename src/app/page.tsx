@@ -62,25 +62,29 @@ export default function HomePage() {
       }
       setAuthChecked(true);
 
-      // Fetch recent listings
-      const listingsQuery = supabase
+      // Fetch recent listings — join vendor to get slug, filter by city if known
+      let listingsQuery = supabase
         .from("listings")
-        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city)")
+        .select("id, title, price, price_label, images, type, vendor:vendors!inner(business_name, slug, city)")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(6);
-      if (savedCity) listingsQuery.ilike("vendors.city", `%${savedCity}%`);
+      if (savedCity) listingsQuery = listingsQuery.ilike("vendors.city", `%${savedCity}%`);
       const { data: listings } = await listingsQuery;
-      setRecentListings(listings ?? []);
+      setRecentListings((listings ?? []).filter((l: any) => {
+        const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+        return v?.slug;
+      }));
 
       // Fetch new vendors
-      const vendorsQuery = supabase
+      let vendorsQuery = supabase
         .from("vendors")
         .select("id, business_name, slug, logo_url, category, city, rating")
         .eq("is_active", true)
+        .not("slug", "is", null)
         .order("created_at", { ascending: false })
         .limit(6);
-      if (savedCity) vendorsQuery.ilike("city", `%${savedCity}%`);
+      if (savedCity) vendorsQuery = vendorsQuery.ilike("city", `%${savedCity}%`);
       const { data: vendors } = await vendorsQuery;
       setNewVendors(vendors ?? []);
     });
@@ -238,8 +242,10 @@ export default function HomePage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {recentListings.map((l) => {
                   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+                  const slug = vendor?.slug;
+                  if (!slug) return null;
                   return (
-                    <Link key={l.id} href={`/vendors/${vendor?.slug ?? ""}`}
+                    <Link key={l.id} href={`/vendors/${slug}`}
                       className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-green-200 transition-all">
                       <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
                         {l.images?.[0]
