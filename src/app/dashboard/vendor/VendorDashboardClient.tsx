@@ -111,6 +111,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const can = (f: FeatureKey) => hasFeature(features, f) || isPremium;
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("overview");
+
+  function awardScore(action: "login" | "message" | "listing" | "sale") {
+    fetch("/api/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, vendor_id: vendor.id }) }).catch(() => {});
+  }
   const [crmView, setCrmView] = useState<"board" | "estimates">("board");
   const [estimateContact, setEstimateContact] = useState<any>(null);
   const [showUpgradedToast, setShowUpgradedToast] = useState(
@@ -276,6 +280,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       last_message_preview: text.slice(0, 100),
       buyer_unread: (conv?.buyer_unread ?? 0) + 1,
     }).eq("id", activeConvId);
+    awardScore("message");
   }
 
   async function markInquiryRead(id: string) {
@@ -290,6 +295,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     loadInquiries();
     loadConversations();
     if (isPremium || isAdmin) loadCustomers();
+    awardScore("login");
   }, [loadListings, loadBookings, loadCustomers, loadInquiries, loadConversations, isPremium]);
 
   async function toggleListingActive(id: string, current: boolean) {
@@ -742,7 +748,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           {/* ── ANALYTICS ── */}
           {tab === "analytics" && (
             can("analytics") ? (
-              <AnalyticsTab listings={listings} stats={stats} />
+              <AnalyticsTab listings={listings} stats={stats} vendorId={vendor.id} />
             ) : <PremiumGate feature="Analytics Dashboard" />
           )}
 
@@ -1156,6 +1162,9 @@ function ListingsTab({
     onShowNew(false);
     onRefresh();
     setSaving(false);
+    if (!editingListing) {
+      fetch("/api/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "listing", vendor_id: vendorId }) }).catch(() => {});
+    }
   }
 
   const LISTING_TYPES = [
@@ -1508,30 +1517,124 @@ function ListingsTab({
 }
 
 // ── ANALYTICS TAB ─────────────────────────────────────────────
-function AnalyticsTab({ listings, stats }: { listings: Listing[]; stats: { totalViews: number; totalClicks: number } }) {
-  const conversionRate = stats.totalViews > 0
-    ? ((stats.totalClicks / stats.totalViews) * 100).toFixed(1)
-    : "0.0";
+function RadialProgress({ pct, color, size = 80, stroke = 7 }: { pct: number; color: string; size?: number; stroke?: number }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const dash = (Math.min(pct, 100) / 100) * circ;
+  return (
+    <svg width={size} height={size} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" style={{ transition: "stroke-dasharray 0.6s ease" }} />
+    </svg>
+  );
+}
 
+function AnalyticsTab({ listings, stats, vendorId }: { listings: Listing[]; stats: { totalViews: number; totalClicks: number }; vendorId: string }) {
+  const supabase = createClient();
+  const [localScore, setLocalScore] = useState(0);
+  const [productsSold, setProductsSold] = useState(0);
+
+  useEffect(() => {
+    supabase.from("vendors").select("local_score,products_sold").eq("id", vendorId).single()
+      .then(({ data }) => { if (data) { setLocalScore(data.local_score ?? 0); setProductsSold(data.products_sold ?? 0); } });
+  }, [vendorId]);
+
+  const conversionRate = stats.totalViews > 0 ? ((stats.totalClicks / stats.totalViews) * 100) : 0;
   const topListings = [...listings].sort((a, b) => b.view_count - a.view_count).slice(0, 5);
+  const maxViews = topListings[0]?.view_count || 1;
+
+  // Score tier labels
+  const scoreTier = localScore >= 500 ? "🏆 Legend" : localScore >= 200 ? "🌟 Pro" : localScore >= 50 ? "🌱 Active" : "🆕 Getting Started";
+  const nextMilestone = localScore >= 500 ? 500 : localScore >= 200 ? 500 : localScore >= 50 ? 200 : 50;
+  const scorePct = Math.min((localScore / nextMilestone) * 100, 100);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Analytics</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        {[
-          { label: "Total Profile Views", value: stats.totalViews.toLocaleString(), icon: "👁️", sub: "All time" },
-          { label: "Total Clicks", value: stats.totalClicks.toLocaleString(), icon: "🖱️", sub: "Across all listings" },
-          { label: "Click-Through Rate", value: `${conversionRate}%`, icon: "📈", sub: "Clicks ÷ Views" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <span className="text-2xl">{s.icon}</span>
-            <p className="text-3xl font-bold text-gray-900 mt-2">{s.value}</p>
-            <p className="text-sm font-medium text-gray-700 mt-0.5">{s.label}</p>
-            <p className="text-xs text-gray-400">{s.sub}</p>
+      {/* Local Score + Products Sold hero row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        {/* Local Score */}
+        <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 rounded-2xl p-5 flex items-center gap-5">
+          <div className="relative shrink-0">
+            <RadialProgress pct={scorePct} color="#16a34a" size={88} stroke={8} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xl font-black text-green-700">{localScore}</span>
+            </div>
           </div>
-        ))}
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-0.5">Your Local Score</p>
+            <p className="text-2xl font-black text-gray-900">{localScore} pts</p>
+            <p className="text-sm font-semibold text-gray-600">{scoreTier}</p>
+            <p className="text-xs text-gray-400 mt-1">{nextMilestone - localScore > 0 ? `${nextMilestone - localScore} pts to next level` : "Max level reached!"}</p>
+            <p className="text-xs text-gray-400 mt-1">Login · Message · List = 1pt &nbsp;|&nbsp; Sale = 2pts</p>
+          </div>
+        </div>
+
+        {/* Products Sold */}
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-5 flex items-center gap-5">
+          <div className="relative shrink-0">
+            <RadialProgress pct={Math.min(productsSold * 5, 100)} color="#d97706" size={88} stroke={8} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xl font-black text-amber-700">{productsSold}</span>
+            </div>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-0.5">Products Sold</p>
+            <p className="text-2xl font-black text-gray-900">{productsSold}</p>
+            <p className="text-sm text-gray-500">Successful transactions</p>
+            <p className="text-xs text-gray-400 mt-1">Each sale awards +2 Local Score pts</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {/* Views circle */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="relative shrink-0">
+            <RadialProgress pct={Math.min((stats.totalViews / 500) * 100, 100)} color="#6366f1" size={64} stroke={6} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-bold text-indigo-600">👁️</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{stats.totalViews.toLocaleString()}</p>
+            <p className="text-sm font-medium text-gray-700">Profile Views</p>
+            <p className="text-xs text-gray-400">All time</p>
+          </div>
+        </div>
+
+        {/* Clicks circle */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="relative shrink-0">
+            <RadialProgress pct={Math.min((stats.totalClicks / 200) * 100, 100)} color="#0ea5e9" size={64} stroke={6} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-bold text-sky-500">🖱️</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{stats.totalClicks.toLocaleString()}</p>
+            <p className="text-sm font-medium text-gray-700">Total Clicks</p>
+            <p className="text-xs text-gray-400">Across all listings</p>
+          </div>
+        </div>
+
+        {/* CTR circle */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
+          <div className="relative shrink-0">
+            <RadialProgress pct={Math.min(conversionRate, 100)} color="#10b981" size={64} stroke={6} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-xs font-bold text-emerald-600">📈</span>
+            </div>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-gray-900">{conversionRate.toFixed(1)}%</p>
+            <p className="text-sm font-medium text-gray-700">Click-Through Rate</p>
+            <p className="text-xs text-gray-400">Clicks ÷ Views</p>
+          </div>
+        </div>
       </div>
 
       {/* Top performing listings */}
@@ -1546,7 +1649,6 @@ function AnalyticsTab({ listings, stats }: { listings: Listing[]; stats: { total
           <div className="divide-y divide-gray-50">
             {topListings.map((l, i) => {
               const ctr = l.view_count > 0 ? ((l.click_count / l.view_count) * 100).toFixed(1) : "0.0";
-              const maxViews = topListings[0]?.view_count || 1;
               return (
                 <div key={l.id} className="px-6 py-4">
                   <div className="flex items-center justify-between mb-2">
@@ -1563,10 +1665,8 @@ function AnalyticsTab({ listings, stats }: { listings: Listing[]; stats: { total
                     </div>
                   </div>
                   <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-green-400 rounded-full"
-                      style={{ width: `${(l.view_count / maxViews) * 100}%` }}
-                    />
+                    <div className="h-full bg-green-400 rounded-full transition-all duration-500"
+                      style={{ width: `${(l.view_count / maxViews) * 100}%` }} />
                   </div>
                 </div>
               );
