@@ -19,7 +19,7 @@ export default async function VendorDashboardPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("local_bucks, full_name, referral_code, email, avatar_url, phone, is_admin")
+    .select("local_bucks, full_name, referral_code, email, avatar_url, phone, is_admin, id")
     .eq("id", user.id)
     .single();
 

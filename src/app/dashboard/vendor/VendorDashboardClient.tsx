@@ -11,7 +11,7 @@ import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
 import { hasFeature, FeatureKey } from "@/lib/features";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent";
 
 interface Props {
   vendor: {
@@ -33,8 +33,9 @@ interface Props {
     category: string;
     city: string;
     state: string;
+    page_blocks?: any[] | null;
   };
-  profile: { local_bucks: number; full_name: string | null; referral_code: string; email: string; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
+  profile: { local_bucks: number; full_name: string | null; referral_code: string; email?: string | null; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
   isPremium: boolean;
   features: Record<string, boolean>;
   isAdmin: boolean;
@@ -98,6 +99,7 @@ type Customer = {
 const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
   { id: "store", label: "Store Settings", icon: "🏪" },
+  { id: "pagecontent", label: "Page Content", icon: "🖼️" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "referrals", label: "Referrals", icon: "🤝" },
   { id: "notifications", label: "Notifications", icon: "🔔" },
@@ -808,6 +810,14 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             <StoreSettingsTab vendor={vendor} supabase={supabase} />
           )}
 
+          {tab === "pagecontent" && (
+            <div className="p-6 max-w-2xl">
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Page Content</h2>
+              <p className="text-sm text-gray-500 mb-6">Add photo and text sections to your public business page.</p>
+              <PageBlocksEditor vendorId={vendor.id} initialBlocks={Array.isArray(vendor.page_blocks) ? vendor.page_blocks : []} supabase={supabase} />
+            </div>
+          )}
+
           {tab === "messages" && !can("messages") && (
             <PremiumGate feature="Messages" />
           )}
@@ -965,7 +975,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
     {showSettings && profile && (
       <AccountSettingsModal
-        profile={{ id: vendor.user_id, full_name: localProfile.full_name, email: profile.email, avatar_url: localProfile.avatar_url, phone: localProfile.phone }}
+        profile={{ id: vendor.user_id, full_name: localProfile.full_name, email: profile.email ?? "", avatar_url: localProfile.avatar_url, phone: localProfile.phone }}
         onClose={() => setShowSettings(false)}
         onSaved={(updated) => setLocalProfile(updated)}
       />
@@ -2345,6 +2355,184 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       <div className="mt-6 p-4 bg-gray-50 rounded-xl">
         <p className="text-xs text-gray-500">Your public storefront: <a href={`/vendors/${vendor.slug}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline font-medium">/vendors/{vendor.slug}</a></p>
       </div>
+
+    </div>
+  );
+}
+
+/* ─── PAGE BLOCKS EDITOR ─────────────────────────────────────────── */
+type PageBlock = {
+  id: string; image_url: string; text: string;
+  font_size: "sm" | "base" | "lg" | "xl" | "2xl";
+  color: string; bold: boolean;
+  align: "left" | "center" | "right";
+  layout: "image-left" | "image-right" | "image-top" | "image-only";
+};
+
+function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: string; initialBlocks: PageBlock[]; supabase: any }) {
+  const [blocks, setBlocks] = useState<PageBlock[]>(initialBlocks);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  async function uploadImage(blockId: string, file: File) {
+    setUploading(blockId);
+    const ext = file.name.split(".").pop();
+    const path = `${vendorId}/blocks/${blockId}.${ext}`;
+    const { error } = await supabase.storage.from("vendor-logos").upload(path, file, { upsert: true });
+    if (!error) {
+      const url = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
+      setBlocks((prev) => prev.map((b) => b.id === blockId ? { ...b, image_url: url } : b));
+    }
+    setUploading(null);
+  }
+
+  function addBlock() {
+    const id = crypto.randomUUID();
+    setBlocks((prev) => [...prev, { id, image_url: "", text: "", font_size: "lg", color: "#111827", bold: false, align: "left", layout: "image-left" }]);
+  }
+
+  function removeBlock(id: string) { setBlocks((prev) => prev.filter((b) => b.id !== id)); }
+
+  function updateBlock(id: string, patch: Partial<PageBlock>) { setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, ...patch } : b)); }
+
+  function moveBlock(id: string, dir: -1 | 1) {
+    setBlocks((prev) => {
+      const idx = prev.findIndex((b) => b.id === id);
+      if (idx < 0) return prev;
+      const next = [...prev];
+      const swap = idx + dir;
+      if (swap < 0 || swap >= next.length) return prev;
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      return next;
+    });
+  }
+
+  async function saveBlocks() {
+    setSaving(true);
+    await supabase.from("vendors").update({ page_blocks: blocks }).eq("id", vendorId);
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 3000);
+  }
+
+  return (
+    <div className="mt-10 border-t border-gray-100 pt-8">
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">Page Content Blocks</h3>
+          <p className="text-sm text-gray-400 mt-0.5">Add photos with text to your public business page. Drag to reorder.</p>
+        </div>
+        <button onClick={addBlock} className="text-sm bg-gray-900 text-white px-4 py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">+ Add Block</button>
+      </div>
+
+      {blocks.length === 0 && (
+        <div className="border-2 border-dashed border-gray-200 rounded-2xl py-10 text-center text-gray-400 text-sm">
+          No content blocks yet. Add photos and text to make your page stand out.
+        </div>
+      )}
+
+      <div className="space-y-6 mt-4">
+        {blocks.map((block, idx) => (
+          <div key={block.id} className="border border-gray-100 rounded-2xl p-5 bg-gray-50 space-y-4">
+            {/* Header row */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Block {idx + 1}</span>
+              <div className="flex gap-2">
+                {idx > 0 && <button onClick={() => moveBlock(block.id, -1)} className="text-xs text-gray-400 hover:text-gray-700 px-2">↑</button>}
+                {idx < blocks.length - 1 && <button onClick={() => moveBlock(block.id, 1)} className="text-xs text-gray-400 hover:text-gray-700 px-2">↓</button>}
+                <button onClick={() => removeBlock(block.id)} className="text-xs text-red-400 hover:text-red-600 px-2">Remove</button>
+              </div>
+            </div>
+
+            {/* Image upload */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Photo</label>
+              <div
+                onClick={() => fileRefs.current[block.id]?.click()}
+                className="w-full h-40 rounded-xl overflow-hidden bg-white border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center relative"
+              >
+                {block.image_url
+                  ? <img src={block.image_url} alt="" className="w-full h-full object-cover" />
+                  : <span className="text-gray-400 text-sm">{uploading === block.id ? "Uploading..." : "Click to upload photo"}</span>}
+              </div>
+              <input
+                ref={(el) => { fileRefs.current[block.id] = el; }}
+                type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(block.id, f); }}
+              />
+            </div>
+
+            {/* Layout */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Layout</label>
+              <div className="grid grid-cols-4 gap-2">
+                {(["image-left", "image-right", "image-top", "image-only"] as const).map((l) => (
+                  <button key={l} type="button" onClick={() => updateBlock(block.id, { layout: l })}
+                    className={`text-xs py-2 rounded-xl border font-medium transition-colors ${block.layout === l ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>
+                    {l === "image-left" ? "← Photo" : l === "image-right" ? "Photo →" : l === "image-top" ? "Photo ↑" : "Full Photo"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Text (hidden for image-only) */}
+            {block.layout !== "image-only" && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Caption / Text</label>
+                <textarea value={block.text} onChange={(e) => updateBlock(block.id, { text: e.target.value })} rows={3}
+                  placeholder="Add a caption, tagline, or story..." className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+
+                {/* Text style controls */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Size</label>
+                    <select value={block.font_size} onChange={(e) => updateBlock(block.id, { font_size: e.target.value as any })}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                      <option value="sm">Small</option>
+                      <option value="base">Normal</option>
+                      <option value="lg">Large</option>
+                      <option value="xl">X-Large</option>
+                      <option value="2xl">2X-Large</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Color</label>
+                    <div className="flex items-center gap-2">
+                      <input type="color" value={block.color} onChange={(e) => updateBlock(block.id, { color: e.target.value })}
+                        className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
+                      <input type="text" value={block.color} onChange={(e) => updateBlock(block.id, { color: e.target.value })}
+                        className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Align</label>
+                    <select value={block.align} onChange={(e) => updateBlock(block.id, { align: e.target.value as any })}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                      <option value="left">Left</option>
+                      <option value="center">Center</option>
+                      <option value="right">Right</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-400 mb-1">Style</label>
+                    <button type="button" onClick={() => updateBlock(block.id, { bold: !block.bold })}
+                      className={`w-full py-1.5 rounded-lg border text-xs font-bold transition-colors ${block.bold ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>
+                      Bold
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {blocks.length > 0 && (
+        <button onClick={saveBlocks} disabled={saving}
+          className={`mt-6 w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${saved ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}>
+          {saving ? "Saving..." : saved ? "Saved! ✓" : "Save page blocks"}
+        </button>
+      )}
     </div>
   );
 }
