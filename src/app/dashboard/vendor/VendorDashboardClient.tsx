@@ -51,6 +51,7 @@ type Listing = {
   images: string[];
   tags: string[];
   category: string;
+  categories: string[];
   created_at: string;
 };
 
@@ -683,6 +684,7 @@ function ListingsTab({
     title: "", type: "product", price: "", price_label: "", description: "",
     category: "Products", quantity: "", condition: "new", tags: "",
   });
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(["Products"]);
   const [images, setImages] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -700,6 +702,11 @@ function ListingsTab({
         condition: editingListing.condition ?? "new",
         tags: editingListing.tags?.join(", ") ?? "",
       });
+      setSelectedCategories(
+        editingListing.categories?.length
+          ? editingListing.categories
+          : [editingListing.category]
+      );
       setImages(editingListing.images ?? []);
       onShowNew(true);
     }
@@ -752,7 +759,8 @@ function ListingsTab({
       price: form.price ? Number(form.price) : null,
       price_label: form.price_label || null,
       description: form.description || null,
-      category: form.category,
+      category: selectedCategories[0] ?? form.category,
+      categories: selectedCategories,
       quantity: form.quantity ? Number(form.quantity) : null,
       condition: form.type === "product" ? form.condition : null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
@@ -767,6 +775,7 @@ function ListingsTab({
     }
 
     setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "" });
+    setSelectedCategories(["Products"]);
     setImages([]);
     onShowNew(false);
     onRefresh();
@@ -813,15 +822,35 @@ function ListingsTab({
                 {LISTING_TYPES.map((t) => <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
-              <select
-                value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
-              </select>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-2">
+                Categories <span className="text-gray-400 font-normal">(select all that apply)</span>
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {CATEGORIES.map((c) => {
+                  const checked = selectedCategories.includes(c);
+                  return (
+                    <label key={c} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-sm transition-colors ${
+                      checked ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setSelectedCategories((prev) =>
+                            checked ? prev.filter((x) => x !== c) : [...prev, c]
+                          );
+                        }}
+                        className="accent-green-600"
+                      />
+                      {c}
+                    </label>
+                  );
+                })}
+              </div>
+              {selectedCategories.length === 0 && (
+                <p className="text-xs text-red-500 mt-1">Select at least one category.</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Price ($)</label>
@@ -943,7 +972,7 @@ function ListingsTab({
             </button>
             <button
               onClick={saveListing}
-              disabled={!form.title.trim() || saving}
+              disabled={!form.title.trim() || saving || selectedCategories.length === 0}
               className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-40"
             >
               {saving ? "Saving..." : editingListing ? "Save Changes" : "Create Listing"}
