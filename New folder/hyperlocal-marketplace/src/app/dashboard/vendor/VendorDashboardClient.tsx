@@ -34,7 +34,7 @@ interface Props {
     city: string;
     state: string;
   };
-  profile: { local_bucks: number; full_name: string | null; referral_code: string; email: string; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
+  profile: { local_bucks: number; full_name: string | null; referral_code: string; email?: string | null; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
   isPremium: boolean;
   features: Record<string, boolean>;
   isAdmin: boolean;
