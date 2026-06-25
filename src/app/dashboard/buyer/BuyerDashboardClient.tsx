@@ -164,6 +164,20 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               <p className="text-xs text-amber-600 font-medium">🪙 {profile.local_bucks.toLocaleString()} LB</p>
             </div>
           </div>
+
+          {/* Storefront quick-access — shown right under profile if they have one */}
+          {vendorAccount && (
+            <Link
+              href="/dashboard/vendor"
+              className="mt-3 flex items-center gap-2 bg-green-600 text-white px-3 py-2 rounded-xl hover:bg-green-700 transition-colors"
+            >
+              <span className="text-base">🏪</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold truncate">{vendorAccount.business_name}</p>
+                <p className="text-xs text-green-200">Manage Storefront →</p>
+              </div>
+            </Link>
+          )}
         </div>
 
         {/* Nav */}
@@ -189,34 +203,21 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           ))}
         </nav>
 
-        {/* Vendor CTA or storefront link */}
-        <div className="p-4 border-t border-gray-100">
-          <div className="bg-green-50 rounded-xl p-3">
-            {vendorAccount ? (
-              <>
-                <p className="text-xs font-semibold text-green-800 mb-1">🏪 {vendorAccount.business_name}</p>
-                <p className="text-xs text-green-600 mb-2">You also have a storefront</p>
-                <Link
-                  href="/dashboard/vendor"
-                  className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Manage Storefront →
-                </Link>
-              </>
-            ) : (
-              <>
-                <p className="text-xs font-semibold text-green-800 mb-1">Have a business?</p>
-                <p className="text-xs text-green-600 mb-2">List it free on HyperLocal</p>
-                <Link
-                  href="/onboarding/vendor"
-                  className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                  Create Storefront →
-                </Link>
-              </>
-            )}
+        {/* Bottom CTA — only show if no vendor account */}
+        {!vendorAccount && (
+          <div className="p-4 border-t border-gray-100">
+            <div className="bg-green-50 rounded-xl p-3">
+              <p className="text-xs font-semibold text-green-800 mb-1">Have a business?</p>
+              <p className="text-xs text-green-600 mb-2">List it free on HyperLocal</p>
+              <Link
+                href="/onboarding/vendor"
+                className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Create Storefront →
+              </Link>
+            </div>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Main */}
