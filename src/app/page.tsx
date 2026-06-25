@@ -147,7 +147,7 @@ export default function HomePage() {
                   href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
                   className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors"
                 >
-                  My dashboard →
+                  My Local Activity →
                 </Link>
               </>
             ) : (
