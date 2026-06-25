@@ -36,7 +36,7 @@ function SignupForm() {
           role,
           referred_by_code: referralCode,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/callback`,
       },
     });
 
