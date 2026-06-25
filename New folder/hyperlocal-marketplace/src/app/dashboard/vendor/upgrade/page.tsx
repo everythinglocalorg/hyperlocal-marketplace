@@ -7,10 +7,11 @@ import { Suspense } from "react";
 
 const FEATURES = [
   { icon: "📊", title: "Analytics Dashboard", desc: "Track views, clicks, and CTR for every listing in real time." },
-  { icon: "📅", title: "Bookings Manager", desc: "Accept, confirm, and manage customer bookings directly in your dashboard." },
+  { icon: "📅", title: "Estimate & Apt Manager", desc: "Accept, confirm, and manage customer estimates and appointments directly in your dashboard." },
+  { icon: "💬", title: "Customer Messaging", desc: "Receive and reply to messages from buyers directly inside Everything Local." },
   { icon: "👥", title: "Customer CRM", desc: "Auto-populated contact list from completed bookings. Know your regulars." },
   { icon: "🚀", title: "Priority Listing", desc: "Your business appears higher in search results than free vendors." },
-  { icon: "⭐", title: "Premium Badge", desc: "Stand out with a verified premium badge on your storefront." },
+  { icon: "⭐", title: "Local Pro Badge", desc: "Stand out with a Local Pro badge on your storefront — trusted by buyers." },
   { icon: "📦", title: "Unlimited Listings", desc: "Add as many products, services, and menu items as you need." },
 ];
 
@@ -43,7 +44,7 @@ function UpgradePageInner() {
           <Link href="/dashboard/vendor" className="text-gray-500 hover:text-gray-700 text-sm">
             ← Back to Dashboard
           </Link>
-          <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
+          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
           <div className="w-24" />
         </div>
       </header>
@@ -59,13 +60,13 @@ function UpgradePageInner() {
         {/* Hero */}
         <div className="text-center mb-12">
           <span className="inline-block bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full mb-4 tracking-wide uppercase">
-            Go Premium
+            Go Local Pro
           </span>
           <h1 className="text-4xl font-bold text-gray-900 mb-3">
             Grow your local business faster
           </h1>
           <p className="text-gray-500 text-lg max-w-xl mx-auto">
-            Get analytics, bookings, and CRM tools built for local vendors. Cancel anytime.
+            Get messaging, analytics, estimates, and CRM tools built for local vendors. Cancel anytime.
           </p>
         </div>
 
@@ -89,7 +90,7 @@ function UpgradePageInner() {
             <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
               {/* Card header */}
               <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-6 text-white text-center">
-                <p className="text-green-100 text-sm font-medium mb-1">HyperLocal Premium</p>
+                <p className="text-green-100 text-sm font-medium mb-1">Everything Local — Local Pro</p>
                 <div className="flex items-end justify-center gap-1">
                   <span className="text-5xl font-bold">$49</span>
                   <span className="text-green-200 mb-2">/month</span>
@@ -102,10 +103,11 @@ function UpgradePageInner() {
                 <ul className="space-y-3 mb-6">
                   {[
                     "Analytics & insights",
-                    "Booking management",
+                    "Estimate & Apt Manager",
+                    "Customer messaging",
                     "Customer CRM",
                     "Priority search placement",
-                    "Premium badge",
+                    "⭐ Local Pro badge",
                     "Unlimited listings",
                     "Email support",
                   ].map((item) => (
@@ -127,7 +129,7 @@ function UpgradePageInner() {
                   disabled={loading}
                   className="w-full bg-green-600 text-white font-bold py-3.5 rounded-2xl hover:bg-green-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-base"
                 >
-                  {loading ? "Redirecting to checkout..." : "Upgrade to Premium →"}
+                  {loading ? "Redirecting to checkout..." : "Upgrade to Local Pro →"}
                 </button>
 
                 <p className="text-xs text-gray-400 text-center mt-3">

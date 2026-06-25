@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import AccountSettingsModal from "@/components/AccountSettingsModal";
+import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
   id: string;
@@ -51,12 +53,44 @@ type ReferredBy = {
   referral_code: string;
 } | null;
 
+type RecentListing = {
+  id: string;
+  title: string;
+  price: number | null;
+  price_label: string | null;
+  images: string[];
+  type: string;
+  vendor: { business_name: string; slug: string; logo_url: string | null; city: string; state: string } | null;
+};
+
+type NewVendor = {
+  id: string;
+  business_name: string;
+  slug: string;
+  logo_url: string | null;
+  banner_url: string | null;
+  category: string;
+  city: string;
+  state: string;
+  rating: number;
+  review_count: number;
+  tier: string;
+  is_verified: boolean;
+};
+
+type VendorAccount = { id: string; business_name: string; slug: string } | null;
+
 interface Props {
   profile: Profile;
   bookings: Booking[];
   bucksHistory: BucksTransaction[];
   referrals: Referral[];
   referredBy: ReferredBy;
+  recentListings: RecentListing[];
+  newVendors: NewVendor[];
+  savedCity: string | null;
+  savedState: string | null;
+  vendorAccount: VendorAccount;
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -85,9 +119,71 @@ const STATUS_ICONS: Record<string, string> = {
   cancelled: "✕",
 };
 
-export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy }: Props) {
-  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals">("overview");
+export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount }: Props) {
+  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages">("overview");
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [localProfile, setLocalProfile] = useState({ full_name: profile.full_name, avatar_url: profile.avatar_url, phone: profile.phone });
+  const supabase = createClient();
+  const [conversations, setBuyerConversations] = useState<any[]>([]);
+  const [activeConvId, setActiveBuyerConvId] = useState<string | null>(null);
+  const [convMessages, setBuyerConvMessages] = useState<any[]>([]);
+  const [msgBody, setBuyerMsgBody] = useState("");
+  const [unreadMsgCount, setBuyerUnreadCount] = useState(0);
+
+  useEffect(() => {
+    supabase
+      .from("conversations")
+      .select("*, vendor:vendors(id, business_name, user_id)")
+      .eq("buyer_id", profile.id)
+      .order("last_message_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) {
+          setBuyerConversations(data);
+          setBuyerUnreadCount(data.reduce((n: number, c: any) => n + (c.buyer_unread ?? 0), 0));
+        }
+      });
+  }, [profile.id]);
+
+  async function openBuyerConversation(convId: string) {
+    setActiveBuyerConvId(convId);
+    const { data } = await supabase.from("messages").select("*").eq("conversation_id", convId).order("created_at", { ascending: true });
+    setBuyerConvMessages(data ?? []);
+    await supabase.from("conversations").update({ buyer_unread: 0 }).eq("id", convId);
+    setBuyerConversations((prev) => prev.map((c) => c.id === convId ? { ...c, buyer_unread: 0 } : c));
+    setBuyerUnreadCount((n) => Math.max(0, n - (conversations.find((c) => c.id === convId)?.buyer_unread ?? 0)));
+  }
+
+  async function sendBuyerMessage() {
+    if (!msgBody.trim() || !activeConvId) return;
+    const text = msgBody.trim();
+    setBuyerMsgBody("");
+    const conv = conversations.find((c) => c.id === activeConvId);
+    const optimistic = { id: `tmp-${Date.now()}`, sender_id: profile.id, body: text, created_at: new Date().toISOString() };
+    setBuyerConvMessages((prev) => [...prev, optimistic]);
+    const res = await fetch("/api/messages/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation_id: activeConvId, body: text }),
+    });
+    const { message: inserted } = await res.json();
+    if (inserted) setBuyerConvMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
+    await supabase.from("conversations").update({
+      vendor_unread: (conv?.vendor_unread ?? 0) + 1,
+    }).eq("id", activeConvId);
+  }
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
   const signupLink = `${appUrl}/signup?ref=${profile.referral_code}`;
@@ -105,6 +201,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
 
   const NAV = [
     { id: "overview", label: "Overview", icon: "🏠" },
+    { id: "messages", label: "Messages", icon: "💬" },
     { id: "bookings", label: "Bookings", icon: "📅" },
     { id: "bucks", label: "Local Bucks", icon: "🪙" },
     { id: "referrals", label: "Referrals", icon: "🤝" },
@@ -115,23 +212,63 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
       {/* Sidebar */}
       <aside className="w-60 shrink-0 bg-white border-r border-gray-100 flex flex-col">
         <div className="p-5 border-b border-gray-100">
-          <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
-          <p className="text-xs text-gray-400 mt-0.5">Buyer Dashboard</p>
+          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
         </div>
 
         {/* Profile summary */}
         <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
-              {profile.avatar_url
-                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                : (profile.full_name ?? profile.email)[0].toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{profile.full_name ?? "Buyer"}</p>
-              <p className="text-xs text-amber-600 font-medium">🪙 {profile.local_bucks.toLocaleString()} LB</p>
-            </div>
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-full flex items-center gap-3 rounded-xl hover:bg-gray-50 p-1 transition-colors text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
+                {localProfile.avatar_url
+                  ? <img src={localProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : (localProfile.full_name ?? profile.email)[0].toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 truncate">{localProfile.full_name ?? "Account"}</p>
+                <p className="text-xs text-amber-600 font-medium">🪙 {profile.local_bucks.toLocaleString()} LB</p>
+              </div>
+              <span className="text-gray-400 text-xs">{showDropdown ? "▲" : "▼"}</span>
+            </button>
+
+            {showDropdown && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-20 overflow-hidden">
+                <button
+                  onClick={() => { setShowSettings(true); setShowDropdown(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span>⚙️</span> Account Settings
+                </button>
+                <button
+                  onClick={async () => {
+                    const { createClient: cc } = await import("@/lib/supabase/client");
+                    await cc().auth.signOut();
+                    window.location.href = "/";
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
+                >
+                  <span>🚪</span> Sign out
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Storefront quick-access — shown right under profile if they have one */}
+          {vendorAccount && (
+            <Link
+              href="/dashboard/vendor"
+              className="mt-3 flex items-center gap-2 bg-green-600 text-white px-3 py-2 rounded-xl hover:bg-green-700 transition-colors"
+            >
+              <span className="text-base">🏪</span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold truncate">{vendorAccount.business_name}</p>
+                <p className="text-xs text-green-200">Manage Storefront →</p>
+              </div>
+            </Link>
+          )}
         </div>
 
         {/* Nav */}
@@ -148,6 +285,9 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
             >
               <span>{item.icon}</span>
               {item.label}
+              {item.id === "messages" && unreadMsgCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadMsgCount}</span>
+              )}
               {item.id === "bookings" && pendingBookings > 0 && (
                 <span className="ml-auto bg-yellow-400 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
                   {pendingBookings}
@@ -157,19 +297,33 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           ))}
         </nav>
 
-        {/* Vendor CTA */}
-        <div className="p-4 border-t border-gray-100">
-          <div className="bg-green-50 rounded-xl p-3">
-            <p className="text-xs font-semibold text-green-800 mb-1">Have a business?</p>
-            <p className="text-xs text-green-600 mb-2">List it free on HyperLocal</p>
+        {/* Bottom CTA — only show if no vendor account */}
+        {!vendorAccount && (
+          <div className="p-4 border-t border-gray-100">
+            <div className="bg-green-50 rounded-xl p-3">
+              <p className="text-xs font-semibold text-green-800 mb-1">Have a business?</p>
+              <p className="text-xs text-green-600 mb-2">List it free on Everything Local</p>
+              <Link
+                href="/onboarding/vendor"
+                className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Create Storefront →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Neighbor Board */}
+        {savedCity && (
+          <div className="p-3 border-t border-gray-800">
             <Link
-              href="/onboarding/vendor"
-              className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+              href={`/community/${savedCity.toLowerCase().replace(/\s+/g, "-")}-${(savedState || "mn").toLowerCase()}`}
+              className="w-full flex items-center justify-center gap-2 bg-white/10 border border-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-white/20 transition-colors"
             >
-              Create Storefront →
+              🏘️ Ask Your Neighbors
             </Link>
           </div>
-        </div>
+        )}
       </aside>
 
       {/* Main */}
@@ -264,6 +418,84 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               </div>
             )}
 
+            {/* Recent listings in their neighborhood */}
+            {savedCity && recentListings.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Recent listings near {savedCity}</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">New items just added in your neighborhood</p>
+                  </div>
+                  <Link href={`/search?city=${encodeURIComponent(savedCity + (savedState ? ", " + savedState : ""))}`}
+                    className="text-xs text-green-600 hover:underline">View all →</Link>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-gray-100">
+                  {recentListings.map((l) => {
+                    const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+                    return (
+                      <Link key={l.id} href={`/vendors/${vendor?.slug ?? ""}`}
+                        className="bg-white p-4 hover:bg-green-50 transition-colors">
+                        <div className="w-full h-28 rounded-xl bg-gray-100 overflow-hidden mb-3">
+                          {l.images?.[0]
+                            ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-3xl text-gray-300">
+                                {({ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" } as Record<string,string>)[l.type] ?? "📦"}
+                              </div>}
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{l.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{vendor?.business_name}</p>
+                        {l.price !== null && (
+                          <p className="text-sm font-bold text-green-700 mt-1">${l.price.toFixed(2)}</p>
+                        )}
+                        {l.price === null && l.price_label && (
+                          <p className="text-xs text-gray-500 mt-1">{l.price_label}</p>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* New vendors in their neighborhood */}
+            {savedCity && newVendors.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">New businesses in {savedCity}</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Recently joined your community</p>
+                  </div>
+                  <Link href={`/search?city=${encodeURIComponent(savedCity + (savedState ? ", " + savedState : ""))}`}
+                    className="text-xs text-green-600 hover:underline">View all →</Link>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {newVendors.map((v) => (
+                    <Link key={v.id} href={`/vendors/${v.slug}`}
+                      className="flex items-center gap-4 px-6 py-4 hover:bg-green-50 transition-colors">
+                      <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
+                        {v.logo_url
+                          ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" />
+                          : v.business_name[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{v.business_name}</p>
+                        <p className="text-xs text-gray-400">{v.category}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {v.rating > 0 && (
+                          <p className="text-xs font-medium text-gray-700">★ {v.rating.toFixed(1)}</p>
+                        )}
+                        {v.tier === "premium" && (
+                          <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">⭐ Premium</span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+
             {/* Discover CTA */}
             <div className="bg-green-600 rounded-2xl p-6 text-white flex items-center justify-between gap-4">
               <div>
@@ -271,11 +503,78 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                 <p className="text-green-100 text-sm mt-1">Plumbers, restaurants, fresh produce, and more.</p>
               </div>
               <Link
-                href="/search"
+                href={savedCity ? `/search?city=${encodeURIComponent(savedCity + (savedState ? ", " + savedState : ""))}` : "/search"}
                 className="shrink-0 bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm"
               >
                 Search now →
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* ── MESSAGES ── */}
+        {tab === "messages" && (
+          <div className="flex gap-4 h-[600px]">
+            {/* Conversation list */}
+            <div className="w-64 shrink-0 border border-gray-100 rounded-2xl overflow-y-auto bg-white">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-900 text-sm">💬 My Messages</h2>
+              </div>
+              {conversations.length === 0 ? (
+                <div className="p-6 text-center text-gray-400 text-sm">No messages yet.<br/>Click "Message" on any listing to start.</div>
+              ) : (
+                conversations.map((c) => {
+                  const v = Array.isArray(c.vendor) ? c.vendor[0] : c.vendor;
+                  return (
+                    <button key={c.id} onClick={() => openBuyerConversation(c.id)}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-green-50 transition-colors ${activeConvId === c.id ? "bg-green-50" : ""}`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{v?.business_name ?? "Vendor"}</p>
+                        {c.buyer_unread > 0 && (
+                          <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">{c.buyer_unread}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 truncate mt-0.5">{c.listing_title}</p>
+                      {c.last_message_preview && (
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{c.last_message_preview}</p>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Chat thread */}
+            <div className="flex-1 border border-gray-100 rounded-2xl flex flex-col bg-white overflow-hidden">
+              {!activeConvId ? (
+                <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Select a conversation</div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                    {convMessages.map((m) => {
+                      const isMe = m.sender_id === profile.id;
+                      return (
+                        <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-green-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}>
+                            <p>{m.body}</p>
+                            <p className={`text-xs mt-1 ${isMe ? "text-green-200" : "text-gray-400"}`}>
+                              {new Date(m.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+                    <input type="text" value={msgBody} onChange={(e) => setBuyerMsgBody(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") sendBuyerMessage(); }}
+                      placeholder="Type a reply..."
+                      className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    <button onClick={sendBuyerMessage} disabled={!msgBody.trim()}
+                      className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-40 transition-colors">Send</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -562,6 +861,14 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           </div>
         )}
       </main>
+
+      {showSettings && (
+        <AccountSettingsModal
+          profile={{ ...profile, full_name: localProfile.full_name, avatar_url: localProfile.avatar_url, phone: localProfile.phone }}
+          onClose={() => setShowSettings(false)}
+          onSaved={(updated) => setLocalProfile(updated)}
+        />
+      )}
     </div>
   );
 }

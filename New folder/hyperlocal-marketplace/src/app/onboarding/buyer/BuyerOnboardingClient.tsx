@@ -132,7 +132,7 @@ export default function BuyerOnboardingClient() {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
-          <span className="text-xl font-bold text-green-600">HyperLocal</span>
+          <span className="text-xl font-bold text-green-600">Everything Local</span>
           <span className="text-sm text-gray-500">Step {step} of {STEPS.length}</span>
         </div>
       </div>

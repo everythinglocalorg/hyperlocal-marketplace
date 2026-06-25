@@ -35,6 +35,17 @@ export default function LoginPage() {
       .eq("id", data.user.id)
       .single();
 
+    // Sync neighborhood from localStorage to profile
+    const savedNeighborhood = localStorage.getItem("hl_neighborhood");
+    if (savedNeighborhood) {
+      try {
+        const { city, state } = JSON.parse(savedNeighborhood);
+        if (city && state) {
+          await supabase.from("profiles").update({ city, state }).eq("id", data.user.id);
+        }
+      } catch {}
+    }
+
     if (profile?.role === "vendor") {
       const { data: vendor } = await supabase
         .from("vendors")
@@ -53,7 +64,7 @@ export default function LoginPage() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      options: { redirectTo: `${window.location.origin}/callback` },
     });
     if (error) setError(error.message);
     setLoading(false);
@@ -123,7 +134,7 @@ export default function LoginPage() {
     <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-        <p className="text-gray-500 text-sm mt-1">Log in to your HyperLocal account</p>
+        <p className="text-gray-500 text-sm mt-1">Log in to your Everything Local account</p>
       </div>
 
       {/* Google OAuth */}

@@ -170,7 +170,7 @@ export default function VendorOnboardingClient() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <span className="text-xl font-bold text-green-600">HyperLocal</span>
+          <span className="text-xl font-bold text-green-600">Everything Local</span>
           <span className="text-sm text-gray-500">Step {step} of {STEPS.length}</span>
         </div>
       </div>
@@ -472,7 +472,7 @@ export default function VendorOnboardingClient() {
                     />
                   </div>
                   <p className="text-xs text-gray-400 mt-1">
-                    Got a website? Link it. But many vendors find their HyperLocal storefront replaces it entirely — it's free, mobile-ready, and gets you found locally.
+                    Got a website? Link it. But many vendors find their Everything Local storefront replaces it entirely — it's free, mobile-ready, and gets you found locally.
                   </p>
                 </div>
 
