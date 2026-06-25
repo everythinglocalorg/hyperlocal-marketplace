@@ -98,12 +98,15 @@ export default function SearchClient() {
     try {
       // Listing-mode: show individual listing cards filtered by type or category
       if (listingMode) {
+        // Read directly from URL to avoid stale state
+        const urlType = searchParams.get("type") ?? "";
+        const urlCategory = searchParams.get("category") ?? "";
         let q = supabase
           .from("listings")
           .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
           .eq("is_active", true);
-        if (listingType) q = q.eq("type", listingType);
-        else if (category) q = q.ilike("category", `%${category.split(" ")[0]}%`);
+        if (urlType) q = q.eq("type", urlType);
+        else if (urlCategory) q = q.eq("category", urlCategory);
         q = q.order("created_at", { ascending: false }).limit(40);
         const { data } = await q;
         setListingResults(data ?? []);
