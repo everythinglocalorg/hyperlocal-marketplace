@@ -116,8 +116,17 @@ export default function HomePage() {
   }
 
   function searchCategory(category: string) {
+    const LABEL_MAP: Record<string, string> = {
+      "Restaurants": "Restaurants & Food",
+      "Events": "Events & Rentals",
+      "Clothing": "Clothing & Accessories",
+      "Auto": "Auto & Transportation",
+      "Sports": "Sports & Outdoors",
+      "Pets": "Pet Services",
+      "Childcare": "Childcare & Education",
+    };
     const params = new URLSearchParams();
-    params.set("category", category);
+    params.set("category", LABEL_MAP[category] ?? category);
     const saved = localStorage.getItem("hl_neighborhood");
     if (saved) {
       try {
@@ -173,6 +182,33 @@ export default function HomePage() {
       </header>
 
       <main className="flex-1">
+        {/* Category bar */}
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-2 flex flex-wrap justify-center gap-1">
+            {[
+              ["Services & Trades","🔧"],
+              ["Thrift Sales","🏷️"],
+              ["Rentals","🏠"],
+              ["Restaurants","🍽️"],
+              ["Products","📦"],
+              ["Health & Beauty","💆"],
+              ["Home & Garden","🏡"],
+              ["Events","🎉"],
+              ["Clothing","👗"],
+              ["Auto","🚗"],
+              ["Arts & Crafts","🎨"],
+              ["Sports","⚽"],
+              ["Pets","🐾"],
+              ["Childcare","📚"],
+            ].map(([label, icon]) => (
+              <button key={label} onClick={() => searchCategory(label)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 border border-gray-200 hover:border-green-300 transition-colors whitespace-nowrap">
+                <span>{icon}</span>{label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Hero */}
         <section className="bg-gradient-to-br from-green-50 via-white to-emerald-50 pt-20 pb-16 px-4">
           <div className="max-w-3xl mx-auto text-center">
@@ -300,38 +336,6 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Category bar */}
-        <div className="bg-white border-b border-gray-100 sticky top-16 z-40 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex gap-1 overflow-x-auto scrollbar-hide py-2">
-              {[
-                "Services & Trades",
-                "Thrift Sales",
-                "Rentals",
-                "Restaurants & Food",
-                "Products",
-                "Health & Beauty",
-                "Home & Garden",
-                "Events & Rentals",
-                "Clothing & Accessories",
-                "Auto & Transportation",
-                "Arts & Crafts",
-                "Sports & Outdoors",
-                "Pet Services",
-                "Childcare & Education",
-              ].map((category) => (
-                <button
-                  key={category}
-                  onClick={() => searchCategory(category)}
-                  className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-colors whitespace-nowrap"
-                >
-                  <span>{CATEGORY_ICONS[category] ?? "🏪"}</span>
-                  {category}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
 
         {/* Ask Your Neighbors */}
         <section className="py-14 px-4 bg-gray-50 border-t border-gray-100">
