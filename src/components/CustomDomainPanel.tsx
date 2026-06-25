@@ -117,12 +117,22 @@ export default function CustomDomainPanel({
           Use your own web address (like <span className="font-medium">yourbusiness.com</span>)
           instead of the default link. Available on Local Pro.
         </p>
-        <a
-          href="/dashboard/vendor/upgrade"
-          className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
-        >
-          Upgrade to Local Pro
-        </a>
+        <div className="flex items-center gap-4">
+          <a
+            href="/dashboard/vendor/upgrade"
+            className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+          >
+            Upgrade to Local Pro
+          </a>
+          <a
+            href="/connect-domain"
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm text-green-600 hover:underline"
+          >
+            How it works
+          </a>
+        </div>
       </div>
     );
   }
@@ -133,10 +143,19 @@ export default function CustomDomainPanel({
         <Globe className="w-5 h-5 text-green-600" />
         <h3 className="font-semibold text-gray-900">Custom domain</h3>
       </div>
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-gray-500 mb-2">
         Point your own web address at your {appName} page. Your default link
         (<span className="font-mono text-gray-600">/vendors/{slug}</span>) keeps working too.
       </p>
+      <a
+        href="/connect-domain"
+        target="_blank"
+        rel="noreferrer"
+        className="inline-flex items-center gap-1 text-sm text-green-600 hover:underline mb-4"
+      >
+        📖 Step-by-step guide
+      </a>
+
 
       {/* No domain yet: input */}
       {!domain && (
