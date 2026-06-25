@@ -9,6 +9,7 @@ import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
+import { hasFeature, FeatureKey } from "@/lib/features";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages";
 
@@ -33,8 +34,10 @@ interface Props {
     city: string;
     state: string;
   };
-  profile: { local_bucks: number; full_name: string | null; referral_code: string; email: string; avatar_url: string | null; phone: string | null } | null;
+  profile: { local_bucks: number; full_name: string | null; referral_code: string; email: string; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
   isPremium: boolean;
+  features: Record<string, boolean>;
+  isAdmin: boolean;
   connectEnabled: boolean;
   connectAccountId: string | null;
 }
@@ -104,7 +107,8 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
 ];
 
-export default function VendorDashboardClient({ vendor, profile, isPremium, connectEnabled, connectAccountId }: Props) {
+export default function VendorDashboardClient({ vendor, profile, isPremium, features, isAdmin, connectEnabled, connectAccountId }: Props) {
+  const can = (f: FeatureKey) => hasFeature(features, f) || isPremium;
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [crmView, setCrmView] = useState<"board" | "estimates">("board");
@@ -285,7 +289,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
     loadBookings();
     loadInquiries();
     loadConversations();
-    if (isPremium) loadCustomers();
+    if (isPremium || isAdmin) loadCustomers();
   }, [loadListings, loadBookings, loadCustomers, loadInquiries, loadConversations, isPremium]);
 
   async function toggleListingActive(id: string, current: boolean) {
@@ -356,10 +360,17 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 text-sm truncate">{vendor.business_name}</p>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPremium ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                {isPremium ? "⭐ Local Pro" : "Free"}
+                {isAdmin ? "👑 Admin" : isPremium ? "⭐ Local Pro" : "Free"}
               </span>
             </div>
           </div>
+
+          {/* Admin link */}
+          {isAdmin && (
+            <a href="/admin" className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-semibold hover:bg-amber-100 transition-colors mb-1">
+              👑 Admin Panel
+            </a>
+          )}
 
           {/* Personal account dropdown */}
           <div className="relative" ref={dropdownRef}>
@@ -438,10 +449,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
               {item.id === "notifications" && unreadCount > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadCount}</span>
               )}
-              {item.premiumOnly && !isPremium && item.id !== "messages" && (
+              {item.premiumOnly && !can(item.id as FeatureKey) && item.id !== "messages" && (
                 <span className="ml-auto text-xs text-gray-300">🔒</span>
               )}
-              {item.id === "messages" && !isPremium && unreadMsgCount === 0 && (
+              {item.id === "messages" && !can("messages") && unreadMsgCount === 0 && (
                 <span className="ml-auto text-xs text-gray-300">🔒</span>
               )}
               {item.id === "bookings" && stats.pendingBookings > 0 && (
@@ -730,14 +741,14 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
 
           {/* ── ANALYTICS ── */}
           {tab === "analytics" && (
-            isPremium ? (
+            can("analytics") ? (
               <AnalyticsTab listings={listings} stats={stats} />
             ) : <PremiumGate feature="Analytics Dashboard" />
           )}
 
           {/* ── BOOKINGS ── */}
           {tab === "bookings" && (
-            isPremium ? (
+            can("bookings") ? (
               <BookingsTab
                 bookings={bookings}
                 loading={loadingBookings}
@@ -748,7 +759,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
 
           {/* ── CRM ── */}
           {tab === "crm" && (
-            isPremium ? (
+            can("crm") ? (
               <div className="flex flex-col h-full">
                 <div className="flex gap-3 mb-5">
                   <button
@@ -792,10 +803,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
             <StoreSettingsTab vendor={vendor} supabase={supabase} />
           )}
 
-          {tab === "messages" && !isPremium && (
+          {tab === "messages" && !can("messages") && (
             <PremiumGate feature="Messages" />
           )}
-          {tab === "messages" && isPremium && (
+          {tab === "messages" && can("messages") && (
             <div className="flex gap-4 h-[600px]">
               {/* Conversation list */}
               <div className="w-64 shrink-0 border border-gray-100 rounded-2xl overflow-y-auto bg-white">
