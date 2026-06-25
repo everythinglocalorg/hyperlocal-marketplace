@@ -159,17 +159,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const [loadingListings, setLoadingListings] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
   const [localProfile, setLocalProfile] = useState({ full_name: profile?.full_name ?? null, avatar_url: profile?.avatar_url ?? null, phone: profile?.phone ?? null });
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [showNewListing, setShowNewListing] = useState(false);
 
@@ -373,39 +363,6 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-gray-100">
           <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
-
-          {/* Personal account dropdown — top-left of the dashboard */}
-          <div className="relative mt-3" ref={dropdownRef}>
-            <button
-              onClick={() => setShowDropdown(!showDropdown)}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors text-left"
-            >
-              <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 text-xs shrink-0 overflow-hidden">
-                {localProfile.avatar_url
-                  ? <img src={localProfile.avatar_url} alt="" className="w-full h-full object-cover" />
-                  : (localProfile.full_name ?? profile?.email ?? "?")[0].toUpperCase()}
-              </div>
-              <p className="text-xs text-gray-600 truncate flex-1">{localProfile.full_name ?? profile?.email}</p>
-              <span className="text-gray-400 text-xs">{showDropdown ? "▲" : "▼"}</span>
-            </button>
-
-            {showDropdown && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-20 overflow-hidden">
-                <button
-                  onClick={() => { setShowSettings(true); setShowDropdown(false); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  <span>⚙️</span> Account Settings
-                </button>
-                <button
-                  onClick={async () => { await supabase.auth.signOut(); window.location.href = "/"; }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
-                >
-                  <span>🚪</span> Sign out
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Vendor info */}
@@ -500,6 +457,18 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           >
             <span>🔗</span> View public profile
           </Link>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+          >
+            <span>⚙️</span> Account Settings
+          </button>
+          <button
+            onClick={async () => { await supabase.auth.signOut(); window.location.href = "/"; }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+          >
+            <span>🚪</span> Sign out
+          </button>
           {isPremium ? (
             <button
               onClick={manageSubscription}
