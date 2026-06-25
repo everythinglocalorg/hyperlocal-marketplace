@@ -128,6 +128,50 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
   const FONT_SIZE_MAP: Record<string, string> = { sm: "text-sm", base: "text-base", lg: "text-lg", xl: "text-xl", "2xl": "text-2xl" };
 
+  const renderPhotoBlocks = () => (
+    <div>
+      {pageBlocks.map((block) => {
+        const textClass = [
+          FONT_SIZE_MAP[block.font_size] ?? "text-base",
+          block.bold ? "font-bold" : "font-normal",
+          block.align === "center" ? "text-center" : block.align === "right" ? "text-right" : "text-left",
+        ].join(" ");
+
+        if (block.layout === "image-only") {
+          return (
+            <div key={block.id} className="w-full mb-6">
+              <img src={block.image_url} alt="" className="w-full max-h-[500px] object-cover rounded-2xl" />
+              {block.text && <p className={`mt-4 ${textClass}`} style={{ color: block.color }}>{block.text}</p>}
+            </div>
+          );
+        }
+
+        if (block.layout === "image-top") {
+          return (
+            <div key={block.id} className="py-6">
+              <img src={block.image_url} alt="" className="w-full rounded-2xl max-h-96 object-cover mb-5" />
+              {block.text && <p className={textClass} style={{ color: block.color }}>{block.text}</p>}
+            </div>
+          );
+        }
+
+        const isLeft = block.layout === "image-left";
+        return (
+          <div key={block.id} className={`py-8 flex flex-col ${isLeft ? "sm:flex-row" : "sm:flex-row-reverse"} gap-6 sm:gap-10 items-center`}>
+            <div className="w-full sm:w-1/2 shrink-0">
+              <img src={block.image_url} alt="" className="w-full rounded-2xl object-cover max-h-80 sm:max-h-96" />
+            </div>
+            {block.text && (
+              <div className="flex-1">
+                <p className={textClass} style={{ color: block.color }}>{block.text}</p>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (<>
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
@@ -219,55 +263,6 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
       </div>
 
-      {/* ── PHOTO BLOCKS ──────────────────────────────────────────── */}
-      {pageBlocks.length > 0 && (
-        <div>
-          {pageBlocks.map((block) => {
-            const textClass = [
-              FONT_SIZE_MAP[block.font_size] ?? "text-base",
-              block.bold ? "font-bold" : "font-normal",
-              block.align === "center" ? "text-center" : block.align === "right" ? "text-right" : "text-left",
-            ].join(" ");
-
-            if (block.layout === "image-only") {
-              return (
-                <div key={block.id} className="w-full">
-                  <img src={block.image_url} alt="" className="w-full max-h-[500px] object-cover" />
-                  {block.text && (
-                    <div className="max-w-6xl mx-auto px-4 py-4">
-                      <p className={textClass} style={{ color: block.color }}>{block.text}</p>
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            if (block.layout === "image-top") {
-              return (
-                <div key={block.id} className="max-w-6xl mx-auto px-4 py-8">
-                  <img src={block.image_url} alt="" className="w-full rounded-2xl max-h-96 object-cover mb-5" />
-                  {block.text && <p className={textClass} style={{ color: block.color }}>{block.text}</p>}
-                </div>
-              );
-            }
-
-            const isLeft = block.layout === "image-left";
-            return (
-              <div key={block.id} className={`max-w-6xl mx-auto px-4 py-10 flex flex-col ${isLeft ? "sm:flex-row" : "sm:flex-row-reverse"} gap-6 sm:gap-10 items-center`}>
-                <div className="w-full sm:w-1/2 shrink-0">
-                  <img src={block.image_url} alt="" className="w-full rounded-2xl object-cover max-h-80 sm:max-h-96" />
-                </div>
-                {block.text && (
-                  <div className="flex-1">
-                    <p className={textClass} style={{ color: block.color }}>{block.text}</p>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* ── NAV TABS ──────────────────────────────────────────────── */}
       <div className="sticky top-14 z-30 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4">
@@ -295,24 +290,54 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               <p className="text-gray-500 text-base leading-relaxed mb-8 max-w-2xl">{vendor.description}</p>
             )}
             {orderedListings.length === 0 ? (
-              <div className="text-center py-20 text-gray-300">
-                <p className="text-5xl mb-4">📦</p>
-                <p className="text-gray-400">No listings yet.</p>
-              </div>
+              <>
+                {pageBlocks.length > 0 && renderPhotoBlocks()}
+                {pageBlocks.length === 0 && (
+                  <div className="text-center py-20 text-gray-300">
+                    <p className="text-5xl mb-4">📦</p>
+                    <p className="text-gray-400">No listings yet.</p>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {orderedListings.map((listing) => (
-                  <ListingCard
-                    key={listing.id}
-                    listing={listing}
-                    vendorName={vendor.business_name}
-                    vendorPhone={vendor.phone}
-                    onBook={() => openBooking(listing)}
-                    onBuy={() => setBuyListing(listing)}
-                    onMessage={() => setMessageListing(listing)}
-                  />
-                ))}
-              </div>
+              <>
+                {/* Top 3 products */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {orderedListings.slice(0, 3).map((listing) => (
+                    <ListingCard
+                      key={listing.id}
+                      listing={listing}
+                      vendorName={vendor.business_name}
+                      vendorPhone={vendor.phone}
+                      onBook={() => openBooking(listing)}
+                      onBuy={() => setBuyListing(listing)}
+                      onMessage={() => setMessageListing(listing)}
+                    />
+                  ))}
+                </div>
+
+                {/* Photo content blocks, shown under the top 3 products */}
+                {pageBlocks.length > 0 && (
+                  <div className="my-10 border-y border-gray-100">{renderPhotoBlocks()}</div>
+                )}
+
+                {/* Remaining products */}
+                {orderedListings.length > 3 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+                    {orderedListings.slice(3).map((listing) => (
+                      <ListingCard
+                        key={listing.id}
+                        listing={listing}
+                        vendorName={vendor.business_name}
+                        vendorPhone={vendor.phone}
+                        onBook={() => openBooking(listing)}
+                        onBuy={() => setBuyListing(listing)}
+                        onMessage={() => setMessageListing(listing)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
