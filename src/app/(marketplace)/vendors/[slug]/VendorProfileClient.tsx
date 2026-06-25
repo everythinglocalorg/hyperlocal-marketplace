@@ -158,33 +158,35 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       {/* ── HERO ──────────────────────────────────────────────────── */}
       <section className="relative h-72 sm:h-96 overflow-hidden bg-gray-900">
         {vendor.banner_url ? (
-          <img src={vendor.banner_url} alt="" className="w-full h-full object-cover opacity-80" />
+          <img src={vendor.banner_url} alt="" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-green-800 to-emerald-600" />
         )}
-        {/* Dark overlay for text legibility */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        {/* Layered overlays: an even dim across the whole banner + a strong
+            bottom scrim behind the text so the name is legible over any image */}
+        <div className="absolute inset-0 bg-black/35" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
 
         {/* Hero content */}
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 pb-6 sm:pb-8">
           <div className="max-w-6xl mx-auto flex items-end gap-4">
             {/* Logo */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-white/30 bg-white/10 backdrop-blur overflow-hidden shrink-0 shadow-lg">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-white/40 bg-white/10 backdrop-blur overflow-hidden shrink-0 shadow-xl ring-1 ring-black/20">
               {vendor.logo_url
                 ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
                 : <div className="w-full h-full flex items-center justify-center text-3xl sm:text-4xl font-bold text-white">{vendor.business_name[0]}</div>}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-1">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
                 {vendor.is_verified && <span className="text-xs bg-white/20 backdrop-blur text-white px-2 py-0.5 rounded-full font-semibold">✓ Verified</span>}
-                {vendor.tier === "premium" && <span className="text-xs bg-amber-400/90 text-white px-2 py-0.5 rounded-full font-semibold">⭐ Local Pro</span>}
-                {inboundRefCode && <span className="text-xs bg-amber-400/90 text-white px-2 py-0.5 rounded-full font-semibold">🪙 Referred</span>}
+                {vendor.tier === "premium" && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">⭐ Local Pro</span>}
+                {inboundRefCode && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">🪙 Referred</span>}
               </div>
-              <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight drop-shadow">{vendor.business_name}</h1>
-              <p className="text-white/70 text-sm mt-1">{vendor.category} · {vendor.city}, {vendor.state}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="flex">{stars(vendor.rating, "text-sm")}</div>
-                {vendor.review_count > 0 && <span className="text-white/70 text-xs">{vendor.rating.toFixed(1)} ({vendor.review_count} reviews)</span>}
+              <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.9)" }}>{vendor.business_name}</h1>
+              <p className="text-white/90 text-sm mt-1.5 font-medium" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>{vendor.category} · {vendor.city}, {vendor.state}</p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.8))" }}>{stars(vendor.rating, "text-sm")}</div>
+                {vendor.review_count > 0 && <span className="text-white/90 text-xs font-medium" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>{vendor.rating.toFixed(1)} ({vendor.review_count} reviews)</span>}
               </div>
             </div>
           </div>
