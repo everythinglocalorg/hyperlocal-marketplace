@@ -317,7 +317,7 @@ export default function SearchClient() {
             {CATEGORIES.map((c) => (
               <button
                 key={c}
-                onClick={() => { setCategory(c); updateURL({ category: c, mode: "", type: "" }); }}
+                onClick={() => { setCategory(c); updateURL({ category: c, mode: "listings", type: "" }); }}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   category === c ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
