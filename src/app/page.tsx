@@ -434,6 +434,7 @@ export default function HomePage() {
             <ul className="space-y-2">
               <li><Link href="/signup?role=vendor" className="hover:text-green-600">Get Started</Link></li>
               <li><Link href="/pricing" className="hover:text-green-600">Pricing</Link></li>
+              <li><Link href="/local-bucks" className="hover:text-green-600">🪙 Local Bucks</Link></li>
               <li><Link href="/dashboard/vendor" className="hover:text-green-600">Vendor Dashboard</Link></li>
             </ul>
           </div>
