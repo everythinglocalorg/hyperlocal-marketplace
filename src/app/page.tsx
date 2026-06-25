@@ -136,14 +136,6 @@ export default function HomePage() {
             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">BETA</span>
           </Link>
           <div className="flex items-center gap-3">
-            {localCity && (
-              <Link
-                href={`/community/${localCity.toLowerCase().replace(/\s+/g, "-")}-mn`}
-                className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
-              >
-                🏘️ Ask Your Neighbors
-              </Link>
-            )}
             {!authChecked ? (
               <div className="w-24 h-8 bg-gray-100 rounded-full animate-pulse" />
             ) : user ? (
@@ -151,6 +143,14 @@ export default function HomePage() {
                 <span className="text-sm text-gray-600 hidden sm:block">
                   Hi, <strong>{user.name?.split(" ")[0]}</strong>
                 </span>
+                {localCity && (
+                  <Link
+                    href={`/community/${localCity.toLowerCase().replace(/\s+/g, "-")}-mn`}
+                    className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
+                  >
+                    🏘️ Ask Your Neighbors
+                  </Link>
+                )}
                 <Link
                   href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
                   className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors"
