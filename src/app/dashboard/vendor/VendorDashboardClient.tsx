@@ -7,7 +7,7 @@ import AccountSettingsModal from "@/components/AccountSettingsModal";
 import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store";
 
 interface Props {
   vendor: {
@@ -20,6 +20,11 @@ interface Props {
     review_count: number;
     local_bucks_earned: number;
     logo_url: string | null;
+    banner_url: string | null;
+    description: string | null;
+    phone: string | null;
+    website: string | null;
+    address: string | null;
     is_verified: boolean;
     category: string;
     city: string;
@@ -71,6 +76,7 @@ type Customer = {
 
 const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
+  { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
   { id: "bookings", label: "Bookings", icon: "📅", premiumOnly: true },
@@ -302,7 +308,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
           </div>
 
           <button
-            onClick={() => setTab("listings")}
+            onClick={() => setTab("store")}
             className="mt-2 w-full flex items-center justify-center gap-2 bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
             🏪 Manage My Store
@@ -641,6 +647,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
               referralCode={profile?.referral_code ?? ""}
               businessName={vendor.business_name}
             />
+          )}
+
+          {tab === "store" && (
+            <StoreSettingsTab vendor={vendor} supabase={supabase} />
           )}
         </div>
       </main>
@@ -1486,6 +1496,147 @@ function ReferralsTab({ userId, referralCode, businessName }: {
             })}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ── STORE SETTINGS TAB ────────────────────────────────────────
+const CATEGORIES_LIST = [
+  "Products","Services & Trades","Restaurants & Food","Events & Rentals",
+  "Health & Beauty","Home & Garden","Clothing & Accessories","Arts & Crafts",
+  "Sports & Outdoors","Auto & Transportation","Pet Services","Childcare & Education",
+];
+
+function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) {
+  const [businessName, setBusinessName] = useState(vendor.business_name ?? "");
+  const [description, setDescription] = useState(vendor.description ?? "");
+  const [category, setCategory] = useState(vendor.category ?? "");
+  const [phone, setPhone] = useState(vendor.phone ?? "");
+  const [website, setWebsite] = useState(vendor.website ?? "");
+  const [address, setAddress] = useState(vendor.address ?? "");
+  const [city, setCity] = useState(vendor.city ?? "");
+  const [vendorState, setVendorState] = useState(vendor.state ?? "");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(vendor.logo_url);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+  const [bannerPreview, setBannerPreview] = useState<string | null>(vendor.banner_url);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const logoRef = useRef<HTMLInputElement>(null);
+  const bannerRef = useRef<HTMLInputElement>(null);
+
+  function onLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setLogoFile(f); setLogoPreview(URL.createObjectURL(f));
+  }
+  function onBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    setBannerFile(f); setBannerPreview(URL.createObjectURL(f));
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true); setError(null);
+    let logoUrl = vendor.logo_url;
+    let bannerUrl = vendor.banner_url;
+    if (logoFile) {
+      const ext = logoFile.name.split(".").pop();
+      const { error: err } = await supabase.storage.from("vendor-logos").upload(`${vendor.id}/logo.${ext}`, logoFile, { upsert: true });
+      if (err) { setError("Logo upload failed: " + err.message); setSaving(false); return; }
+      logoUrl = supabase.storage.from("vendor-logos").getPublicUrl(`${vendor.id}/logo.${ext}`).data.publicUrl;
+    }
+    if (bannerFile) {
+      const ext = bannerFile.name.split(".").pop();
+      const { error: err } = await supabase.storage.from("vendor-banners").upload(`${vendor.id}/banner.${ext}`, bannerFile, { upsert: true });
+      if (err) { setError("Banner upload failed: " + err.message); setSaving(false); return; }
+      bannerUrl = supabase.storage.from("vendor-banners").getPublicUrl(`${vendor.id}/banner.${ext}`).data.publicUrl;
+    }
+    const { error: updateErr } = await supabase.from("vendors").update({
+      business_name: businessName.trim(),
+      description: description.trim() || null,
+      category,
+      phone: phone.trim() || null,
+      website: website.trim() || null,
+      address: address.trim() || null,
+      city: city.trim(),
+      state: vendorState.trim(),
+      logo_url: logoUrl,
+      banner_url: bannerUrl,
+    }).eq("id", vendor.id);
+    if (updateErr) { setError(updateErr.message); } else { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+    setSaving(false);
+  }
+
+  return (
+    <div className="p-6 max-w-2xl">
+      <h2 className="text-xl font-bold text-gray-900 mb-1">Store Settings</h2>
+      <p className="text-sm text-gray-500 mb-6">Edit your public storefront — changes are live immediately.</p>
+      <form onSubmit={handleSave} className="space-y-6">
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Banner photo</label>
+          <div onClick={() => bannerRef.current?.click()} className="w-full h-32 rounded-2xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center">
+            {bannerPreview ? <img src={bannerPreview} alt="" className="w-full h-full object-cover" /> : <span className="text-gray-400 text-sm">Click to upload banner (1200x300 recommended)</span>}
+          </div>
+          <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={onBannerChange} />
+        </div>
+        <div className="flex items-center gap-4">
+          <div onClick={() => logoRef.current?.click()} className="w-20 h-20 rounded-2xl bg-green-100 flex items-center justify-center font-bold text-2xl text-green-700 overflow-hidden cursor-pointer ring-2 ring-green-100 hover:ring-green-400 transition-all shrink-0">
+            {logoPreview ? <img src={logoPreview} alt="" className="w-full h-full object-cover" /> : businessName[0]}
+          </div>
+          <div>
+            <button type="button" onClick={() => logoRef.current?.click()} className="text-sm text-green-600 font-medium hover:underline">Change logo</button>
+            <p className="text-xs text-gray-400 mt-0.5">Square image, at least 200x200px</p>
+          </div>
+          <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={onLogoChange} />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Business name</label>
+          <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} required className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Tell customers what makes your business special..." className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
+            <option value="">Select a category</option>
+            {CATEGORIES_LIST.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">City</label>
+            <input type="text" value={city} onChange={(e) => setCity(e.target.value)} placeholder="Eau Claire" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">State</label>
+            <input type="text" value={vendorState} onChange={(e) => setVendorState(e.target.value)} placeholder="WI" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Street address <span className="text-gray-400 font-normal">(optional)</span></label>
+          <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Phone <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(715) 555-0000" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Website <span className="text-gray-400 font-normal">(optional)</span></label>
+            <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourbusiness.com" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          </div>
+        </div>
+        {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">{error}</p>}
+        <button type="submit" disabled={saving} className={`w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${saved ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}>
+          {saving ? "Saving..." : saved ? "Saved!" : "Save store settings"}
+        </button>
+      </form>
+      <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+        <p className="text-xs text-gray-500">Your public storefront: <a href={`/vendors/${vendor.slug}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline font-medium">/vendors/{vendor.slug}</a></p>
       </div>
     </div>
   );
