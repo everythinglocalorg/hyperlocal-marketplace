@@ -160,13 +160,15 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
     const text = msgBody.trim();
     setBuyerMsgBody("");
     const conv = conversations.find((c) => c.id === activeConvId);
-    await supabase.from("messages").insert({ conversation_id: activeConvId, sender_id: profile.id, body: text });
+    const optimistic = { id: `tmp-${Date.now()}`, sender_id: profile.id, body: text, created_at: new Date().toISOString() };
+    setBuyerConvMessages((prev) => [...prev, optimistic]);
+    const { data: inserted } = await supabase.from("messages").insert({ conversation_id: activeConvId, sender_id: profile.id, body: text }).select("*").single();
+    if (inserted) setBuyerConvMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: text.slice(0, 100),
       vendor_unread: (conv?.vendor_unread ?? 0) + 1,
     }).eq("id", activeConvId);
-    setBuyerConvMessages((prev) => [...prev, { id: Date.now().toString(), sender_id: profile.id, body: text, created_at: new Date().toISOString() }]);
   }
   const dropdownRef = useRef<HTMLDivElement>(null);
 

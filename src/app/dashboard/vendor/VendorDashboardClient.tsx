@@ -255,17 +255,19 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
     const text = msgBody.trim();
     setMsgBody("");
     const conv = conversations.find((c) => c.id === activeConvId);
-    await supabase.from("messages").insert({
+    const optimistic = { id: `tmp-${Date.now()}`, sender_id: vendor.user_id, body: text, created_at: new Date().toISOString() };
+    setConvMessages((prev) => [...prev, optimistic]);
+    const { data: inserted } = await supabase.from("messages").insert({
       conversation_id: activeConvId,
       sender_id: vendor.user_id,
       body: text,
-    });
+    }).select("*").single();
+    if (inserted) setConvMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: text.slice(0, 100),
       buyer_unread: (conv?.buyer_unread ?? 0) + 1,
     }).eq("id", activeConvId);
-    setConvMessages((prev) => [...prev, { id: Date.now().toString(), sender_id: vendor.user_id, body: text, created_at: new Date().toISOString() }]);
   }
 
   async function markInquiryRead(id: string) {

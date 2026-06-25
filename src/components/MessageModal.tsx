@@ -94,16 +94,33 @@ export default function MessageModal({ listing, vendor, currentUser, onClose }: 
     setSending(true);
     const text = body.trim();
     setBody("");
-    await supabase.from("messages").insert({
+
+    // Optimistically add message to UI immediately
+    const optimistic = {
+      id: `tmp-${Date.now()}`,
+      sender_id: currentUser.id,
+      body: text,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setTimeout(scrollToBottom, 50);
+
+    const { data: inserted } = await supabase.from("messages").insert({
       conversation_id: conversationId,
       sender_id: currentUser.id,
       body: text,
-    });
-    // Update conversation preview
+    }).select("*").single();
+
+    // Replace optimistic with real record
+    if (inserted) {
+      setMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
+    }
+
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: text.slice(0, 100),
     }).eq("id", conversationId);
+
     setSending(false);
   }
 
