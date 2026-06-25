@@ -148,12 +148,12 @@ export default function CommunityBoardClient({
       id, title, body, type, city, state, created_at,
       author:profiles!user_id(id, full_name, avatar_url),
       tagged_vendor:vendors(id, business_name, slug, logo_url),
-      response_count:community_responses(count),
-      highfive_count:community_post_highfives(count)
+      response_count:community_responses(count)
     `).single();
     if (!error && data) {
-      setPosts((prev) => [data as any, ...prev]);
-      setHighfiveCounts((prev) => ({ ...prev, [(data as any).id]: 0 }));
+      const newPost = { ...data, highfive_count: [{ count: 0 }] } as any;
+      setPosts((prev) => [newPost, ...prev]);
+      setHighfiveCounts((prev) => ({ ...prev, [newPost.id]: 0 }));
       setTitle(""); setBody(""); setType("general"); setTaggedVendorId(""); setVendorSearch("");
       setShowForm(false);
     }
