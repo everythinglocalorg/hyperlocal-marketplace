@@ -148,7 +148,6 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
       <aside className="w-60 shrink-0 bg-white border-r border-gray-100 flex flex-col">
         <div className="p-5 border-b border-gray-100">
           <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
-          <p className="text-xs text-gray-400 mt-0.5">Buyer Dashboard</p>
         </div>
 
         {/* Profile summary */}

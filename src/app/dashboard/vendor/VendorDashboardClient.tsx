@@ -227,7 +227,6 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
       <aside className="w-64 bg-white border-r border-gray-100 flex flex-col min-h-screen sticky top-0">
         <div className="p-6 border-b border-gray-100">
           <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
-          <p className="text-xs text-gray-400 mt-0.5">Vendor Dashboard</p>
         </div>
 
         {/* Vendor info */}
