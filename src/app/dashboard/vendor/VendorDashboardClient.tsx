@@ -319,7 +319,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
               href={`/community/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
               className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-green-300 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-50 transition-colors"
             >
-              🏘️ Neighbor Board
+              🏘️ Ask Your Neighbors
             </Link>
           )}
         </div>

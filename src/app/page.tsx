@@ -141,7 +141,7 @@ export default function HomePage() {
                 href={`/community/${localCity.toLowerCase().replace(/\s+/g, "-")}-mn`}
                 className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
               >
-                🏘️ Neighbor Board
+                🏘️ Ask Your Neighbors
               </Link>
             )}
             {!authChecked ? (

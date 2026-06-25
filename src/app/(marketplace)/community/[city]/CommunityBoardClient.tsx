@@ -251,6 +251,10 @@ export default function CommunityBoardClient({
 
       <div className="max-w-2xl mx-auto px-4 py-6">
 
+        <h1 className="text-2xl font-bold text-gray-900 mb-5">
+          What's Happening in {cityName}
+        </h1>
+
         {/* Inline composer */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5">
           {currentUser ? (
