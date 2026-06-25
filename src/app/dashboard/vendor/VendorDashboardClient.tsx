@@ -95,10 +95,10 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
-  { id: "bookings", label: "Bookings", icon: "📅", premiumOnly: true },
+  { id: "bookings", label: "Estimate & Apt Manager", icon: "📅", premiumOnly: true },
   { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
   { id: "referrals", label: "Referrals", icon: "🤝" },
-  { id: "messages", label: "Messages", icon: "💬" },
+  { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
   { id: "notifications", label: "Notifications", icon: "🔔" },
 ];
 
@@ -352,7 +352,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 text-sm truncate">{vendor.business_name}</p>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPremium ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                {isPremium ? "⭐ Premium" : "Free"}
+                {isPremium ? "⭐ Local Pro" : "Free"}
               </span>
             </div>
           </div>
@@ -434,7 +434,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
               {item.id === "notifications" && unreadCount > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadCount}</span>
               )}
-              {item.premiumOnly && !isPremium && (
+              {item.premiumOnly && !isPremium && item.id !== "messages" && (
+                <span className="ml-auto text-xs text-gray-300">🔒</span>
+              )}
+              {item.id === "messages" && !isPremium && unreadMsgCount === 0 && (
                 <span className="ml-auto text-xs text-gray-300">🔒</span>
               )}
               {item.id === "bookings" && stats.pendingBookings > 0 && (
@@ -467,7 +470,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
               href="/dashboard/vendor/upgrade"
               className="mt-2 flex items-center justify-center gap-2 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-green-700 transition-colors"
             >
-              ⭐ Upgrade to Premium
+              ⭐ Upgrade to Local Pro
             </Link>
           )}
 
@@ -512,8 +515,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
               <div className="flex items-center gap-3">
                 <span className="text-2xl">🎉</span>
                 <div>
-                  <p className="font-semibold text-green-800">Welcome to Premium!</p>
-                  <p className="text-sm text-green-600">Analytics, bookings, and CRM are now unlocked.</p>
+                  <p className="font-semibold text-green-800">Welcome to Local Pro!</p>
+                  <p className="text-sm text-green-600">Analytics, estimates, messages, and CRM are now unlocked.</p>
                 </div>
               </div>
               <button onClick={() => setShowUpgradedToast(false)} className="text-green-400 hover:text-green-600 text-lg">✕</button>
@@ -758,7 +761,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
             <StoreSettingsTab vendor={vendor} supabase={supabase} />
           )}
 
-          {tab === "messages" && (
+          {tab === "messages" && !isPremium && (
+            <PremiumGate feature="Messages" />
+          )}
+          {tab === "messages" && isPremium && (
             <div className="flex gap-4 h-[600px]">
               {/* Conversation list */}
               <div className="w-64 shrink-0 border border-gray-100 rounded-2xl overflow-y-auto bg-white">

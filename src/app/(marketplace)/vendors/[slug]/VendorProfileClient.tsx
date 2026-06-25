@@ -269,7 +269,7 @@ export default function VendorProfileClient({
             )}
             {vendor.tier === "premium" && (
               <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-semibold border border-amber-200">
-                🏅 Founding Member
+                ⭐ Local Pro
               </span>
             )}
           </div>
