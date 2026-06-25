@@ -122,6 +122,17 @@ const STATUS_ICONS: Record<string, string> = {
 export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount }: Props) {
   const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages">("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tabStack, setTabStack] = useState<typeof tab[]>([]);
+  const goToTab = (t: typeof tab) => {
+    setTabStack((s) => (t === tab ? s : [...s, tab]));
+    setTab(t);
+    setSidebarOpen(false);
+  };
+  const goBack = () => setTabStack((s) => {
+    if (!s.length) return s;
+    setTab(s[s.length - 1]);
+    return s.slice(0, -1);
+  });
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -282,7 +293,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           {NAV.map((item) => (
             <button
               key={item.id}
-              onClick={() => { setTab(item.id); setSidebarOpen(false); }}
+              onClick={() => goToTab(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
                 tab === item.id
                   ? "bg-green-50 text-green-700 font-semibold"
@@ -345,6 +356,14 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
         </div>
         <div className="p-4 sm:p-8">
 
+        {/* Internal back button — appears once you've navigated between tabs */}
+        {tabStack.length > 0 && (
+          <button onClick={goBack} className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-700 font-medium transition-colors">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            Back
+          </button>
+        )}
+
         {/* ── OVERVIEW ── */}
         {tab === "overview" && (
           <div>
@@ -380,7 +399,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                   <p className="text-amber-100 text-sm mt-1">Local Bucks</p>
                 </div>
                 <button
-                  onClick={() => setTab("bucks")}
+                  onClick={() => goToTab("bucks")}
                   className="text-xs bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-full transition-colors"
                 >
                   View history →
@@ -407,7 +426,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                   <h2 className="font-semibold text-gray-900">Recent Bookings</h2>
-                  <button onClick={() => setTab("bookings")} className="text-xs text-green-600 hover:underline">
+                  <button onClick={() => goToTab("bookings")} className="text-xs text-green-600 hover:underline">
                     View all →
                   </button>
                 </div>

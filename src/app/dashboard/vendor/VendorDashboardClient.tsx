@@ -114,6 +114,17 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [tabStack, setTabStack] = useState<Tab[]>([]);
+  const goToTab = (t: Tab) => {
+    setTabStack((s) => (t === tab ? s : [...s, tab]));
+    setTab(t);
+    setSidebarOpen(false);
+  };
+  const goBack = () => setTabStack((s) => {
+    if (!s.length) return s;
+    setTab(s[s.length - 1]);
+    return s.slice(0, -1);
+  });
 
   function awardScore(action: "login" | "message" | "listing" | "sale") {
     fetch("/api/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, vendor_id: vendor.id }) }).catch(() => {});
@@ -427,7 +438,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           </div>
 
           <button
-            onClick={() => setTab("store")}
+            onClick={() => goToTab("store")}
             className="mt-2 w-full flex items-center justify-center gap-2 bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
             🏪 Manage My Store
@@ -447,7 +458,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           {NAV.map((item) => (
             <button
               key={item.id}
-              onClick={() => { setTab(item.id); setSidebarOpen(false); }}
+              onClick={() => goToTab(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors mb-1 ${
                 tab === item.id
                   ? "bg-green-50 text-green-700"
@@ -546,6 +557,14 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
         </div>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
+          {/* Internal back button — appears once you've navigated between tabs */}
+          {tabStack.length > 0 && (
+            <button onClick={goBack} className="mb-4 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-green-700 font-medium transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              Back
+            </button>
+          )}
+
           {/* Upgrade success toast */}
           {showUpgradedToast && (
             <div className="mb-6 bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center justify-between gap-4">
@@ -595,7 +614,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   <p className="text-gray-500 text-sm mt-0.5">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
                 </div>
                 <button
-                  onClick={() => { setTab("listings"); setShowNewListing(true); }}
+                  onClick={() => { goToTab("listings"); setShowNewListing(true); }}
                   className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
                 >
                   + Add Listing
@@ -683,7 +702,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
                   <h2 className="font-semibold text-gray-900">Recent Listings</h2>
-                  <button onClick={() => setTab("listings")} className="text-sm text-green-600 hover:underline">
+                  <button onClick={() => goToTab("listings")} className="text-sm text-green-600 hover:underline">
                     View all →
                   </button>
                 </div>
@@ -691,7 +710,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   <div className="text-center py-12">
                     <p className="text-gray-400 text-sm mb-4">No listings yet.</p>
                     <button
-                      onClick={() => { setTab("listings"); setShowNewListing(true); }}
+                      onClick={() => { goToTab("listings"); setShowNewListing(true); }}
                       className="text-sm text-green-600 font-medium hover:underline"
                     >
                       Add your first listing →
