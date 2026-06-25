@@ -113,6 +113,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const can = (f: FeatureKey) => hasFeature(features, f) || isPremium;
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   function awardScore(action: "login" | "message" | "listing" | "sale") {
     fetch("/api/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, vendor_id: vendor.id }) }).catch(() => {});
@@ -349,8 +350,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   return (
     <>
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-100 flex flex-col min-h-screen sticky top-0">
+      {/* Mobile backdrop */}
+      {sidebarOpen && (
+        <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-40 lg:hidden" />
+      )}
+
+      {/* Sidebar — off-canvas drawer on mobile, fixed sidebar on desktop */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-gray-100">
           <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
         </div>
@@ -441,7 +447,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           {NAV.map((item) => (
             <button
               key={item.id}
-              onClick={() => setTab(item.id)}
+              onClick={() => { setTab(item.id); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors mb-1 ${
                 tab === item.id
                   ? "bg-green-50 text-green-700"
@@ -528,8 +534,17 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+      <main className="flex-1 overflow-auto min-w-0">
+        {/* Mobile top bar with hamburger */}
+        <div className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-100 px-4 h-14 flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="p-2 -ml-2 text-gray-700 hover:text-green-700">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <span className="font-bold text-green-600">Everything Local</span>
+        </div>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
           {/* Upgrade success toast */}
           {showUpgradedToast && (
