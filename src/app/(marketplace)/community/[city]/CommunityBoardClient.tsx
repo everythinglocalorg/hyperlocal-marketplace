@@ -119,8 +119,12 @@ export default function CommunityBoardClient({
   // ── Admin Delete ──────────────────────────────────────────────
   async function adminDeletePost(postId: string) {
     if (!confirm("Delete this post and all its replies?")) return;
-    await supabase.from("community_posts").update({ is_active: false }).eq("id", postId);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
+    const { error } = await supabase.from("community_posts").delete().eq("id", postId);
+    if (!error) {
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } else {
+      alert("Could not delete post. Please try again.");
+    }
   }
 
   async function adminDeleteResponse(postId: string, responseId: string) {
