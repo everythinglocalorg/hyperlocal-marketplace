@@ -1,70 +1,61 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
+import RentalBookingModal from "@/components/rental/RentalBookingModal";
+import BuyNowModal from "@/components/BuyNowModal";
+import MessageModal from "@/components/MessageModal";
+
+const BUY_NOW_CATEGORIES = [
+  "Products", "Clothing & Accessories", "Auto & Transportation",
+  "Health & Wellness", "Arts & Crafts", "Home & Garden",
+  "Sports & Outdoors", "Childcare & Education",
+];
+
+type PageBlock = {
+  id: string;
+  image_url: string;
+  text: string;
+  font_size: "sm" | "base" | "lg" | "xl" | "2xl";
+  color: string;
+  bold: boolean;
+  align: "left" | "center" | "right";
+  layout: "image-left" | "image-right" | "image-top" | "image-only";
+};
 
 type Vendor = {
-  id: string;
-  business_name: string;
-  slug: string;
-  description: string | null;
-  category: string;
-  city: string;
-  state: string;
-  zip_code: string;
-  address: string | null;
-  phone: string | null;
-  website: string | null;
-  logo_url: string | null;
-  banner_url: string | null;
-  tier: string;
-  is_verified: boolean;
-  rating: number;
-  review_count: number;
-  local_bucks_earned: number;
-  service_radius_miles: number;
+  id: string; business_name: string; slug: string; description: string | null;
+  category: string; city: string; state: string; zip_code: string;
+  address: string | null; phone: string | null; website: string | null;
+  logo_url: string | null; banner_url: string | null; tier: string;
+  is_verified: boolean; rating: number; review_count: number;
+  local_bucks_earned: number; service_radius_miles: number;
+  page_blocks?: PageBlock[] | null;
 };
 
 type Listing = {
-  id: string;
-  title: string;
-  description: string | null;
-  type: string;
-  price: number | null;
-  price_label: string | null;
-  condition: string | null;
-  quantity: number | null;
-  images: string[];
-  category: string;
-  tags: string[];
-  is_featured: boolean;
-  view_count: number;
+  id: string; title: string; description: string | null; type: string;
+  price: number | null; price_label: string | null; condition: string | null;
+  quantity: number | null; images: string[]; category: string;
+  tags: string[] | null; is_featured: boolean; view_count: number;
+  waiver_url: string | null; waiver_filename: string | null;
 };
 
 type Review = {
-  id: string;
-  rating: number;
-  comment: string | null;
-  created_at: string;
+  id: string; rating: number; comment: string | null; created_at: string;
   reviewer: { full_name: string | null; avatar_url: string | null } | null;
 };
 
 interface Props {
-  vendor: Vendor;
-  listings: Listing[];
-  reviews: Review[];
-  currentUserId: string | null;
-  currentUserReferralCode: string | null;
-  inboundRefCode: string | null;
+  vendor: Vendor; listings: Listing[]; reviews: Review[];
+  currentUserId: string | null; currentUserReferralCode: string | null; inboundRefCode: string | null;
 }
 
-export default function VendorProfileClient({
-  vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode,
-}: Props) {
+export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode }: Props) {
   const supabase = createClient();
-  const [activeTab, setActiveTab] = useState<"listings" | "reviews" | "about">("listings");
+  const [activeSection, setActiveSection] = useState<"services" | "reviews" | "about">("services");
   const [copied, setCopied] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -73,10 +64,28 @@ export default function VendorProfileClient({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [localReviews, setLocalReviews] = useState<Review[]>(reviews);
+  const [bookingListing, setBookingListing] = useState<Listing | null>(null);
+  const [bookingDurations, setBookingDurations] = useState<any[]>([]);
+  const [buyListing, setBuyListing] = useState<Listing | null>(null);
+  const [messageListing, setMessageListing] = useState<Listing | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
+  const [showMessageModal, setShowMessageModal] = useState(false);
+
+  useEffect(() => {
+    createClient().auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data: profile } = await createClient().from("profiles").select("id, full_name").eq("id", user.id).single();
+      if (profile) setCurrentUser({ ...profile, email: user.email });
+    });
+  }, []);
+
+  async function openBooking(listing: Listing) {
+    const { data: durations } = await supabase.from("rental_durations").select("*").eq("listing_id", listing.id).order("hours");
+    setBookingDurations(durations ?? []);
+    setBookingListing(listing);
+  }
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
-
-  // Shareable link — uses the logged-in user's referral code if available
   const shareLink = currentUserReferralCode
     ? `${appUrl}/vendors/${vendor.slug}?ref=${currentUserReferralCode}`
     : `${appUrl}/vendors/${vendor.slug}`;
@@ -91,38 +100,18 @@ export default function VendorProfileClient({
     if (!currentUserId) return;
     setSubmittingReview(true);
     setReviewError(null);
-
     const { error } = await supabase.from("reviews").insert({
-      vendor_id: vendor.id,
-      reviewer_id: currentUserId,
-      rating: reviewRating,
-      comment: reviewComment || null,
+      vendor_id: vendor.id, reviewer_id: currentUserId,
+      rating: reviewRating, comment: reviewComment || null,
     });
-
     if (error) {
       setReviewError(error.message.includes("unique") ? "You've already reviewed this vendor." : error.message);
     } else {
-      // Award Local Bucks for leaving a review
-      await supabase.rpc("award_local_bucks", {
-        p_user_id: currentUserId,
-        p_amount: 5,
-        p_reason: "leave_review",
-        p_reference_id: vendor.id,
-        p_reference_type: "vendor",
-      });
-
-      setLocalReviews((prev) => [{
-        id: Date.now().toString(),
-        rating: reviewRating,
-        comment: reviewComment || null,
-        created_at: new Date().toISOString(),
-        reviewer: { full_name: "You", avatar_url: null },
-      }, ...prev]);
-
-      setReviewSuccess(true);
-      setShowReviewForm(false);
-      setReviewComment("");
-      setReviewRating(5);
+      try {
+        await supabase.rpc("award_local_bucks", { p_user_id: currentUserId, p_amount: 5, p_reason: "leave_review", p_reference_id: vendor.id, p_reference_type: "vendor" });
+      } catch {}
+      setLocalReviews((prev) => [{ id: Date.now().toString(), rating: reviewRating, comment: reviewComment || null, created_at: new Date().toISOString(), reviewer: { full_name: "You", avatar_url: null } }, ...prev]);
+      setReviewSuccess(true); setShowReviewForm(false); setReviewComment(""); setReviewRating(5);
     }
     setSubmittingReview(false);
   }
@@ -135,263 +124,204 @@ export default function VendorProfileClient({
   const featuredListings = listings.filter((l) => l.is_featured);
   const regularListings = listings.filter((l) => !l.is_featured);
   const orderedListings = [...featuredListings, ...regularListings];
+  const pageBlocks: PageBlock[] = (vendor.page_blocks as PageBlock[]) ?? [];
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Nav bar */}
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/search" className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
-            ← Back to search
-          </Link>
-          <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
-          <div className="flex items-center gap-2">
-            {currentUserId ? (
-              <Link href="/dashboard/vendor" className="text-sm text-gray-500 hover:text-gray-700">Dashboard</Link>
-            ) : (
-              <Link href="/signup" className="text-sm bg-green-600 text-white px-4 py-1.5 rounded-full hover:bg-green-700 transition-colors">
-                Sign up free
-              </Link>
+  const FONT_SIZE_MAP: Record<string, string> = { sm: "text-sm", base: "text-base", lg: "text-lg", xl: "text-xl", "2xl": "text-2xl" };
+
+  return (<>
+    {/* Modals */}
+    {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
+    {showMessageModal && <MessageModal listing={{ id: vendor.id, title: `Contact ${vendor.business_name}` }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
+    {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
+    {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
+
+    <div className="min-h-screen bg-white">
+
+      {/* ── STICKY HEADER ─────────────────────────────────────────── */}
+      <header className="bg-white/90 backdrop-blur border-b border-gray-100 sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
+          <Link href="/search" className="text-gray-400 hover:text-gray-600 text-sm shrink-0">← Back</Link>
+          <p className="font-bold text-gray-900 text-sm truncate">{vendor.business_name}</p>
+          <div className="flex items-center gap-2 shrink-0">
+            {vendor.phone && (
+              <a href={`tel:${vendor.phone}`} className="text-sm bg-green-600 text-white px-4 py-1.5 rounded-full font-semibold hover:bg-green-700 transition-colors">
+                📞 Call
+              </a>
             )}
+            <button onClick={() => setShowMessageModal(true)} className="text-sm border border-gray-200 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:border-green-400 hover:text-green-700 transition-colors">
+              💬 Message
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Banner */}
-      <div className="relative h-56 sm:h-72 bg-gradient-to-br from-green-200 to-emerald-400 overflow-hidden">
-        {vendor.banner_url && (
-          <img src={vendor.banner_url} alt="" className="w-full h-full object-cover" />
+      {/* ── HERO ──────────────────────────────────────────────────── */}
+      <section className="relative h-72 sm:h-96 overflow-hidden bg-gray-900">
+        {vendor.banner_url ? (
+          <img src={vendor.banner_url} alt="" className="w-full h-full object-cover opacity-80" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-green-800 to-emerald-600" />
         )}
-        {/* Inbound referral badge */}
-        {inboundRefCode && (
-          <div className="absolute top-4 right-4 bg-amber-400 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow">
-            🪙 Referred — sign up to earn Local Bucks
-          </div>
-        )}
-      </div>
+        {/* Dark overlay for text legibility */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-      {/* Profile header */}
-      <div className="max-w-5xl mx-auto px-4">
-        <div className="relative -mt-10 mb-4 flex items-end justify-between">
-          {/* Logo */}
-          <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-md bg-white overflow-hidden shrink-0">
-            {vendor.logo_url
-              ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-green-100 flex items-center justify-center text-3xl font-bold text-green-600">{vendor.business_name[0]}</div>}
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-2 pb-1">
-            <button
-              onClick={copyShareLink}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-                copied ? "bg-green-500 text-white border-green-500" : "bg-white border-gray-200 text-gray-600 hover:border-green-400"
-              }`}
-            >
-              {copied ? "✓ Copied!" : "🔗 Share"}
-            </button>
-            {vendor.phone && (
-              <a
-                href={`tel:${vendor.phone}`}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors"
-              >
-                📞 Call
-              </a>
-            )}
+        {/* Hero content */}
+        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 pb-6 sm:pb-8">
+          <div className="max-w-6xl mx-auto flex items-end gap-4">
+            {/* Logo */}
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-white/30 bg-white/10 backdrop-blur overflow-hidden shrink-0 shadow-lg">
+              {vendor.logo_url
+                ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
+                : <div className="w-full h-full flex items-center justify-center text-3xl sm:text-4xl font-bold text-white">{vendor.business_name[0]}</div>}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                {vendor.is_verified && <span className="text-xs bg-white/20 backdrop-blur text-white px-2 py-0.5 rounded-full font-semibold">✓ Verified</span>}
+                {vendor.tier === "premium" && <span className="text-xs bg-amber-400/90 text-white px-2 py-0.5 rounded-full font-semibold">⭐ Local Pro</span>}
+                {inboundRefCode && <span className="text-xs bg-amber-400/90 text-white px-2 py-0.5 rounded-full font-semibold">🪙 Referred</span>}
+              </div>
+              <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight drop-shadow">{vendor.business_name}</h1>
+              <p className="text-white/70 text-sm mt-1">{vendor.category} · {vendor.city}, {vendor.state}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="flex">{stars(vendor.rating, "text-sm")}</div>
+                {vendor.review_count > 0 && <span className="text-white/70 text-xs">{vendor.rating.toFixed(1)} ({vendor.review_count} reviews)</span>}
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* Business info */}
-        <div className="mb-6">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900">{vendor.business_name}</h1>
-            {vendor.is_verified && (
-              <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium border border-blue-100">
-                ✓ Verified
-              </span>
-            )}
-            {vendor.tier === "premium" && (
-              <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium border border-amber-100">
-                ⭐ Premium
-              </span>
-            )}
-          </div>
-
-          <p className="text-gray-500 text-sm mt-1">{vendor.category} · {vendor.city}, {vendor.state}</p>
-
-          {/* Rating */}
-          <div className="flex items-center gap-2 mt-2">
-            <div className="flex">{stars(vendor.rating)}</div>
-            <span className="text-sm font-semibold text-gray-700">
-              {vendor.rating > 0 ? vendor.rating.toFixed(1) : "No reviews yet"}
-            </span>
-            {vendor.review_count > 0 && (
-              <span className="text-sm text-gray-400">({vendor.review_count} reviews)</span>
-            )}
-          </div>
-
-          {/* Meta row */}
-          <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-500">
-            {vendor.address && (
-              <span className="flex items-center gap-1">📍 {vendor.address}, {vendor.city}</span>
-            )}
+      {/* ── CTA BAR ───────────────────────────────────────────────── */}
+      <div className="bg-gray-900 border-t border-white/10">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-3">
             {vendor.phone && (
-              <a href={`tel:${vendor.phone}`} className="flex items-center gap-1 hover:text-green-600">
-                📞 {vendor.phone}
+              <a href={`tel:${vendor.phone}`} className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors">
+                📞 <span>{vendor.phone}</span>
               </a>
+            )}
+            {vendor.address && (
+              <span className="flex items-center gap-2 text-sm text-white/60">
+                📍 {vendor.address}, {vendor.city}
+              </span>
             )}
             {vendor.website && (
-              <a href={vendor.website} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-1 hover:text-green-600 truncate max-w-[200px]">
-                🔗 {vendor.website.replace(/^https?:\/\//, "")}
+              <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors">
+                🌐 {vendor.website.replace(/^https?:\/\//, "")}
               </a>
             )}
-            <span className="flex items-center gap-1">🗺️ Serves {vendor.service_radius_miles} mi radius</span>
           </div>
-
-          {/* Local Bucks earned */}
-          {vendor.local_bucks_earned > 0 && (
-            <div className="mt-3 inline-flex items-center gap-1.5 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-full">
-              <span className="text-amber-500">🪙</span>
-              <span className="text-sm font-medium text-amber-700">
-                {vendor.local_bucks_earned.toLocaleString()} Local Bucks earned
-              </span>
-            </div>
-          )}
+          <button onClick={copyShareLink} className="text-xs text-white/50 hover:text-white/80 transition-colors">
+            {copied ? "✓ Copied!" : "🔗 Share"}
+          </button>
         </div>
+      </div>
 
-        {/* Share CTA for logged-in users */}
-        {currentUserReferralCode && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-amber-800">Share this business & earn 50 Local Bucks</p>
-              <p className="text-xs text-amber-600 mt-0.5">Your unique referral link is already attached when you copy it.</p>
-            </div>
-            <button
-              onClick={copyShareLink}
-              className={`shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${
-                copied ? "bg-green-500 text-white" : "bg-amber-400 text-white hover:bg-amber-500"
-              }`}
-            >
-              {copied ? "Copied! ✓" : "Copy link"}
-            </button>
+      {/* ── PHOTO BLOCKS ──────────────────────────────────────────── */}
+      {pageBlocks.length > 0 && (
+        <div>
+          {pageBlocks.map((block) => {
+            const textClass = [
+              FONT_SIZE_MAP[block.font_size] ?? "text-base",
+              block.bold ? "font-bold" : "font-normal",
+              block.align === "center" ? "text-center" : block.align === "right" ? "text-right" : "text-left",
+            ].join(" ");
+
+            if (block.layout === "image-only") {
+              return (
+                <div key={block.id} className="w-full">
+                  <img src={block.image_url} alt="" className="w-full max-h-[500px] object-cover" />
+                  {block.text && (
+                    <div className="max-w-6xl mx-auto px-4 py-4">
+                      <p className={textClass} style={{ color: block.color }}>{block.text}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            if (block.layout === "image-top") {
+              return (
+                <div key={block.id} className="max-w-6xl mx-auto px-4 py-8">
+                  <img src={block.image_url} alt="" className="w-full rounded-2xl max-h-96 object-cover mb-5" />
+                  {block.text && <p className={textClass} style={{ color: block.color }}>{block.text}</p>}
+                </div>
+              );
+            }
+
+            const isLeft = block.layout === "image-left";
+            return (
+              <div key={block.id} className={`max-w-6xl mx-auto px-4 py-10 flex flex-col ${isLeft ? "sm:flex-row" : "sm:flex-row-reverse"} gap-6 sm:gap-10 items-center`}>
+                <div className="w-full sm:w-1/2 shrink-0">
+                  <img src={block.image_url} alt="" className="w-full rounded-2xl object-cover max-h-80 sm:max-h-96" />
+                </div>
+                {block.text && (
+                  <div className="flex-1">
+                    <p className={textClass} style={{ color: block.color }}>{block.text}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── NAV TABS ──────────────────────────────────────────────── */}
+      <div className="sticky top-14 z-30 bg-white border-b border-gray-100 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex gap-1">
+            {(["services", "reviews", "about"] as const).map((s) => (
+              <button key={s} onClick={() => setActiveSection(s)}
+                className={`px-5 py-3.5 text-sm font-semibold capitalize border-b-2 transition-colors ${
+                  activeSection === s ? "border-green-600 text-green-700" : "border-transparent text-gray-400 hover:text-gray-700"
+                }`}>
+                {s === "services" ? "Services & Products" : s}
+                {s === "services" && listings.length > 0 && <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{listings.length}</span>}
+                {s === "reviews" && localReviews.length > 0 && <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{localReviews.length}</span>}
+              </button>
+            ))}
           </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-200 mb-6">
-          {(["listings", "reviews", "about"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setActiveTab(t)}
-              className={`px-5 py-3 text-sm font-medium capitalize border-b-2 transition-colors ${
-                activeTab === t
-                  ? "border-green-600 text-green-700"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {t}
-              {t === "listings" && listings.length > 0 && (
-                <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
-                  {listings.length}
-                </span>
-              )}
-              {t === "reviews" && localReviews.length > 0 && (
-                <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
-                  {localReviews.length}
-                </span>
-              )}
-            </button>
-          ))}
         </div>
+      </div>
 
-        {/* ── LISTINGS TAB ── */}
-        {activeTab === "listings" && (
-          <div className="pb-12">
+      <div className="max-w-6xl mx-auto px-4 py-10">
+
+        {/* ── SERVICES & PRODUCTS ───────────────────────────────── */}
+        {activeSection === "services" && (
+          <div>
+            {vendor.description && (
+              <p className="text-gray-500 text-base leading-relaxed mb-8 max-w-2xl">{vendor.description}</p>
+            )}
             {orderedListings.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                <p className="text-4xl mb-3">📦</p>
-                <p>No listings yet.</p>
+              <div className="text-center py-20 text-gray-300">
+                <p className="text-5xl mb-4">📦</p>
+                <p className="text-gray-400">No listings yet.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {orderedListings.map((listing) => (
-                  <div key={listing.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                    {/* Image */}
-                    <div className="h-44 bg-gray-100 relative overflow-hidden">
-                      {listing.images?.[0] ? (
-                        <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">
-                          {listing.type === "product" ? "📦" : listing.type === "service" ? "🔧" : listing.type === "restaurant" ? "🍽️" : "🎉"}
-                        </div>
-                      )}
-                      {listing.is_featured && (
-                        <span className="absolute top-2 left-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                          Featured
-                        </span>
-                      )}
-                      {listing.quantity === 0 && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">Out of Stock</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-4">
-                      <h3 className="font-semibold text-gray-900 text-sm leading-snug">{listing.title}</h3>
-                      {listing.description && (
-                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{listing.description}</p>
-                      )}
-
-                      <div className="flex items-center justify-between mt-3">
-                        <div>
-                          {listing.price !== null ? (
-                            <span className="font-bold text-green-700">{formatPrice(listing.price)}</span>
-                          ) : listing.price_label ? (
-                            <span className="text-sm text-gray-600">{listing.price_label}</span>
-                          ) : null}
-                          {listing.condition && (
-                            <span className="ml-2 text-xs text-gray-400 capitalize">{listing.condition}</span>
-                          )}
-                        </div>
-                        {listing.quantity !== null && listing.quantity > 0 && (
-                          <span className="text-xs text-gray-400">{listing.quantity} left</span>
-                        )}
-                      </div>
-
-                      {listing.tags?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {listing.tags.slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{tag}</span>
-                          ))}
-                        </div>
-                      )}
-
-                      {vendor.phone && (
-                        <a
-                          href={`tel:${vendor.phone}`}
-                          className="mt-3 w-full flex items-center justify-center gap-2 bg-green-600 text-white text-sm py-2 rounded-xl hover:bg-green-700 transition-colors font-medium"
-                        >
-                          📞 Contact Vendor
-                        </a>
-                      )}
-                    </div>
-                  </div>
+                  <ListingCard
+                    key={listing.id}
+                    listing={listing}
+                    vendorName={vendor.business_name}
+                    vendorPhone={vendor.phone}
+                    onBook={() => openBooking(listing)}
+                    onBuy={() => setBuyListing(listing)}
+                    onMessage={() => setMessageListing(listing)}
+                  />
                 ))}
               </div>
             )}
           </div>
         )}
 
-        {/* ── REVIEWS TAB ── */}
-        {activeTab === "reviews" && (
-          <div className="pb-12">
-            {/* Review summary */}
+        {/* ── REVIEWS ───────────────────────────────────────────── */}
+        {activeSection === "reviews" && (
+          <div className="max-w-2xl">
             {localReviews.length > 0 && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 flex items-center gap-8">
+              <div className="bg-gray-50 rounded-2xl p-6 mb-8 flex items-center gap-8">
                 <div className="text-center">
-                  <p className="text-5xl font-bold text-gray-900">{vendor.rating.toFixed(1)}</p>
+                  <p className="text-5xl font-black text-gray-900">{vendor.rating.toFixed(1)}</p>
                   <div className="flex justify-center mt-1">{stars(vendor.rating, "text-lg")}</div>
                   <p className="text-xs text-gray-400 mt-1">{localReviews.length} reviews</p>
                 </div>
@@ -400,10 +330,10 @@ export default function VendorProfileClient({
                     const count = localReviews.filter((r) => Math.round(r.rating) === n).length;
                     const pct = localReviews.length > 0 ? (count / localReviews.length) * 100 : 0;
                     return (
-                      <div key={n} className="flex items-center gap-2 mb-1">
+                      <div key={n} className="flex items-center gap-2 mb-1.5">
                         <span className="text-xs text-gray-500 w-2">{n}</span>
                         <span className="text-amber-400 text-xs">★</span>
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                           <div className="h-full bg-amber-400 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-xs text-gray-400 w-4">{count}</span>
@@ -414,191 +344,230 @@ export default function VendorProfileClient({
               </div>
             )}
 
-            {/* Leave a review */}
             {currentUserId && !reviewSuccess && (
               <div className="mb-6">
                 {!showReviewForm ? (
-                  <button
-                    onClick={() => setShowReviewForm(true)}
-                    className="w-full py-3 border-2 border-dashed border-gray-200 rounded-2xl text-sm text-gray-500 hover:border-green-400 hover:text-green-600 transition-colors"
-                  >
+                  <button onClick={() => setShowReviewForm(true)}
+                    className="w-full py-4 border-2 border-dashed border-gray-200 rounded-2xl text-sm text-gray-400 hover:border-green-400 hover:text-green-600 transition-colors font-medium">
                     ⭐ Leave a review — earn 5 Local Bucks
                   </button>
                 ) : (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h3 className="font-semibold text-gray-900 mb-4">Write a review</h3>
-
-                    {/* Star picker */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
+                    <h3 className="font-bold text-gray-900 mb-4">Write a review</h3>
                     <div className="flex gap-1 mb-4">
                       {[1, 2, 3, 4, 5].map((n) => (
-                        <button
-                          key={n}
-                          onClick={() => setReviewRating(n)}
-                          className={`text-3xl transition-transform hover:scale-110 ${n <= reviewRating ? "text-amber-400" : "text-gray-200"}`}
-                        >
-                          ★
-                        </button>
+                        <button key={n} onClick={() => setReviewRating(n)} className={`text-3xl transition-transform hover:scale-110 ${n <= reviewRating ? "text-amber-400" : "text-gray-200"}`}>★</button>
                       ))}
-                      <span className="ml-2 text-sm text-gray-500 self-center">
-                        {["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}
-                      </span>
+                      <span className="ml-2 text-sm text-gray-400 self-center">{["", "Poor", "Fair", "Good", "Great", "Excellent"][reviewRating]}</span>
                     </div>
-
-                    <textarea
-                      value={reviewComment}
-                      onChange={(e) => setReviewComment(e.target.value)}
-                      rows={4}
-                      placeholder="Share your experience with this vendor..."
-                      className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
-                    />
-
-                    {reviewError && (
-                      <p className="text-xs text-red-600 mt-2">{reviewError}</p>
-                    )}
-
+                    <textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} rows={4}
+                      placeholder="Share your experience..." className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                    {reviewError && <p className="text-xs text-red-600 mt-2">{reviewError}</p>}
                     <div className="flex gap-3 mt-4">
-                      <button
-                        onClick={() => setShowReviewForm(false)}
-                        className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm hover:bg-gray-50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={submitReview}
-                        disabled={submittingReview}
-                        className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
-                      >
-                        {submittingReview ? "Submitting..." : "Submit Review (+5 LB 🪙)"}
+                      <button onClick={() => setShowReviewForm(false)} className="flex-1 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm hover:bg-gray-50">Cancel</button>
+                      <button onClick={submitReview} disabled={submittingReview} className="flex-1 bg-green-600 text-white rounded-xl py-2.5 text-sm font-bold hover:bg-green-700 disabled:opacity-50">
+                        {submittingReview ? "Submitting..." : "Submit (+5 LB 🪙)"}
                       </button>
                     </div>
                   </div>
                 )}
               </div>
             )}
-
-            {reviewSuccess && (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 text-center">
-                <p className="text-green-700 font-semibold">✓ Review submitted — you earned 5 Local Bucks! 🪙</p>
-              </div>
-            )}
-
+            {reviewSuccess && <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 text-center"><p className="text-green-700 font-semibold">✓ Review submitted — you earned 5 Local Bucks! 🪙</p></div>}
             {!currentUserId && (
-              <div className="mb-6 bg-gray-50 rounded-2xl p-4 text-center">
-                <p className="text-sm text-gray-500">
-                  <Link href="/signup" className="text-green-600 font-medium hover:underline">Sign up</Link> or{" "}
-                  <Link href="/login" className="text-green-600 font-medium hover:underline">log in</Link> to leave a review and earn 5 Local Bucks.
-                </p>
+              <div className="mb-6 bg-gray-50 rounded-2xl p-4 text-center text-sm text-gray-500">
+                <Link href="/signup" className="text-green-600 font-medium hover:underline">Sign up</Link> or <Link href="/login" className="text-green-600 font-medium hover:underline">log in</Link> to leave a review.
               </div>
             )}
-
-            {/* Review list */}
-            {localReviews.length === 0 ? (
-              <div className="text-center py-16 text-gray-400">
-                <p className="text-4xl mb-3">⭐</p>
-                <p>No reviews yet. Be the first!</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {localReviews.map((r) => (
-                  <div key={r.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 text-sm overflow-hidden">
-                          {r.reviewer?.avatar_url
-                            ? <img src={r.reviewer.avatar_url} alt="" className="w-full h-full object-cover" />
-                            : (r.reviewer?.full_name ?? "?")[0].toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{r.reviewer?.full_name ?? "Anonymous"}</p>
-                          <div className="flex">{stars(r.rating, "text-xs")}</div>
-                        </div>
+            <div className="space-y-4">
+              {localReviews.map((r) => (
+                <div key={r.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
+                        {r.reviewer?.avatar_url ? <img src={r.reviewer.avatar_url} alt="" className="w-full h-full object-cover" /> : (r.reviewer?.full_name ?? "?")[0].toUpperCase()}
                       </div>
-                      <p className="text-xs text-gray-400 shrink-0">
-                        {new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                      </p>
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{r.reviewer?.full_name ?? "Anonymous"}</p>
+                        <div className="flex">{stars(r.rating, "text-xs")}</div>
+                      </div>
                     </div>
-                    {r.comment && <p className="text-sm text-gray-600 mt-3 leading-relaxed">{r.comment}</p>}
+                    <p className="text-xs text-gray-400 shrink-0">{new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
                   </div>
-                ))}
-              </div>
-            )}
+                  {r.comment && <p className="text-sm text-gray-600 mt-3 leading-relaxed">{r.comment}</p>}
+                </div>
+              ))}
+              {localReviews.length === 0 && (
+                <div className="text-center py-16 text-gray-300">
+                  <p className="text-5xl mb-3">⭐</p>
+                  <p className="text-gray-400">No reviews yet. Be the first!</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
-        {/* ── ABOUT TAB ── */}
-        {activeTab === "about" && (
-          <div className="pb-12">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
-              <h2 className="font-semibold text-gray-900 mb-3">About {vendor.business_name}</h2>
-              {vendor.description ? (
-                <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{vendor.description}</p>
-              ) : (
-                <p className="text-gray-400 text-sm">No description provided yet.</p>
-              )}
+        {/* ── ABOUT ─────────────────────────────────────────────── */}
+        {activeSection === "about" && (
+          <div className="max-w-2xl space-y-6">
+            <div>
+              <h2 className="text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
+              {vendor.description
+                ? <p className="text-gray-600 leading-relaxed whitespace-pre-line">{vendor.description}</p>
+                : <p className="text-gray-400">No description provided yet.</p>}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-4">
-              <h2 className="font-semibold text-gray-900 mb-4">Contact & Location</h2>
-              <div className="space-y-3 text-sm">
-                {vendor.address && (
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg shrink-0">📍</span>
-                    <div>
-                      <p className="font-medium text-gray-700">Address</p>
-                      <p className="text-gray-500">{vendor.address}, {vendor.city}, {vendor.state} {vendor.zip_code}</p>
-                    </div>
-                  </div>
-                )}
-                {vendor.phone && (
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg shrink-0">📞</span>
-                    <div>
-                      <p className="font-medium text-gray-700">Phone</p>
-                      <a href={`tel:${vendor.phone}`} className="text-green-600 hover:underline">{vendor.phone}</a>
-                    </div>
-                  </div>
-                )}
-                {vendor.website && (
-                  <div className="flex items-start gap-3">
-                    <span className="text-lg shrink-0">🌐</span>
-                    <div>
-                      <p className="font-medium text-gray-700">Website</p>
-                      <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline break-all">
-                        {vendor.website}
-                      </a>
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-start gap-3">
-                  <span className="text-lg shrink-0">🗺️</span>
-                  <div>
-                    <p className="font-medium text-gray-700">Service Area</p>
-                    <p className="text-gray-500">Within {vendor.service_radius_miles} miles of {vendor.city}, {vendor.state}</p>
-                  </div>
+            <div className="border-t border-gray-100 pt-6 space-y-4">
+              <h2 className="text-xl font-black text-gray-900">Contact & Location</h2>
+              {vendor.address && (
+                <div className="flex items-start gap-3 text-sm">
+                  <span className="text-xl">📍</span>
+                  <div><p className="font-semibold text-gray-700">Address</p><p className="text-gray-500">{vendor.address}, {vendor.city}, {vendor.state} {vendor.zip_code}</p></div>
                 </div>
+              )}
+              {vendor.phone && (
+                <div className="flex items-start gap-3 text-sm">
+                  <span className="text-xl">📞</span>
+                  <div><p className="font-semibold text-gray-700">Phone</p><a href={`tel:${vendor.phone}`} className="text-green-600 hover:underline">{vendor.phone}</a></div>
+                </div>
+              )}
+              {vendor.website && (
+                <div className="flex items-start gap-3 text-sm">
+                  <span className="text-xl">🌐</span>
+                  <div><p className="font-semibold text-gray-700">Website</p><a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline break-all">{vendor.website}</a></div>
+                </div>
+              )}
+              <div className="flex items-start gap-3 text-sm">
+                <span className="text-xl">🗺️</span>
+                <div><p className="font-semibold text-gray-700">Service Area</p><p className="text-gray-500">Within {vendor.service_radius_miles} miles of {vendor.city}, {vendor.state}</p></div>
               </div>
             </div>
 
-            {/* Share card */}
             <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white">
               <h3 className="font-bold mb-1">Know someone who'd love this business?</h3>
-              <p className="text-green-100 text-sm mb-4">
-                Share your link and earn <strong>50 Local Bucks</strong> when they make their first purchase.
-              </p>
-              <button
-                onClick={copyShareLink}
-                className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${
-                  copied ? "bg-white text-green-700" : "bg-white/20 text-white hover:bg-white/30"
-                }`}
-              >
-                {copied ? "✓ Link copied!" : currentUserReferralCode ? "Copy your referral link" : "Copy link"}
+              <p className="text-green-100 text-sm mb-4">Share your link and earn <strong>50 Local Bucks</strong> when they sign up.</p>
+              <button onClick={copyShareLink} className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${copied ? "bg-white text-green-700" : "bg-white/20 text-white hover:bg-white/30"}`}>
+                {copied ? "✓ Copied!" : currentUserReferralCode ? "Copy your referral link" : "Copy link"}
               </button>
-              {!currentUserId && (
-                <p className="text-green-200 text-xs text-center mt-2">
-                  <Link href="/signup" className="underline">Sign up</Link> to get your referral link and earn Local Bucks
-                </p>
-              )}
+              {!currentUserId && <p className="text-green-200 text-xs text-center mt-2"><Link href="/signup" className="underline">Sign up</Link> to get your referral link</p>}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── FOOTER CTA ────────────────────────────────────────────── */}
+      <div className="bg-gray-50 border-t border-gray-100 py-10 px-4 text-center">
+        <p className="text-gray-400 text-sm mb-1">Powered by</p>
+        <Link href="/" className="text-green-600 font-bold text-lg">Everything Local</Link>
+        {!currentUserId && (
+          <p className="text-sm text-gray-400 mt-3">
+            <Link href="/signup" className="text-green-600 font-semibold hover:underline">Create a free account</Link> to message, book, and earn Local Bucks.
+          </p>
+        )}
+      </div>
+    </div>
+  </>);
+}
+
+/* ─── LISTING CARD ────────────────────────────────────────────────── */
+function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessage }: {
+  listing: Listing; vendorName: string; vendorPhone: string | null;
+  onBook: () => void; onBuy: () => void; onMessage: () => void;
+}) {
+  const TYPE_ICON: Record<string, string> = { product: "📦", service: "🔧", restaurant: "🍽️", event: "🎉", rental: "🏠", thrift: "🏷️", housing_sale: "🏠", housing_rent: "🏡" };
+
+  let housingData: any = null;
+  if (listing.type === "housing_sale" || listing.type === "housing_rent") {
+    try { const t = listing.tags?.find((t) => t.startsWith("__housing:")); if (t) housingData = JSON.parse(t.replace("__housing:", "")); } catch {}
+  }
+  let thriftData: { address: string | null; openDays: { day: string; open: string; close: string }[] } | null = null;
+  if (listing.type === "thrift") {
+    try {
+      const t = listing.tags?.find((t) => t.startsWith("__hours:")); let hours: any[] = [];
+      if (t) hours = JSON.parse(t.replace("__hours:", ""));
+      thriftData = { address: listing.price_label, openDays: hours.filter((h) => !h.closed && h.open && h.close) };
+    } catch {}
+  }
+
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+      {/* Image */}
+      <div className="h-52 bg-gray-50 relative overflow-hidden">
+        {listing.images?.[0]
+          ? <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          : <div className="w-full h-full flex items-center justify-center text-5xl text-gray-200">{TYPE_ICON[listing.type] ?? "📦"}</div>}
+        {listing.is_featured && <span className="absolute top-3 left-3 bg-amber-400 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow">Featured</span>}
+        {listing.quantity === 0 && <div className="absolute inset-0 bg-black/40 flex items-center justify-center"><span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">Out of Stock</span></div>}
+      </div>
+
+      <div className="p-5">
+        <h3 className="font-bold text-gray-900 leading-snug mb-1">{listing.title}</h3>
+        {listing.description && <p className="text-sm text-gray-400 line-clamp-2 mb-3">{listing.description}</p>}
+
+        {/* Housing details */}
+        {housingData && (
+          <div className="mb-3 space-y-1">
+            {housingData.address && <p className="text-xs text-gray-500">📍 {housingData.address}</p>}
+            <div className="flex flex-wrap gap-1.5">
+              {housingData.bedrooms && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🛏 {housingData.bedrooms} bd</span>}
+              {housingData.bathrooms && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🚿 {housingData.bathrooms} ba</span>}
+              {housingData.sqft && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">📐 {housingData.sqft} sqft</span>}
+              {housingData.garage && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🚗 Garage</span>}
+              {housingData.pets_allowed && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🐾 Pets OK</span>}
+            </div>
+            {listing.type === "housing_rent" && housingData.available_date && <p className="text-xs text-green-600 font-semibold">Available {new Date(housingData.available_date).toLocaleDateString()}</p>}
+          </div>
+        )}
+
+        {/* Thrift details */}
+        {thriftData && (
+          <div className="mb-3 space-y-1">
+            {thriftData.address && <p className="text-xs text-gray-500">📍 {thriftData.address}</p>}
+            {thriftData.openDays.length > 0 && <p className="text-xs text-gray-500">🕐 {thriftData.openDays.map((h) => `${h.day.slice(0,3)} ${h.open}–${h.close}`).join(" · ")}</p>}
+          </div>
+        )}
+
+        {/* Price */}
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            {listing.type !== "thrift" && listing.type !== "housing_sale" && listing.type !== "housing_rent" && listing.price !== null
+              ? <span className="text-lg font-black text-green-700">{formatPrice(listing.price)}</span>
+              : listing.type !== "thrift" && listing.type !== "housing_sale" && listing.type !== "housing_rent" && listing.price_label
+              ? <span className="text-sm text-gray-500">{listing.price_label}</span>
+              : (listing.type === "housing_sale" || listing.type === "housing_rent")
+              ? <span className="text-lg font-black text-green-700">{listing.price ? `${formatPrice(listing.price)}${listing.type === "housing_rent" ? "/mo" : ""}` : listing.price_label ?? (listing.type === "housing_sale" ? "For Sale" : "For Rent")}</span>
+              : null}
+            {listing.condition && <span className="ml-2 text-xs text-gray-400 capitalize">{listing.condition}</span>}
+          </div>
+          {listing.quantity !== null && listing.quantity > 0 && listing.type !== "rental" && (
+            <span className="text-xs text-gray-400">{listing.quantity} left</span>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="space-y-2">
+          {listing.type === "rental" && (
+            <button onClick={onBook} className="w-full bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700 transition-colors">📅 Book Now</button>
+          )}
+          {listing.type !== "rental" && listing.type !== "thrift" && BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0])) && (
+            <button onClick={onBuy} className="w-full bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700 transition-colors">🛒 Buy Now</button>
+          )}
+          <button onClick={onMessage} className="w-full border border-gray-200 text-gray-600 text-sm font-semibold py-2.5 rounded-xl hover:border-green-400 hover:text-green-700 transition-colors">
+            💬 Message {vendorName}
+          </button>
+          {vendorPhone && (
+            <a href={`tel:${vendorPhone}`} className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-gray-800 transition-colors">
+              📞 Call Now
+            </a>
+          )}
+        </div>
+
+        {/* Tags */}
+        {(listing.tags ?? []).filter((t) => !t.startsWith("__")).length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-3">
+            {(listing.tags ?? []).filter((t) => !t.startsWith("__")).slice(0, 3).map((tag) => (
+              <span key={tag} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{tag}</span>
+            ))}
           </div>
         )}
       </div>
