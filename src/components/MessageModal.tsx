@@ -99,14 +99,11 @@ export default function MessageModal({ listing, vendor, currentUser, onClose }: 
       sender_id: currentUser.id,
       body: text,
     });
-    // Update conversation preview + bump vendor unread
+    // Update conversation preview
     await supabase.from("conversations").update({
       last_message_at: new Date().toISOString(),
       last_message_preview: text.slice(0, 100),
-      vendor_unread: supabase.rpc ? undefined : undefined, // handled by trigger or increment below
     }).eq("id", conversationId);
-    // Increment vendor unread via raw update
-    await supabase.rpc("increment_vendor_unread", { conv_id: conversationId }).catch(() => {});
     setSending(false);
   }
 

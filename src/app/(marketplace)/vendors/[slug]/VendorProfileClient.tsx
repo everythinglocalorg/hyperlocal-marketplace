@@ -458,9 +458,9 @@ export default function VendorProfileClient({
                         </button>
                       </div>
 
-                      {listing.tags?.filter((t) => !t.startsWith("__")).length > 0 && (
+                      {(listing.tags ?? []).filter((t) => !t.startsWith("__")).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {listing.tags.filter((t) => !t.startsWith("__")).slice(0, 3).map((tag) => (
+                          {(listing.tags ?? []).filter((t) => !t.startsWith("__")).slice(0, 3).map((tag) => (
                             <span key={tag} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{tag}</span>
                           ))}
                         </div>
