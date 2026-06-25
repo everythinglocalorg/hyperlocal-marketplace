@@ -33,6 +33,7 @@ interface Props {
     category: string;
     city: string;
     state: string;
+    page_blocks?: any[] | null;
   };
   profile: { local_bucks: number; full_name: string | null; referral_code: string; email?: string | null; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
   isPremium: boolean;
