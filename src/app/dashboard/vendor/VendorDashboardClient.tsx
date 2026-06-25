@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
+import RentalSetup from "@/components/rental/RentalSetup";
 import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 
@@ -52,6 +53,8 @@ type Listing = {
   tags: string[];
   category: string;
   categories: string[];
+  waiver_url?: string | null;
+  waiver_filename?: string | null;
   created_at: string;
 };
 
@@ -696,6 +699,9 @@ function ListingsTab({
   const [images, setImages] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [rentalDurations, setRentalDurations] = useState<{ label: string; hours: number; price: number }[]>([]);
+  const [rentalWaiverUrl, setRentalWaiverUrl] = useState<string | null>(null);
+  const [rentalWaiverFilename, setRentalWaiverFilename] = useState<string | null>(null);
 
   useEffect(() => {
     if (editingListing) {
@@ -773,18 +779,33 @@ function ListingsTab({
       condition: form.type === "product" ? form.condition : null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
       images,
+      ...(form.type === "rental" ? { waiver_url: rentalWaiverUrl, waiver_filename: rentalWaiverFilename } : {}),
     };
 
+    let savedListingId: string | null = null;
     if (editingListing) {
       await supabase.from("listings").update(payload).eq("id", editingListing.id);
+      savedListingId = editingListing.id;
       onEdit(null);
     } else {
-      await supabase.from("listings").insert(payload);
+      const { data: newListing } = await supabase.from("listings").insert(payload).select("id").single();
+      savedListingId = newListing?.id ?? null;
+    }
+
+    // Save rental durations
+    if (form.type === "rental" && savedListingId && rentalDurations.length > 0) {
+      await supabase.from("rental_durations").delete().eq("listing_id", savedListingId);
+      await supabase.from("rental_durations").insert(
+        rentalDurations.map((d) => ({ listing_id: savedListingId, ...d }))
+      );
     }
 
     setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "" });
     setSelectedCategories(["Products"]);
     setImages([]);
+    setRentalDurations([]);
+    setRentalWaiverUrl(null);
+    setRentalWaiverFilename(null);
     onShowNew(false);
     onRefresh();
     setSaving(false);
@@ -887,6 +908,19 @@ function ListingsTab({
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
+            {form.type === "rental" && (
+              <div className="sm:col-span-2">
+                <RentalSetup
+                  listingId={editingListing?.id ?? null}
+                  supabase={supabase}
+                  waiverUrl={rentalWaiverUrl ?? editingListing?.waiver_url ?? null}
+                  waiverFilename={rentalWaiverFilename ?? editingListing?.waiver_filename ?? null}
+                  vendorId={vendorId}
+                  onWaiverUploaded={(url, name) => { setRentalWaiverUrl(url); setRentalWaiverFilename(name); }}
+                  onDurationsChange={setRentalDurations}
+                />
+              </div>
+            )}
             {form.type === "product" && (
               <>
                 <div>

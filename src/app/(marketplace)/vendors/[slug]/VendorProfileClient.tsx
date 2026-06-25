@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
+import RentalBookingModal from "@/components/rental/RentalBookingModal";
 
 type Vendor = {
   id: string;
@@ -41,6 +42,8 @@ type Listing = {
   tags: string[];
   is_featured: boolean;
   view_count: number;
+  waiver_url: string | null;
+  waiver_filename: string | null;
 };
 
 type Review = {
@@ -73,6 +76,24 @@ export default function VendorProfileClient({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [localReviews, setLocalReviews] = useState<Review[]>(reviews);
+  const [bookingListing, setBookingListing] = useState<Listing | null>(null);
+  const [bookingDurations, setBookingDurations] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null } | null>(null);
+
+  useEffect(() => {
+    const client = createClient();
+    client.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const { data: profile } = await client.from("profiles").select("id, full_name").eq("id", user.id).single();
+      if (profile) setCurrentUser(profile);
+    });
+  }, []);
+
+  async function openBooking(listing: Listing) {
+    const { data: durations } = await supabase.from("rental_durations").select("*").eq("listing_id", listing.id).order("hours");
+    setBookingDurations(durations ?? []);
+    setBookingListing(listing);
+  }
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -136,7 +157,16 @@ export default function VendorProfileClient({
   const regularListings = listings.filter((l) => !l.is_featured);
   const orderedListings = [...featuredListings, ...regularListings];
 
-  return (
+  return (<>
+    {bookingListing && (
+      <RentalBookingModal
+        listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }}
+        vendor={{ id: vendor.id, business_name: vendor.business_name }}
+        durations={bookingDurations}
+        currentUser={currentUser}
+        onClose={() => setBookingListing(null)}
+      />
+    )}
     <div className="min-h-screen bg-gray-50">
       {/* Nav bar */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
@@ -355,7 +385,14 @@ export default function VendorProfileClient({
                             <span className="ml-2 text-xs text-gray-400 capitalize">{listing.condition}</span>
                           )}
                         </div>
-                        {listing.quantity !== null && listing.quantity > 0 && (
+                        {listing.type === "rental" && (
+                          <button
+                            onClick={() => openBooking(listing)}
+                            className="text-xs bg-green-600 text-white font-semibold px-3 py-1.5 rounded-full hover:bg-green-700 transition-colors">
+                            📅 Book Now
+                          </button>
+                        )}
+                        {listing.quantity !== null && listing.quantity > 0 && listing.type !== "rental" && (
                           <span className="text-xs text-gray-400">{listing.quantity} left</span>
                         )}
                       </div>
@@ -603,5 +640,5 @@ export default function VendorProfileClient({
         )}
       </div>
     </div>
-  );
+  </>);
 }
