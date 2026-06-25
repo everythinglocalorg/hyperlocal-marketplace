@@ -5,15 +5,22 @@ export default async function ListingRedirectPage({ params }: { params: Promise<
   const { id } = await params;
   const supabase = await createClient();
 
+  // Get the listing's vendor_id
   const { data: listing } = await supabase
     .from("listings")
-    .select("id, vendor:vendors(slug)")
+    .select("vendor_id")
     .eq("id", id)
     .single();
 
   if (!listing) notFound();
 
-  const vendor = listing.vendor as { slug: string } | null;
+  // Get the vendor slug
+  const { data: vendor } = await supabase
+    .from("vendors")
+    .select("slug")
+    .eq("id", listing.vendor_id)
+    .single();
+
   if (!vendor?.slug) notFound();
 
   redirect(`/vendors/${vendor.slug}`);
