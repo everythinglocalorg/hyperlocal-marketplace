@@ -494,34 +494,42 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             </Link>
           )}
 
-          {/* Stripe Connect — only shown to premium vendors */}
-          {isPremium && (
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              {connectEnabled ? (
-                <button
-                  onClick={openConnectDashboard}
-                  disabled={openingConnectDashboard}
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl py-2.5 text-sm font-medium hover:bg-indigo-100 transition-colors disabled:opacity-50"
-                >
-                  {openingConnectDashboard ? "Opening..." : "💳 Stripe payments dashboard"}
-                </button>
-              ) : (
-                <button
-                  onClick={connectStripe}
-                  disabled={connectingStripe}
-                  className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                >
-                  {connectingStripe ? "Redirecting..." : "💳 Connect Stripe to get paid"}
-                </button>
-              )}
-              {!connectEnabled && connectAccountId && (
-                <p className="text-xs text-center text-yellow-600 mt-1.5">Setup incomplete — click to finish</p>
-              )}
-              {connectEnabled && (
-                <p className="text-xs text-center text-green-600 mt-1.5">✓ Payments enabled</p>
-              )}
-            </div>
-          )}
+          {/* Stripe Connect — shown to everyone; free vendors get an upgrade prompt */}
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            {!isPremium ? (
+              <Link
+                href="/dashboard/vendor/upgrade"
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                💳 Get paid with Stripe
+              </Link>
+            ) : connectEnabled ? (
+              <button
+                onClick={openConnectDashboard}
+                disabled={openingConnectDashboard}
+                className="w-full flex items-center justify-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-xl py-2.5 text-sm font-medium hover:bg-indigo-100 transition-colors disabled:opacity-50"
+              >
+                {openingConnectDashboard ? "Opening..." : "💳 Stripe payments dashboard"}
+              </button>
+            ) : (
+              <button
+                onClick={connectStripe}
+                disabled={connectingStripe}
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50"
+              >
+                {connectingStripe ? "Redirecting..." : "💳 Connect Stripe to get paid"}
+              </button>
+            )}
+            {!isPremium && (
+              <p className="text-xs text-center text-gray-400 mt-1.5">Local Pro feature</p>
+            )}
+            {isPremium && !connectEnabled && connectAccountId && (
+              <p className="text-xs text-center text-yellow-600 mt-1.5">Setup incomplete — click to finish</p>
+            )}
+            {isPremium && connectEnabled && (
+              <p className="text-xs text-center text-green-600 mt-1.5">✓ Payments enabled</p>
+            )}
+          </div>
         </div>
       </aside>
 
@@ -620,23 +628,36 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 ))}
               </div>
 
-              {/* Stripe Connect banner */}
-              {isPremium && !connectEnabled && (
+              {/* Stripe Connect banner — shown to everyone; free vendors get an upgrade prompt */}
+              {!connectEnabled && (
                 <div className="mb-6 bg-indigo-50 border border-indigo-200 rounded-2xl p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">💳</span>
                     <div>
                       <p className="font-semibold text-indigo-900">Accept payments from customers</p>
-                      <p className="text-sm text-indigo-600">Connect your Stripe account to get paid directly — no middleman.</p>
+                      <p className="text-sm text-indigo-600">
+                        {isPremium
+                          ? "Connect your Stripe account to get paid directly — no middleman."
+                          : "Upgrade to Local Pro to get paid directly through Stripe — no middleman."}
+                      </p>
                     </div>
                   </div>
-                  <button
-                    onClick={connectStripe}
-                    disabled={connectingStripe}
-                    className="shrink-0 bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                  >
-                    {connectingStripe ? "Redirecting..." : "Connect Stripe →"}
-                  </button>
+                  {isPremium ? (
+                    <button
+                      onClick={connectStripe}
+                      disabled={connectingStripe}
+                      className="shrink-0 bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors disabled:opacity-50"
+                    >
+                      {connectingStripe ? "Redirecting..." : "Connect Stripe →"}
+                    </button>
+                  ) : (
+                    <Link
+                      href="/dashboard/vendor/upgrade"
+                      className="shrink-0 bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
+                    >
+                      Upgrade to get paid →
+                    </Link>
+                  )}
                 </div>
               )}
               {isPremium && connectEnabled && (
