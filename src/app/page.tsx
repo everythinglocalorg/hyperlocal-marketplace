@@ -125,14 +125,25 @@ export default function HomePage() {
       "Pets": "Pet Services",
       "Childcare": "Childcare & Education",
     };
+    // Rentals and Thrift Sales are listing types, not vendor categories — search by type
+    const TYPE_MAP: Record<string, string> = {
+      "Rentals": "rental",
+      "Thrift Sales": "thrift",
+    };
     const params = new URLSearchParams();
-    params.set("category", LABEL_MAP[category] ?? category);
     const saved = localStorage.getItem("hl_neighborhood");
     if (saved) {
       try {
         const { city, state } = JSON.parse(saved);
         if (city) params.set("city", state ? `${city}, ${state}` : city);
       } catch {}
+    }
+    if (TYPE_MAP[category]) {
+      params.set("type", TYPE_MAP[category]);
+      params.set("mode", "listings");
+    } else {
+      params.set("category", LABEL_MAP[category] ?? category);
+      params.set("mode", "listings");
     }
     router.push(`/search?${params.toString()}`);
   }
