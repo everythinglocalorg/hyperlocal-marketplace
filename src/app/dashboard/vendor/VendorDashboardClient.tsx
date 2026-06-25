@@ -325,10 +325,18 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
   async function connectStripe() {
     setConnectingStripe(true);
-    const res = await fetch("/api/stripe/connect", { method: "POST" });
-    const data = await res.json();
-    if (data.url) window.location.href = data.url;
-    else setConnectingStripe(false);
+    try {
+      const res = await fetch("/api/stripe/connect", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+        return; // keep the button in its loading state during redirect
+      }
+      alert(data.error ?? "Couldn't start Stripe setup. Please try again.");
+    } catch {
+      alert("Couldn't reach the server. Please check your connection and try again.");
+    }
+    setConnectingStripe(false);
   }
 
   async function openConnectDashboard() {
