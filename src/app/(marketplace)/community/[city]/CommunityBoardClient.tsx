@@ -51,7 +51,6 @@ export default function CommunityBoardClient({
   const isAdmin = currentUser?.role === "admin";
 
   const [posts, setPosts] = useState(initialPosts);
-  const [showForm, setShowForm] = useState(false);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, any[]>>({});
   const [loadingResponses, setLoadingResponses] = useState<string | null>(null);
@@ -70,24 +69,24 @@ export default function CommunityBoardClient({
   const [flagSubmitting, setFlagSubmitting] = useState(false);
   const [myFlags, setMyFlags] = useState<Set<string>>(new Set());
 
-  // New post form
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
-  const [type, setType] = useState("general");
-  const [taggedVendorId, setTaggedVendorId] = useState("");
-  const [vendorSearch, setVendorSearch] = useState("");
+  // Inline post composer — single textarea
+  const [postText, setPostText] = useState("");
+  const [postType, setPostType] = useState("general");
   const [submitting, setSubmitting] = useState(false);
-
-  // Response form
-  const [responseText, setResponseText] = useState<Record<string, string>>({});
-  const [submittingResponse, setSubmittingResponse] = useState<string | null>(null);
-
   const [filterType, setFilterType] = useState("all");
 
+  // Response form per post
+  const [responseText, setResponseText] = useState<Record<string, string>>({});
+  const [responseVendorSearch, setResponseVendorSearch] = useState<Record<string, string>>({});
+  const [responseVendorId, setResponseVendorId] = useState<Record<string, string>>({});
+  const [submittingResponse, setSubmittingResponse] = useState<string | null>(null);
+
   const filteredPosts = filterType === "all" ? posts : posts.filter((p) => p.type === filterType);
-  const filteredVendors = vendors.filter((v) =>
-    vendorSearch.length >= 2 && v.business_name.toLowerCase().includes(vendorSearch.toLowerCase())
-  );
+
+  function getVendorSuggestions(search: string) {
+    if (search.length < 2) return [];
+    return vendors.filter((v) => v.business_name.toLowerCase().includes(search.toLowerCase())).slice(0, 5);
+  }
 
   // ── High Five ────────────────────────────────────────────────
   async function toggleHighfive(postId: string) {
@@ -134,28 +133,32 @@ export default function CommunityBoardClient({
   async function submitPost(e: React.FormEvent) {
     e.preventDefault();
     if (!currentUser) { router.push("/login"); return; }
+    const text = postText.trim();
+    if (!text) return;
     setSubmitting(true);
+
     const { data, error } = await supabase.from("community_posts").insert({
       user_id: currentUser.id,
       city_slug: citySlug,
       city: cityName,
       state: stateCode,
-      title: title.trim(),
-      body: body.trim(),
-      type,
-      tagged_vendor_id: taggedVendorId || null,
-    }).select(`
-      id, title, body, type, city, state, created_at,
-      author:profiles!user_id(id, full_name, avatar_url),
-      tagged_vendor:vendors(id, business_name, slug, logo_url),
-      response_count:community_responses(count)
-    `).single();
+      title: text.slice(0, 120),
+      body: text,
+      type: postType,
+    }).select("id, title, body, type, city, state, created_at, user_id").single();
+
     if (!error && data) {
-      const newPost = { ...data, highfive_count: [{ count: 0 }] } as any;
+      const newPost: any = {
+        ...data,
+        author: { id: currentUser.id, full_name: currentUser.full_name, avatar_url: currentUser.avatar_url },
+        tagged_vendor: null,
+        response_count: [{ count: 0 }],
+        highfive_count: [{ count: 0 }],
+      };
       setPosts((prev) => [newPost, ...prev]);
       setHighfiveCounts((prev) => ({ ...prev, [newPost.id]: 0 }));
-      setTitle(""); setBody(""); setType("general"); setTaggedVendorId(""); setVendorSearch("");
-      setShowForm(false);
+      setPostText("");
+      setPostType("general");
     }
     setSubmitting(false);
   }
@@ -179,11 +182,17 @@ export default function CommunityBoardClient({
     if (!text) return;
     setSubmittingResponse(postId);
     const { data, error } = await supabase.from("community_responses").insert({
-      post_id: postId, user_id: currentUser.id, body: text,
+      post_id: postId,
+      user_id: currentUser.id,
+      body: text,
+      tagged_vendor_id: responseVendorId[postId] || null,
     }).select("id, body, created_at, user:profiles!user_id(id, full_name, avatar_url), tagged_vendor:vendors(id, business_name, slug, logo_url)").single();
+
     if (!error && data) {
       setResponses((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), data] }));
       setResponseText((prev) => ({ ...prev, [postId]: "" }));
+      setResponseVendorSearch((prev) => ({ ...prev, [postId]: "" }));
+      setResponseVendorId((prev) => ({ ...prev, [postId]: "" }));
       setPosts((prev) => prev.map((p) => p.id === postId
         ? { ...p, response_count: [{ count: (p.response_count?.[0]?.count ?? 0) + 1 }] } : p));
     }
@@ -230,103 +239,65 @@ export default function CommunityBoardClient({
 
       {/* Header */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-green-600 font-bold text-lg">HyperLocal</Link>
             <span className="text-gray-300">/</span>
             <span className="text-sm font-semibold text-gray-700">📍 {cityName}, {stateCode}</span>
           </div>
-          <div className="flex items-center gap-2">
-            {isAdmin && <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-1 rounded-full">Admin</span>}
-            <button
-              onClick={() => { if (!currentUser) { router.push("/login"); return; } setShowForm(true); }}
-              className="bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-green-700 transition-colors">
-              + Ask Neighbors
-            </button>
-          </div>
+          {isAdmin && <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-1 rounded-full">Admin</span>}
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Neighbor Board</h1>
-          <p className="text-gray-500 text-sm mt-1">Ask for help, find products, or request services from people in {cityName}.</p>
-        </div>
+      <div className="max-w-2xl mx-auto px-4 py-6">
 
-        {/* New post form */}
-        {showForm && (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-bold text-gray-900">Post to Neighbor Board</h2>
-              <button onClick={() => setShowForm(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
-            </div>
-            <form onSubmit={submitPost} className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
-                  <button key={key} type="button" onClick={() => setType(key)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${
-                      type === key ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"
-                    }`}>
-                    <span>{cfg.icon}</span> {cfg.label}
-                  </button>
-                ))}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Title *</label>
-                <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required
-                  placeholder={type === "help" ? "What do you need help with?" : type === "product" ? "What are you looking for?" : type === "service" ? "What service do you need?" : "What's on your mind?"}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Details *</label>
-                <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={3} required
-                  placeholder="Describe what you're looking for, any details, budget, timing..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Tag a local business (optional)</label>
-                <input type="text" value={vendorSearch} onChange={(e) => setVendorSearch(e.target.value)}
-                  placeholder="Search business name..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                {filteredVendors.length > 0 && (
-                  <div className="mt-1 border border-gray-100 rounded-xl overflow-hidden shadow-sm">
-                    {filteredVendors.slice(0, 5).map((v) => (
-                      <button key={v.id} type="button"
-                        onClick={() => { setTaggedVendorId(v.id); setVendorSearch(v.business_name); }}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left hover:bg-green-50 transition-colors ${taggedVendorId === v.id ? "bg-green-50" : "bg-white"}`}>
-                        <div className="w-7 h-7 rounded-lg bg-green-100 flex items-center justify-center font-bold text-green-700 text-xs shrink-0 overflow-hidden">
-                          {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" /> : v.business_name[0]}
-                        </div>
-                        <span className="font-medium">{v.business_name}</span>
-                        <span className="text-gray-400 text-xs ml-auto">{v.city}, {v.state}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {taggedVendorId && (
-                  <button type="button" onClick={() => { setTaggedVendorId(""); setVendorSearch(""); }}
-                    className="text-xs text-red-500 mt-1 hover:underline">Remove tag</button>
-                )}
-              </div>
-
+        {/* Inline composer */}
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5">
+          {currentUser ? (
+            <form onSubmit={submitPost}>
               <div className="flex gap-3">
-                <button type="button" onClick={() => setShowForm(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={submitting || !title.trim() || !body.trim()}
-                  className="flex-1 py-2.5 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-40 transition-colors">
-                  {submitting ? "Posting..." : "Post to Board"}
-                </button>
+                {avatar(currentUser.full_name, currentUser.avatar_url)}
+                <div className="flex-1">
+                  <textarea
+                    value={postText}
+                    onChange={(e) => setPostText(e.target.value)}
+                    placeholder="What's on your mind? Ask your neighbors for help, a product, or a service..."
+                    rows={3}
+                    className="w-full text-sm text-gray-800 placeholder-gray-400 resize-none focus:outline-none leading-relaxed"
+                  />
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                    {/* Type pills */}
+                    <div className="flex gap-1.5 flex-wrap">
+                      {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
+                        <button key={key} type="button" onClick={() => setPostType(key)}
+                          className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                            postType === key ? "bg-green-100 text-green-800 border border-green-300" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                          }`}>
+                          {cfg.icon} {cfg.label}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="submit" disabled={submitting || !postText.trim()}
+                      className="ml-3 shrink-0 bg-green-600 text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-green-700 disabled:opacity-40 transition-colors">
+                      {submitting ? "Posting..." : "Post"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
-          </div>
-        )}
+          ) : (
+            <div className="text-center py-2">
+              <p className="text-sm text-gray-500 mb-2">Join the conversation in {cityName}</p>
+              <Link href="/login" className="bg-green-600 text-white text-sm font-semibold px-6 py-2 rounded-full hover:bg-green-700 transition-colors inline-block">
+                Log in to post
+              </Link>
+            </div>
+          )}
+        </div>
 
         {/* Filters */}
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-          {[["all","All Posts",""], ...Object.entries(TYPE_CONFIG).map(([k,v]) => [k, v.label, v.icon])].map(([key, label, icon]) => (
+          {[["all","All",""], ...Object.entries(TYPE_CONFIG).map(([k,v]) => [k, v.label, v.icon])].map(([key, label, icon]) => (
             <button key={key} onClick={() => setFilterType(key)}
               className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 filterType === key ? "bg-green-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-green-400"
@@ -341,62 +312,47 @@ export default function CommunityBoardClient({
           <div className="text-center py-16">
             <p className="text-4xl mb-3">📋</p>
             <p className="text-gray-600 font-semibold mb-1">No posts yet</p>
-            <p className="text-gray-400 text-sm mb-4">Be the first to ask your neighbors something!</p>
-            <button onClick={() => { if (!currentUser) { router.push("/login"); return; } setShowForm(true); }}
-              className="bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-green-700 transition-colors">
-              Ask Your Neighbors
-            </button>
+            <p className="text-gray-400 text-sm">Be the first to ask your neighbors something!</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredPosts.map((post) => {
               const cfg = TYPE_CONFIG[post.type as keyof typeof TYPE_CONFIG] ?? TYPE_CONFIG.general;
               const author = Array.isArray(post.author) ? post.author[0] : post.author;
-              const tagged = Array.isArray(post.tagged_vendor) ? post.tagged_vendor[0] : post.tagged_vendor;
               const replyCount = post.response_count?.[0]?.count ?? 0;
               const hfCount = highfiveCounts[post.id] ?? 0;
               const iHfed = highfived.has(post.id);
               const isExpanded = expandedPost === post.id;
               const isFlagged = flaggedPostIds.has(post.id);
+              const vendorSearch = responseVendorSearch[post.id] ?? "";
+              const vendorSuggestions = getVendorSuggestions(vendorSearch);
 
               return (
                 <div key={post.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${isFlagged && isAdmin ? "border-red-200" : "border-gray-100"}`}>
-                  <div className="p-5">
+                  <div className="p-4">
                     {isAdmin && isFlagged && (
-                      <div className="flex items-center gap-1.5 text-xs text-red-600 font-semibold bg-red-50 rounded-lg px-3 py-1.5 mb-3">
-                        🚩 Flagged by community
-                      </div>
+                      <div className="text-xs text-red-600 font-semibold bg-red-50 rounded-lg px-3 py-1.5 mb-3">🚩 Flagged by community</div>
                     )}
-                    <div className="flex items-start gap-3">
+
+                    <div className="flex gap-3">
                       {avatar(author?.full_name ?? null, author?.avatar_url ?? null)}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <div className="flex items-center gap-2 mb-1">
                           <span className="text-sm font-semibold text-gray-900">{author?.full_name ?? "Neighbor"}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.icon} {cfg.label}</span>
                           <span className="text-xs text-gray-400 ml-auto">{new Date(post.created_at).toLocaleDateString()}</span>
                         </div>
-                        <h3 className="font-bold text-gray-900 text-base mb-1">{post.title}</h3>
-                        <p className="text-sm text-gray-600 leading-relaxed">{post.body}</p>
-                        {tagged && (
-                          <Link href={`/vendors/${tagged.slug}`} className="inline-flex items-center gap-2 mt-2 bg-green-50 border border-green-200 rounded-xl px-3 py-1.5 hover:bg-green-100 transition-colors">
-                            <div className="w-5 h-5 rounded bg-green-200 flex items-center justify-center text-xs font-bold text-green-800 overflow-hidden">
-                              {tagged.logo_url ? <img src={tagged.logo_url} alt="" className="w-full h-full object-cover" /> : tagged.business_name[0]}
-                            </div>
-                            <span className="text-xs font-semibold text-green-800">@ {tagged.business_name}</span>
-                          </Link>
-                        )}
+                        <p className="text-sm text-gray-700 leading-relaxed">{post.body}</p>
                       </div>
                     </div>
 
                     {/* Action bar */}
-                    <div className="flex items-center gap-3 mt-4 pt-3 border-t border-gray-50">
+                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50">
                       <button onClick={() => toggleHighfive(post.id)}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold transition-all select-none ${
-                          iHfed
-                            ? "bg-amber-100 text-amber-700 scale-105 shadow-sm"
-                            : "bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600"
+                          iHfed ? "bg-amber-100 text-amber-700 scale-105" : "bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600"
                         }`}>
-                        🙌 {hfCount > 0 && <span>{hfCount}</span>} High Five{hfCount !== 1 ? "s" : ""}
+                        🙌 {hfCount > 0 ? hfCount : ""} High Five{hfCount !== 1 ? "s" : ""}
                       </button>
 
                       <button onClick={() => loadResponses(post.id)}
@@ -406,24 +362,21 @@ export default function CommunityBoardClient({
 
                       <div className="ml-auto flex items-center gap-2">
                         {currentUser && !myFlags.has(post.id) && (
-                          <button onClick={() => setFlagModal({ type: "post", id: post.id })}
-                            title="Report post"
-                            className="text-xs text-gray-300 hover:text-red-400 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
-                            🚩
-                          </button>
+                          <button onClick={() => setFlagModal({ type: "post", id: post.id })} title="Report"
+                            className="text-xs text-gray-300 hover:text-red-400 px-1 transition-colors">🚩</button>
                         )}
                         {myFlags.has(post.id) && <span className="text-xs text-gray-300 italic">Reported</span>}
                         {isAdmin && (
                           <button onClick={() => adminDeletePost(post.id)}
                             className="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
-                            Delete post
+                            Delete
                           </button>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Responses */}
+                  {/* Replies */}
                   {isExpanded && (
                     <div className="border-t border-gray-50">
                       {(responses[post.id] ?? []).map((r) => {
@@ -431,17 +384,16 @@ export default function CommunityBoardClient({
                         const rv = Array.isArray(r.tagged_vendor) ? r.tagged_vendor[0] : r.tagged_vendor;
                         const rFlagged = flaggedResponseIds.has(r.id);
                         return (
-                          <div key={r.id} className={`flex gap-3 px-5 py-3 border-b border-gray-50 last:border-b-0 ${rFlagged && isAdmin ? "bg-red-50" : ""}`}>
+                          <div key={r.id} className={`flex gap-3 px-4 py-3 border-b border-gray-50 last:border-b-0 ${rFlagged && isAdmin ? "bg-red-50" : ""}`}>
                             {avatar(ru?.full_name ?? null, ru?.avatar_url ?? null, "w-7 h-7")}
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-0.5">
                                 <span className="text-xs font-semibold text-gray-800">{ru?.full_name ?? "Neighbor"}</span>
                                 <span className="text-xs text-gray-400">{new Date(r.created_at).toLocaleDateString()}</span>
-                                {isAdmin && rFlagged && <span className="text-xs text-red-500 font-semibold">🚩 Flagged</span>}
-                                <div className="ml-auto flex items-center gap-2">
+                                {isAdmin && rFlagged && <span className="text-xs text-red-500 font-semibold">🚩</span>}
+                                <div className="ml-auto flex gap-2">
                                   {currentUser && !myFlags.has(r.id) && (
-                                    <button onClick={() => setFlagModal({ type: "response", id: r.id })}
-                                      title="Report reply"
+                                    <button onClick={() => setFlagModal({ type: "response", id: r.id })} title="Report"
                                       className="text-xs text-gray-300 hover:text-red-400 transition-colors">🚩</button>
                                   )}
                                   {isAdmin && (
@@ -452,8 +404,11 @@ export default function CommunityBoardClient({
                               </div>
                               <p className="text-sm text-gray-700">{r.body}</p>
                               {rv && (
-                                <Link href={`/vendors/${rv.slug}`} className="inline-flex items-center gap-1.5 mt-1 text-xs text-green-700 font-semibold hover:underline">
-                                  @ {rv.business_name}
+                                <Link href={`/vendors/${rv.slug}`} className="inline-flex items-center gap-1.5 mt-1 bg-green-50 border border-green-200 rounded-lg px-2 py-1 hover:bg-green-100 transition-colors">
+                                  <div className="w-4 h-4 rounded bg-green-200 flex items-center justify-center text-xs font-bold text-green-800 overflow-hidden">
+                                    {rv.logo_url ? <img src={rv.logo_url} alt="" className="w-full h-full object-cover" /> : rv.business_name[0]}
+                                  </div>
+                                  <span className="text-xs font-semibold text-green-800">@ {rv.business_name}</span>
                                 </Link>
                               )}
                             </div>
@@ -461,23 +416,64 @@ export default function CommunityBoardClient({
                         );
                       })}
 
+                      {/* Reply form */}
                       {currentUser ? (
-                        <div className="px-5 py-4 bg-gray-50">
-                          <textarea
-                            value={responseText[post.id] ?? ""}
-                            onChange={(e) => setResponseText((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                            placeholder="Write a reply or recommendation..."
-                            rows={2}
-                            className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white mb-2"
-                          />
-                          <button onClick={() => submitResponse(post.id)}
-                            disabled={submittingResponse === post.id || !responseText[post.id]?.trim()}
-                            className="bg-green-600 text-white text-xs font-semibold px-4 py-2 rounded-xl hover:bg-green-700 disabled:opacity-40 transition-colors">
-                            {submittingResponse === post.id ? "Posting..." : "Reply"}
-                          </button>
+                        <div className="px-4 py-3 bg-gray-50">
+                          <div className="flex gap-2">
+                            {avatar(currentUser.full_name, currentUser.avatar_url, "w-7 h-7")}
+                            <div className="flex-1">
+                              <textarea
+                                value={responseText[post.id] ?? ""}
+                                onChange={(e) => setResponseText((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                                placeholder="Write a reply or recommend a business..."
+                                rows={2}
+                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
+                              />
+
+                              {/* Vendor tag in reply */}
+                              <div className="mt-1.5">
+                                <input
+                                  type="text"
+                                  value={vendorSearch}
+                                  onChange={(e) => setResponseVendorSearch((prev) => ({ ...prev, [post.id]: e.target.value }))}
+                                  placeholder="@ Tag a local business (optional)"
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                                />
+                                {vendorSuggestions.length > 0 && (
+                                  <div className="mt-0.5 bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                                    {vendorSuggestions.map((v) => (
+                                      <button key={v.id} type="button"
+                                        onClick={() => {
+                                          setResponseVendorId((prev) => ({ ...prev, [post.id]: v.id }));
+                                          setResponseVendorSearch((prev) => ({ ...prev, [post.id]: v.business_name }));
+                                        }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-green-50 transition-colors">
+                                        <div className="w-5 h-5 rounded bg-green-100 flex items-center justify-center font-bold text-green-700 text-xs shrink-0 overflow-hidden">
+                                          {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" /> : v.business_name[0]}
+                                        </div>
+                                        <span className="font-medium">{v.business_name}</span>
+                                        <span className="text-gray-400 ml-auto">{v.city}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                {responseVendorId[post.id] && (
+                                  <button type="button"
+                                    onClick={() => { setResponseVendorId((p) => ({ ...p, [post.id]: "" })); setResponseVendorSearch((p) => ({ ...p, [post.id]: "" })); }}
+                                    className="text-xs text-red-400 hover:underline mt-0.5">Remove tag</button>
+                                )}
+                              </div>
+
+                              <button onClick={() => submitResponse(post.id)}
+                                disabled={submittingResponse === post.id || !responseText[post.id]?.trim()}
+                                className="mt-2 bg-green-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-green-700 disabled:opacity-40 transition-colors">
+                                {submittingResponse === post.id ? "Posting..." : "Reply"}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ) : (
-                        <div className="px-5 py-3 bg-gray-50 text-center">
+                        <div className="px-4 py-3 bg-gray-50 text-center">
                           <Link href="/login" className="text-sm text-green-600 font-medium hover:underline">Log in to reply</Link>
                         </div>
                       )}
