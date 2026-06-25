@@ -11,7 +11,7 @@ import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
 import { hasFeature, FeatureKey } from "@/lib/features";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent";
 
 interface Props {
   vendor: {
@@ -98,6 +98,7 @@ type Customer = {
 const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
   { id: "store", label: "Store Settings", icon: "🏪" },
+  { id: "pagecontent", label: "Page Content", icon: "🖼️" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "referrals", label: "Referrals", icon: "🤝" },
   { id: "notifications", label: "Notifications", icon: "🔔" },
@@ -806,6 +807,14 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
           {tab === "store" && (
             <StoreSettingsTab vendor={vendor} supabase={supabase} />
+          )}
+
+          {tab === "pagecontent" && (
+            <div className="p-6 max-w-2xl">
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Page Content</h2>
+              <p className="text-sm text-gray-500 mb-6">Add photo and text sections to your public business page.</p>
+              <PageBlocksEditor vendorId={vendor.id} initialBlocks={Array.isArray(vendor.page_blocks) ? vendor.page_blocks : []} supabase={supabase} />
+            </div>
           )}
 
           {tab === "messages" && !can("messages") && (
@@ -2346,7 +2355,6 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
         <p className="text-xs text-gray-500">Your public storefront: <a href={`/vendors/${vendor.slug}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline font-medium">/vendors/{vendor.slug}</a></p>
       </div>
 
-      <PageBlocksEditor vendorId={vendor.id} initialBlocks={vendor.page_blocks ?? []} supabase={supabase} />
     </div>
   );
 }
