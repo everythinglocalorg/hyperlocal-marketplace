@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import AccountSettingsModal from "@/components/AccountSettingsModal";
 
 type Profile = {
   id: string;
@@ -120,6 +121,20 @@ const STATUS_ICONS: Record<string, string> = {
 export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount }: Props) {
   const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals">("overview");
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [localProfile, setLocalProfile] = useState({ full_name: profile.full_name, avatar_url: profile.avatar_url, phone: profile.phone });
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
   const signupLink = `${appUrl}/signup?ref=${profile.referral_code}`;
@@ -152,16 +167,43 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
 
         {/* Profile summary */}
         <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
-              {profile.avatar_url
-                ? <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                : (profile.full_name ?? profile.email)[0].toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{profile.full_name ?? "Buyer"}</p>
-              <p className="text-xs text-amber-600 font-medium">🪙 {profile.local_bucks.toLocaleString()} LB</p>
-            </div>
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-full flex items-center gap-3 rounded-xl hover:bg-gray-50 p-1 transition-colors text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
+                {localProfile.avatar_url
+                  ? <img src={localProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : (localProfile.full_name ?? profile.email)[0].toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-gray-900 truncate">{localProfile.full_name ?? "Account"}</p>
+                <p className="text-xs text-amber-600 font-medium">🪙 {profile.local_bucks.toLocaleString()} LB</p>
+              </div>
+              <span className="text-gray-400 text-xs">{showDropdown ? "▲" : "▼"}</span>
+            </button>
+
+            {showDropdown && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-20 overflow-hidden">
+                <button
+                  onClick={() => { setShowSettings(true); setShowDropdown(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span>⚙️</span> Account Settings
+                </button>
+                <button
+                  onClick={async () => {
+                    const { createClient: cc } = await import("@/lib/supabase/client");
+                    await cc().auth.signOut();
+                    window.location.href = "/";
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
+                >
+                  <span>🚪</span> Sign out
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Storefront quick-access — shown right under profile if they have one */}
@@ -698,6 +740,14 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           </div>
         )}
       </main>
+
+      {showSettings && (
+        <AccountSettingsModal
+          profile={{ ...profile, full_name: localProfile.full_name, avatar_url: localProfile.avatar_url, phone: localProfile.phone }}
+          onClose={() => setShowSettings(false)}
+          onSaved={(updated) => setLocalProfile(updated)}
+        />
+      )}
     </div>
   );
 }

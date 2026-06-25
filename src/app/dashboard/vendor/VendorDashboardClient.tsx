@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import AccountSettingsModal from "@/components/AccountSettingsModal";
 import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 
@@ -24,7 +25,7 @@ interface Props {
     city: string;
     state: string;
   };
-  profile: { local_bucks: number; full_name: string | null; referral_code: string } | null;
+  profile: { local_bucks: number; full_name: string | null; referral_code: string; email: string; avatar_url: string | null; phone: string | null } | null;
   isPremium: boolean;
   connectEnabled: boolean;
   connectAccountId: string | null;
@@ -97,6 +98,18 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
   const [stats, setStats] = useState({ totalViews: 0, totalClicks: 0, totalListings: 0, activeListings: 0, pendingBookings: 0, thisWeekViews: 0 });
   const [loadingListings, setLoadingListings] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [localProfile, setLocalProfile] = useState({ full_name: profile?.full_name ?? null, avatar_url: profile?.avatar_url ?? null, phone: profile?.phone ?? null });
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [showNewListing, setShowNewListing] = useState(false);
 
@@ -222,6 +235,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
   };
 
   return (
+    <>
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-100 flex flex-col min-h-screen sticky top-0">
@@ -231,7 +245,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
 
         {/* Vendor info */}
         <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
+          {/* Business row */}
+          <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0">
               {vendor.logo_url
                 ? <img src={vendor.logo_url} alt="" className="w-full h-full object-cover" />
@@ -239,15 +254,46 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 text-sm truncate">{vendor.business_name}</p>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPremium ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                  {isPremium ? "⭐ Premium" : "Free"}
-                </span>
-              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPremium ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
+                {isPremium ? "⭐ Premium" : "Free"}
+              </span>
             </div>
           </div>
 
-          <div className="mt-3 bg-amber-50 rounded-lg px-3 py-2 flex items-center gap-2">
+          {/* Personal account dropdown */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-gray-50 transition-colors text-left"
+            >
+              <div className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 text-xs shrink-0 overflow-hidden">
+                {localProfile.avatar_url
+                  ? <img src={localProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : (localProfile.full_name ?? profile?.email ?? "?")[0].toUpperCase()}
+              </div>
+              <p className="text-xs text-gray-600 truncate flex-1">{localProfile.full_name ?? profile?.email}</p>
+              <span className="text-gray-400 text-xs">{showDropdown ? "▲" : "▼"}</span>
+            </button>
+
+            {showDropdown && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-100 rounded-xl shadow-lg z-20 overflow-hidden">
+                <button
+                  onClick={() => { setShowSettings(true); setShowDropdown(false); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <span>⚙️</span> Account Settings
+                </button>
+                <button
+                  onClick={async () => { await supabase.auth.signOut(); window.location.href = "/"; }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition-colors border-t border-gray-50"
+                >
+                  <span>🚪</span> Sign out
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-2 bg-amber-50 rounded-lg px-3 py-2 flex items-center gap-2">
             <span className="text-base">🪙</span>
             <div>
               <p className="text-xs font-bold text-amber-700">{formatLocalBucks(profile?.local_bucks ?? 0)}</p>
@@ -592,6 +638,15 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
         </div>
       </main>
     </div>
+
+    {showSettings && profile && (
+      <AccountSettingsModal
+        profile={{ id: vendor.user_id, full_name: localProfile.full_name, email: profile.email, avatar_url: localProfile.avatar_url, phone: localProfile.phone }}
+        onClose={() => setShowSettings(false)}
+        onSaved={(updated) => setLocalProfile(updated)}
+      />
+    )}
+    </>
   );
 }
 
