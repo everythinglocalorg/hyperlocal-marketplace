@@ -51,12 +51,41 @@ type ReferredBy = {
   referral_code: string;
 } | null;
 
+type RecentListing = {
+  id: string;
+  title: string;
+  price: number | null;
+  price_label: string | null;
+  images: string[];
+  type: string;
+  vendor: { business_name: string; slug: string; logo_url: string | null; city: string; state: string } | null;
+};
+
+type NewVendor = {
+  id: string;
+  business_name: string;
+  slug: string;
+  logo_url: string | null;
+  banner_url: string | null;
+  category: string;
+  city: string;
+  state: string;
+  rating: number;
+  review_count: number;
+  tier: string;
+  is_verified: boolean;
+};
+
 interface Props {
   profile: Profile;
   bookings: Booking[];
   bucksHistory: BucksTransaction[];
   referrals: Referral[];
   referredBy: ReferredBy;
+  recentListings: RecentListing[];
+  newVendors: NewVendor[];
+  savedCity: string | null;
+  savedState: string | null;
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -85,7 +114,7 @@ const STATUS_ICONS: Record<string, string> = {
   cancelled: "✕",
 };
 
-export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy }: Props) {
+export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState }: Props) {
   const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals">("overview");
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
 
@@ -264,6 +293,95 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               </div>
             )}
 
+            {/* Recent listings in their neighborhood */}
+            {savedCity && recentListings.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Recent listings near {savedCity}</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">New items just added in your neighborhood</p>
+                  </div>
+                  <Link href={`/search?city=${encodeURIComponent(savedCity + (savedState ? ", " + savedState : ""))}`}
+                    className="text-xs text-green-600 hover:underline">View all →</Link>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-px bg-gray-100">
+                  {recentListings.map((l) => {
+                    const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+                    return (
+                      <Link key={l.id} href={`/vendors/${vendor?.slug ?? ""}`}
+                        className="bg-white p-4 hover:bg-green-50 transition-colors">
+                        <div className="w-full h-28 rounded-xl bg-gray-100 overflow-hidden mb-3">
+                          {l.images?.[0]
+                            ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-3xl text-gray-300">
+                                {l.type === "product" ? "📦" : l.type === "restaurant" ? "🍽️" : "🔧"}
+                              </div>}
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">{l.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{vendor?.business_name}</p>
+                        {l.price !== null && (
+                          <p className="text-sm font-bold text-green-700 mt-1">${l.price.toFixed(2)}</p>
+                        )}
+                        {l.price === null && l.price_label && (
+                          <p className="text-xs text-gray-500 mt-1">{l.price_label}</p>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* New vendors in their neighborhood */}
+            {savedCity && newVendors.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-6">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold text-gray-900">New businesses in {savedCity}</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">Recently joined your community</p>
+                  </div>
+                  <Link href={`/search?city=${encodeURIComponent(savedCity + (savedState ? ", " + savedState : ""))}`}
+                    className="text-xs text-green-600 hover:underline">View all →</Link>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {newVendors.map((v) => (
+                    <Link key={v.id} href={`/vendors/${v.slug}`}
+                      className="flex items-center gap-4 px-6 py-4 hover:bg-green-50 transition-colors">
+                      <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
+                        {v.logo_url
+                          ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" />
+                          : v.business_name[0]}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{v.business_name}</p>
+                        <p className="text-xs text-gray-400">{v.category}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {v.rating > 0 && (
+                          <p className="text-xs font-medium text-gray-700">★ {v.rating.toFixed(1)}</p>
+                        )}
+                        {v.tier === "premium" && (
+                          <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">⭐ Premium</span>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* No neighborhood set yet */}
+            {!savedCity && (
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-6 text-center">
+                <p className="text-2xl mb-2">🏘️</p>
+                <p className="font-semibold text-gray-900 mb-1">Set your neighborhood</p>
+                <p className="text-sm text-gray-500 mb-4">We'll show you recent listings and new businesses near you every time you log in.</p>
+                <Link href="/onboarding/buyer" className="inline-block bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-green-700 transition-colors">
+                  Set my location →
+                </Link>
+              </div>
+            )}
+
             {/* Discover CTA */}
             <div className="bg-green-600 rounded-2xl p-6 text-white flex items-center justify-between gap-4">
               <div>
@@ -271,7 +389,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                 <p className="text-green-100 text-sm mt-1">Plumbers, restaurants, fresh produce, and more.</p>
               </div>
               <Link
-                href="/search"
+                href={savedCity ? `/search?city=${encodeURIComponent(savedCity + (savedState ? ", " + savedState : ""))}` : "/search"}
                 className="shrink-0 bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm"
               >
                 Search now →

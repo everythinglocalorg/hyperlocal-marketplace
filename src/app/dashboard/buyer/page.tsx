@@ -48,6 +48,30 @@ export default async function BuyerDashboardPage() {
         .single()
     : { data: null };
 
+  // Fetch recent listings & new vendors in their saved city
+  const savedCity = profile.city as string | null;
+  const savedState = profile.state as string | null;
+
+  const { data: recentListings } = savedCity
+    ? await supabase
+        .from("listings")
+        .select("*, vendor:vendors!inner(business_name, slug, logo_url, city, state)")
+        .eq("is_active", true)
+        .ilike("vendors.city", `%${savedCity}%`)
+        .order("created_at", { ascending: false })
+        .limit(6)
+    : { data: [] };
+
+  const { data: newVendors } = savedCity
+    ? await supabase
+        .from("vendors")
+        .select("id, business_name, slug, logo_url, banner_url, category, city, state, rating, review_count, tier, is_verified")
+        .eq("is_active", true)
+        .ilike("city", `%${savedCity}%`)
+        .order("created_at", { ascending: false })
+        .limit(6)
+    : { data: [] };
+
   return (
     <BuyerDashboardClient
       profile={profile}
@@ -55,6 +79,10 @@ export default async function BuyerDashboardPage() {
       bucksHistory={bucksHistory ?? []}
       referrals={referrals ?? []}
       referredBy={referredBy}
+      recentListings={recentListings ?? []}
+      newVendors={newVendors ?? []}
+      savedCity={savedCity}
+      savedState={savedState}
     />
   );
 }

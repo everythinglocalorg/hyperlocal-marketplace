@@ -35,6 +35,17 @@ export default function LoginPage() {
       .eq("id", data.user.id)
       .single();
 
+    // Sync neighborhood from localStorage to profile
+    const savedNeighborhood = localStorage.getItem("hl_neighborhood");
+    if (savedNeighborhood) {
+      try {
+        const { city, state } = JSON.parse(savedNeighborhood);
+        if (city && state) {
+          await supabase.from("profiles").update({ city, state }).eq("id", data.user.id);
+        }
+      } catch {}
+    }
+
     if (profile?.role === "vendor") {
       const { data: vendor } = await supabase
         .from("vendors")
