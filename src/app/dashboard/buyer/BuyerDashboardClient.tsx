@@ -162,7 +162,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
       {/* Sidebar */}
       <aside className="w-60 shrink-0 bg-white border-r border-gray-100 flex flex-col">
         <div className="p-5 border-b border-gray-100">
-          <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
+          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
         </div>
 
         {/* Profile summary */}
@@ -249,7 +249,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           <div className="p-4 border-t border-gray-100">
             <div className="bg-green-50 rounded-xl p-3">
               <p className="text-xs font-semibold text-green-800 mb-1">Have a business?</p>
-              <p className="text-xs text-green-600 mb-2">List it free on HyperLocal</p>
+              <p className="text-xs text-green-600 mb-2">List it free on Everything Local</p>
               <Link
                 href="/onboarding/vendor"
                 className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"

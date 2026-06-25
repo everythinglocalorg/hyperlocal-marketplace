@@ -250,7 +250,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-100 flex flex-col min-h-screen sticky top-0">
         <div className="p-6 border-b border-gray-100">
-          <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
+          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
         </div>
 
         {/* Vendor info */}
@@ -512,7 +512,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
                     <span className="text-2xl">✅</span>
                     <div>
                       <p className="font-semibold text-indigo-900">Payments enabled</p>
-                      <p className="text-sm text-indigo-500">Customers can pay you directly through HyperLocal.</p>
+                      <p className="text-sm text-indigo-500">Customers can pay you directly through Everything Local.</p>
                     </div>
                   </div>
                   <button

@@ -5,7 +5,7 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "HyperLocal Marketplace — Support Local, Earn Local Bucks",
+  title: "Everything Local Marketplace — Support Local, Earn Local Bucks",
   description:
     "The #1 community-driven hyper-local marketplace. Discover local vendors, earn Local Bucks, and support your community.",
 };

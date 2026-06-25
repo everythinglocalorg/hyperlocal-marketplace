@@ -241,7 +241,7 @@ export default function CommunityBoardClient({
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-green-600 font-bold text-lg">HyperLocal</Link>
+            <Link href="/" className="text-green-600 font-bold text-lg">Everything Local</Link>
             <span className="text-gray-300">/</span>
             <span className="text-sm font-semibold text-gray-700">📍 {cityName}, {stateCode}</span>
           </div>

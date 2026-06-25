@@ -143,7 +143,7 @@ export default function HomePage() {
       <header className="border-b border-gray-100 bg-white sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-green-600">HyperLocal</span>
+            <span className="text-2xl font-bold text-green-600">Everything Local</span>
             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">BETA</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -409,7 +409,7 @@ export default function HomePage() {
 
       <footer className="border-t border-gray-100 py-8 px-4 bg-white">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <span>© 2025 HyperLocal Marketplace. Support Local.</span>
+          <span>© 2025 Everything Local Marketplace. Support Local.</span>
           <div className="flex gap-6">
             <Link href="/about" className="hover:text-gray-900">About</Link>
             <Link href="/privacy" className="hover:text-gray-900">Privacy</Link>

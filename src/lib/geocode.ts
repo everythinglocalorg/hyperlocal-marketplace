@@ -13,7 +13,7 @@ export async function geocodeQuery(query: string): Promise<GeoResult | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=1&countrycodes=us`;
     const res = await fetch(url, {
-      headers: { "Accept-Language": "en-US", "User-Agent": "HyperLocalMarketplace/1.0" },
+      headers: { "Accept-Language": "en-US", "User-Agent": "Everything LocalMarketplace/1.0" },
     });
     const data = await res.json();
     if (!data?.length) return null;
@@ -37,7 +37,7 @@ export async function reverseGeocode(lat: number, lon: number): Promise<GeoResul
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
     const res = await fetch(url, {
-      headers: { "Accept-Language": "en-US", "User-Agent": "HyperLocalMarketplace/1.0" },
+      headers: { "Accept-Language": "en-US", "User-Agent": "Everything LocalMarketplace/1.0" },
     });
     const data = await res.json();
     if (!data?.address) return null;

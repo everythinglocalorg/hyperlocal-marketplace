@@ -160,7 +160,7 @@ export default function SearchClient() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-3">
             <Link href="/" className="text-xl font-bold text-green-600 shrink-0">
-              HyperLocal
+              Everything Local
             </Link>
             <div className="flex-1">
               <SearchBar

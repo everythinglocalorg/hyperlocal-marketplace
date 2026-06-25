@@ -174,7 +174,7 @@ export default function VendorProfileClient({
           <Link href="/search" className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm">
             ← Back to search
           </Link>
-          <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
+          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
           <div className="flex items-center gap-2">
             {currentUserId ? (
               <Link href="/dashboard/vendor" className="text-sm text-gray-500 hover:text-gray-700">Dashboard</Link>

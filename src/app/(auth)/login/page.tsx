@@ -134,7 +134,7 @@ export default function LoginPage() {
     <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
-        <p className="text-gray-500 text-sm mt-1">Log in to your HyperLocal account</p>
+        <p className="text-gray-500 text-sm mt-1">Log in to your Everything Local account</p>
       </div>
 
       {/* Google OAuth */}

@@ -43,7 +43,7 @@ function UpgradePageInner() {
           <Link href="/dashboard/vendor" className="text-gray-500 hover:text-gray-700 text-sm">
             ← Back to Dashboard
           </Link>
-          <Link href="/" className="text-lg font-bold text-green-600">HyperLocal</Link>
+          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
           <div className="w-24" />
         </div>
       </header>
@@ -89,7 +89,7 @@ function UpgradePageInner() {
             <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
               {/* Card header */}
               <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-6 text-white text-center">
-                <p className="text-green-100 text-sm font-medium mb-1">HyperLocal Premium</p>
+                <p className="text-green-100 text-sm font-medium mb-1">Everything Local Premium</p>
                 <div className="flex items-end justify-center gap-1">
                   <span className="text-5xl font-bold">$49</span>
                   <span className="text-green-200 mb-2">/month</span>
