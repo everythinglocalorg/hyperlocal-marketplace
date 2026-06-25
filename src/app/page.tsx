@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
+import { createClient } from "@/lib/supabase/client";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -33,13 +34,40 @@ export default function HomePage() {
   const [location, setLocation] = useState("");
   const [locating, setLocating] = useState(false);
 
+  // Auth state
+  const [user, setUser] = useState<{ name: string | null; role: string | null } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+
   // Neighborhood form
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [neighborhoodSaved, setNeighborhoodSaved] = useState(false);
 
-  // Load saved neighborhood on mount
   useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(async ({ data: { user: u } }) => {
+      if (u) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("full_name, role, city, state")
+          .eq("id", u.id)
+          .single();
+        setUser({ name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
+        // Populate neighborhood from profile if not in localStorage
+        if (profile?.city) {
+          const existing = localStorage.getItem("hl_neighborhood");
+          if (!existing) {
+            localStorage.setItem("hl_neighborhood", JSON.stringify({ city: profile.city, state: profile.state ?? "" }));
+          }
+          setCity(profile.city);
+          setState(profile.state ?? "");
+        }
+      }
+      setAuthChecked(true);
+    });
+
+    // Load saved neighborhood
     const saved = localStorage.getItem("hl_neighborhood");
     if (saved) {
       try {
@@ -108,10 +136,28 @@ export default function HomePage() {
             <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">BETA</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900">Log in</Link>
-            <Link href="/signup" className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors">
-              Sign up free
-            </Link>
+            {!authChecked ? (
+              <div className="w-24 h-8 bg-gray-100 rounded-full animate-pulse" />
+            ) : user ? (
+              <>
+                <span className="text-sm text-gray-600 hidden sm:block">
+                  Hi, <strong>{user.name?.split(" ")[0]}</strong>
+                </span>
+                <Link
+                  href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
+                  className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors"
+                >
+                  My dashboard →
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900">Log in</Link>
+                <Link href="/signup" className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors">
+                  Sign up free
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
