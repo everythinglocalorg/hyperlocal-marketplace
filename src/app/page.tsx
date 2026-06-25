@@ -279,7 +279,7 @@ export default function HomePage() {
             <div className="max-w-5xl mx-auto mt-14 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">
-                  {localCity ? `Recent listings near ${localCity}` : "Recent listings"}
+                  {localCity ? `Recent Gems near ${localCity}` : "Recent Gems"}
                 </h2>
                 <Link href={`/search${localCity ? `?city=${encodeURIComponent(localCity)}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
