@@ -202,12 +202,12 @@ export default function VendorProfileClient({
 
       {/* Profile header */}
       <div className="max-w-5xl mx-auto px-4">
-        <div className="relative -mt-10 mb-4 flex items-end justify-between">
+        <div className="relative -mt-24 mb-4 flex items-end justify-between">
           {/* Logo */}
-          <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-md bg-white overflow-hidden shrink-0">
+          <div className="w-[200px] h-[200px] rounded-2xl border-4 border-white shadow-md bg-white overflow-hidden shrink-0">
             {vendor.logo_url
               ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
-              : <div className="w-full h-full bg-green-100 flex items-center justify-center text-3xl font-bold text-green-600">{vendor.business_name[0]}</div>}
+              : <div className="w-full h-full bg-green-100 flex items-center justify-center text-7xl font-bold text-green-600">{vendor.business_name[0]}</div>}
           </div>
 
           {/* Action buttons */}
