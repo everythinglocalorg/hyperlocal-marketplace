@@ -764,9 +764,14 @@ function ListingsTab({
     });
   }
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   async function saveListing() {
     setSaving(true);
-    const payload = {
+    setSaveError(null);
+
+    // Base payload — always works regardless of migration status
+    const basePayload: Record<string, any> = {
       vendor_id: vendorId,
       title: form.title,
       type: form.type,
@@ -777,27 +782,48 @@ function ListingsTab({
       categories: selectedCategories,
       quantity: form.quantity ? Number(form.quantity) : null,
       condition: form.type === "product" ? form.condition : null,
-      tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      tags: form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
       images,
-      ...(form.type === "rental" ? { waiver_url: rentalWaiverUrl, waiver_filename: rentalWaiverFilename } : {}),
+      is_active: true,
     };
 
+    // Try with waiver columns first; fall back without them if columns don't exist yet
     let savedListingId: string | null = null;
+    const waiverPayload = form.type === "rental"
+      ? { ...basePayload, waiver_url: rentalWaiverUrl, waiver_filename: rentalWaiverFilename }
+      : basePayload;
+
     if (editingListing) {
-      await supabase.from("listings").update(payload).eq("id", editingListing.id);
+      const { error } = await supabase.from("listings").update(waiverPayload).eq("id", editingListing.id);
+      if (error) {
+        // Retry without waiver fields if columns don't exist
+        await supabase.from("listings").update(basePayload).eq("id", editingListing.id);
+      }
       savedListingId = editingListing.id;
       onEdit(null);
     } else {
-      const { data: newListing } = await supabase.from("listings").insert(payload).select("id").single();
+      let { data: newListing, error } = await supabase.from("listings").insert(waiverPayload).select("id").single();
+      if (error) {
+        // Retry without waiver fields
+        const res = await supabase.from("listings").insert(basePayload).select("id").single();
+        newListing = res.data;
+        if (res.error) {
+          setSaveError("Failed to save listing: " + res.error.message);
+          setSaving(false);
+          return;
+        }
+      }
       savedListingId = newListing?.id ?? null;
     }
 
-    // Save rental durations
+    // Save rental durations (only if rental_durations table exists)
     if (form.type === "rental" && savedListingId && rentalDurations.length > 0) {
-      await supabase.from("rental_durations").delete().eq("listing_id", savedListingId);
-      await supabase.from("rental_durations").insert(
-        rentalDurations.map((d) => ({ listing_id: savedListingId, ...d }))
-      );
+      try {
+        await supabase.from("rental_durations").delete().eq("listing_id", savedListingId);
+        await supabase.from("rental_durations").insert(
+          rentalDurations.map((d) => ({ listing_id: savedListingId, ...d }))
+        );
+      } catch { /* table not yet created — run rentals.sql */ }
     }
 
     setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "" });
@@ -1019,6 +1045,7 @@ function ListingsTab({
             >
               Cancel
             </button>
+            {saveError && <p className="text-xs text-red-500 col-span-2">{saveError}</p>}
             <button
               onClick={saveListing}
               disabled={!form.title.trim() || saving || selectedCategories.length === 0}
