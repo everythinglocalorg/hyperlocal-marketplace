@@ -131,6 +131,7 @@ export const CATEGORIES = [
   'Auto & Transportation',
   'Pet Services',
   'Childcare & Education',
+  'Housing & Rentals',
 ] as const
 
 export type Category = typeof CATEGORIES[number]

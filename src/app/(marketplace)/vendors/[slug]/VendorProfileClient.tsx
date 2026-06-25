@@ -380,7 +380,7 @@ export default function VendorProfileClient({
                         <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">
-                          {({ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" } as Record<string,string>)[listing.type] ?? "📦"}
+                          {({ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️", housing_sale:"🏠", housing_rent:"🏡" } as Record<string,string>)[listing.type] ?? "📦"}
                         </div>
                       )}
                       {listing.is_featured && (
@@ -400,6 +400,31 @@ export default function VendorProfileClient({
                       {listing.description && (
                         <p className="text-xs text-gray-400 mt-1 line-clamp-2">{listing.description}</p>
                       )}
+
+                      {(listing.type === "housing_sale" || listing.type === "housing_rent") && (() => {
+                        const housingTag = listing.tags?.find((t) => t.startsWith("__housing:"));
+                        let h: any = {};
+                        try { if (housingTag) h = JSON.parse(housingTag.replace("__housing:", "")); } catch {}
+                        return (
+                          <div className="mt-2 space-y-1">
+                            {h.address && <p className="text-xs text-gray-500">📍 {h.address}</p>}
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              {h.bedrooms && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🛏 {h.bedrooms} bd</span>}
+                              {h.bathrooms && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🚿 {h.bathrooms} ba</span>}
+                              {h.sqft && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">📐 {h.sqft} sqft</span>}
+                              {h.garage && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🚗 Garage</span>}
+                              {h.pets_allowed && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🐾 Pets OK</span>}
+                              {h.furnished && <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">🛋️ Furnished</span>}
+                            </div>
+                            {listing.type === "housing_rent" && h.available_date && (
+                              <p className="text-xs text-green-600 font-semibold mt-1">Available {new Date(h.available_date).toLocaleDateString()}</p>
+                            )}
+                            {listing.type === "housing_rent" && h.lease_term && (
+                              <p className="text-xs text-gray-400">{h.lease_term} lease</p>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {listing.type === "thrift" && (() => {
                         const address = listing.price_label;
@@ -423,10 +448,14 @@ export default function VendorProfileClient({
 
                       <div className="flex items-center justify-between mt-3">
                         <div>
-                          {listing.type !== "thrift" && listing.price !== null ? (
+                          {(listing.type !== "thrift" && listing.type !== "housing_sale" && listing.type !== "housing_rent") && listing.price !== null ? (
                             <span className="font-bold text-green-700">{formatPrice(listing.price)}</span>
-                          ) : listing.type !== "thrift" && listing.price_label ? (
+                          ) : (listing.type !== "thrift" && listing.type !== "housing_sale" && listing.type !== "housing_rent") && listing.price_label ? (
                             <span className="text-sm text-gray-600">{listing.price_label}</span>
+                          ) : (listing.type === "housing_sale" || listing.type === "housing_rent") ? (
+                            <span className="font-bold text-green-700">
+                              {listing.price ? `${formatPrice(listing.price)}${listing.type === "housing_rent" ? "/mo" : ""}` : listing.price_label ?? (listing.type === "housing_sale" ? "For Sale" : "For Rent")}
+                            </span>
                           ) : null}
                           {listing.condition && (
                             <span className="ml-2 text-xs text-gray-400 capitalize">{listing.condition}</span>

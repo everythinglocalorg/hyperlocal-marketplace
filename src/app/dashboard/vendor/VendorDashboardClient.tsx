@@ -998,6 +998,11 @@ function ListingsTab({
   const [rentalWaiverUrl, setRentalWaiverUrl] = useState<string | null>(null);
   const [rentalWaiverFilename, setRentalWaiverFilename] = useState<string | null>(null);
   const [thriftAddress, setThriftAddress] = useState("");
+  const [housing, setHousing] = useState({
+    address: "", bedrooms: "", bathrooms: "", sqft: "", lot_size: "",
+    year_built: "", garage: false, pets_allowed: false, furnished: false,
+    available_date: "", lease_term: "12 months",
+  });
   const [thriftHours, setThriftHours] = useState([
     { day: "Monday", open: "", close: "", closed: false },
     { day: "Tuesday", open: "", close: "", closed: false },
@@ -1032,6 +1037,12 @@ function ListingsTab({
         try {
           const parsed = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__hours:"))?.replace("__hours:", "") ?? "null");
           if (parsed) setThriftHours(parsed);
+        } catch {}
+      }
+      if (editingListing.type === "housing_sale" || editingListing.type === "housing_rent") {
+        try {
+          const h = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__housing:"))?.replace("__housing:", "") ?? "null");
+          if (h) setHousing(h);
         } catch {}
       }
       onShowNew(true);
@@ -1101,21 +1112,26 @@ function ListingsTab({
 
     // Base payload — always works regardless of migration status
     const isThrift = form.type === "thrift";
+    const isHousing = form.type === "housing_sale" || form.type === "housing_rent";
     const regularTags = form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [];
     const thriftTags = isThrift ? [`__hours:${JSON.stringify(thriftHours)}`] : [];
+    const housingTags = isHousing ? [`__housing:${JSON.stringify(housing)}`] : [];
+    const finalCategories = isHousing
+      ? (selectedCategories.includes("Housing & Rentals") ? selectedCategories : [...selectedCategories, "Housing & Rentals"])
+      : selectedCategories;
 
     const basePayload: Record<string, any> = {
       vendor_id: vendorId,
       title: form.title,
       type: form.type,
-      price: isThrift ? null : (form.price ? Number(form.price) : null),
+      price: (isThrift || isHousing) ? (form.price ? Number(form.price) : null) : (form.price ? Number(form.price) : null),
       price_label: isThrift ? (thriftAddress || null) : (form.price_label || null),
       description: form.description || null,
-      category: selectedCategories[0] ?? form.category,
-      categories: selectedCategories,
-      quantity: form.quantity ? Number(form.quantity) : null,
+      category: isHousing ? "Housing & Rentals" : (finalCategories[0] ?? form.category),
+      categories: finalCategories,
+      quantity: null,
       condition: form.type === "product" ? form.condition : null,
-      tags: isThrift ? thriftTags : regularTags,
+      tags: isThrift ? thriftTags : isHousing ? housingTags : regularTags,
       images,
       is_active: true,
     };
@@ -1175,6 +1191,7 @@ function ListingsTab({
       { day: "Saturday", open: "", close: "", closed: false },
       { day: "Sunday", open: "", close: "", closed: true },
     ]);
+    setHousing({ address: "", bedrooms: "", bathrooms: "", sqft: "", lot_size: "", year_built: "", garage: false, pets_allowed: false, furnished: false, available_date: "", lease_term: "12 months" });
     onShowNew(false);
     onRefresh();
     setSaving(false);
@@ -1190,8 +1207,10 @@ function ListingsTab({
     { value: "event", label: "Event" },
     { value: "rental", label: "Rental" },
     { value: "thrift", label: "Thrift Sale" },
+    { value: "housing_sale", label: "Home For Sale" },
+    { value: "housing_rent", label: "Rental Property" },
   ];
-  const CATEGORIES = ["Products", "Services & Trades", "Restaurants & Food", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education"];
+  const CATEGORIES = ["Products", "Services & Trades", "Restaurants & Food", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education", "Housing & Rentals"];
 
   return (
     <div>
@@ -1349,6 +1368,94 @@ function ListingsTab({
                 />
               </div>
             )}
+
+            {/* ── HOUSING FIELDS ── */}
+            {(form.type === "housing_sale" || form.type === "housing_rent") && (
+              <div className="sm:col-span-2 space-y-5 pt-2 border-t border-gray-100">
+                <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">
+                  {form.type === "housing_sale" ? "🏠 Home For Sale Details" : "🏡 Rental Property Details"}
+                </p>
+
+                {/* Address */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Property Address</label>
+                  <input type="text" value={housing.address}
+                    onChange={(e) => setHousing((h) => ({ ...h, address: e.target.value }))}
+                    placeholder="123 Main St, Faribault, MN 55021"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+
+                {/* Beds / Baths / Sqft / Lot */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Bedrooms", key: "bedrooms", placeholder: "3" },
+                    { label: "Bathrooms", key: "bathrooms", placeholder: "2" },
+                    { label: "Sq Ft", key: "sqft", placeholder: "1,400" },
+                    { label: "Lot Size", key: "lot_size", placeholder: "0.25 acres" },
+                  ].map(({ label, key, placeholder }) => (
+                    <div key={key}>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">{label}</label>
+                      <input type="text" value={(housing as any)[key]}
+                        onChange={(e) => setHousing((h) => ({ ...h, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Year built */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Year Built</label>
+                    <input type="text" value={housing.year_built}
+                      onChange={(e) => setHousing((h) => ({ ...h, year_built: e.target.value }))}
+                      placeholder="1998"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  {form.type === "housing_rent" && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-500 mb-1">Lease Term</label>
+                      <select value={housing.lease_term}
+                        onChange={(e) => setHousing((h) => ({ ...h, lease_term: e.target.value }))}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                        {["Month-to-month", "6 months", "12 months", "18 months", "24 months"].map((o) => <option key={o}>{o}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {form.type === "housing_rent" && (
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Available Date</label>
+                    <input type="date" value={housing.available_date}
+                      onChange={(e) => setHousing((h) => ({ ...h, available_date: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                )}
+
+                {/* Feature toggles */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Features</label>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { key: "garage", label: "🚗 Garage" },
+                      { key: "pets_allowed", label: "🐾 Pets Allowed" },
+                      { key: "furnished", label: "🛋️ Furnished" },
+                    ].map(({ key, label }) => (
+                      <label key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-sm transition-colors ${
+                        (housing as any)[key] ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"
+                      }`}>
+                        <input type="checkbox" checked={(housing as any)[key]}
+                          onChange={() => setHousing((h) => ({ ...h, [key]: !(h as any)[key] }))}
+                          className="accent-green-600" />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {form.type === "product" && (
               <>
                 <div>
@@ -2105,6 +2212,7 @@ const CATEGORIES_LIST = [
   "Products","Services & Trades","Restaurants & Food","Events & Rentals",
   "Health & Beauty","Home & Garden","Clothing & Accessories","Arts & Crafts",
   "Sports & Outdoors","Auto & Transportation","Pet Services","Childcare & Education",
+  "Housing & Rentals",
 ];
 
 function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) {
