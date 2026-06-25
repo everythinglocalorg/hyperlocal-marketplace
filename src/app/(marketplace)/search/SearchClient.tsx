@@ -307,7 +307,7 @@ export default function SearchClient() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
             <button
-              onClick={() => { setCategory(""); updateURL({ category: "" }); }}
+              onClick={() => { setCategory(""); updateURL({ category: "", mode: "", type: "" }); }}
               className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 !category ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
@@ -317,7 +317,7 @@ export default function SearchClient() {
             {CATEGORIES.map((c) => (
               <button
                 key={c}
-                onClick={() => { setCategory(c); updateURL({ category: c }); }}
+                onClick={() => { setCategory(c); updateURL({ category: c, mode: "", type: "" }); }}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   category === c ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
