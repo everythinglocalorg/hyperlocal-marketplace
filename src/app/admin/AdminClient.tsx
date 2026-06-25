@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ALL_FEATURES, FeatureKey, allFeaturesOn, allFeaturesOff } from "@/lib/features";
 
-type AdminTab = "vendors" | "users" | "listings" | "logs";
+type AdminTab = "vendors" | "users" | "listings" | "logs" | "security";
 
 type Vendor = {
   id: string; business_name: string; slug: string; tier: string;
@@ -14,6 +14,7 @@ type Vendor = {
 type UserRow = { id: string; email: string; full_name: string | null; is_admin: boolean; created_at: string };
 type Listing = { id: string; title: string; vendor_id: string; is_active: boolean; price: number | null; vendor?: { business_name: string } | null };
 type LogRow = { id: string; action: string; target_type: string | null; detail: string | null; created_at: string };
+type SpamFlag = { id: string; type: string; status: string; details: Record<string, any>; created_at: string; flagged_user_id: string | null };
 
 interface Props { adminId: string; }
 
@@ -42,6 +43,7 @@ export default function AdminClient({ adminId }: Props) {
             { id: "vendors", label: "🏪 Vendors" },
             { id: "users", label: "👤 Users" },
             { id: "listings", label: "📦 Listings" },
+            { id: "security", label: "🚨 Security" },
             { id: "logs", label: "📋 Activity Log" },
           ] as { id: AdminTab; label: string }[]).map((t) => (
             <button
@@ -57,6 +59,7 @@ export default function AdminClient({ adminId }: Props) {
         {tab === "vendors" && <VendorsTab adminId={adminId} />}
         {tab === "users" && <UsersTab adminId={adminId} />}
         {tab === "listings" && <ListingsTab adminId={adminId} />}
+        {tab === "security" && <SecurityTab adminId={adminId} />}
         {tab === "logs" && <LogsTab />}
       </div>
     </div>
@@ -450,6 +453,132 @@ function LogsTab() {
             ))}
           </tbody>
         </table>
+      )}
+    </div>
+  );
+}
+
+/* ─── SECURITY TAB ────────────────────────────────────────────────── */
+function SecurityTab({ adminId }: { adminId: string }) {
+  const supabase = createClient();
+  const [flags, setFlags] = useState<SpamFlag[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"open" | "all">("open");
+
+  useEffect(() => { load(); }, [filter]);
+
+  async function load() {
+    setLoading(true);
+    let q = supabase.from("spam_flags").select("*").order("created_at", { ascending: false }).limit(200);
+    if (filter === "open") q = q.eq("status", "open");
+    const { data } = await q;
+    setFlags((data ?? []) as SpamFlag[]);
+    setLoading(false);
+  }
+
+  async function updateFlag(id: string, status: "dismissed" | "warned") {
+    await supabase.from("spam_flags").update({ status, reviewed_at: new Date().toISOString(), reviewed_by: adminId }).eq("id", id);
+    await supabase.from("admin_logs").insert({ admin_id: adminId, action: `flag_${status}`, target_type: "spam_flag", target_id: id, detail: status });
+    setFlags((prev) => prev.map((f) => f.id === id ? { ...f, status } : f));
+  }
+
+  const TYPE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
+    message_duplicate: { label: "Duplicate Message", color: "bg-red-100 text-red-700", icon: "💬" },
+    listing_duplicate: { label: "Duplicate Listing", color: "bg-orange-100 text-orange-700", icon: "📦" },
+  };
+
+  const STATUS_COLOR: Record<string, string> = {
+    open: "bg-red-100 text-red-600",
+    dismissed: "bg-gray-100 text-gray-500",
+    warned: "bg-amber-100 text-amber-700",
+  };
+
+  const openCount = flags.filter((f) => f.status === "open").length;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <h2 className="font-bold text-gray-900 text-lg">🚨 Security Flags</h2>
+          {openCount > 0 && (
+            <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{openCount} open</span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {(["open", "all"] as const).map((f) => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`text-sm px-3 py-1.5 rounded-xl font-semibold transition-colors ${filter === f ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>
+              {f === "open" ? "Open" : "All"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40"><div className="w-6 h-6 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /></div>
+      ) : flags.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">
+          <p className="text-4xl mb-3">✅</p>
+          <p className="font-semibold text-gray-600">No {filter === "open" ? "open " : ""}flags</p>
+          <p className="text-sm">Everything looks clean.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {flags.map((flag) => {
+            const meta = TYPE_LABELS[flag.type] ?? { label: flag.type, color: "bg-gray-100 text-gray-600", icon: "⚠️" };
+            const d = flag.details ?? {};
+            return (
+              <div key={flag.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${meta.color}`}>{meta.icon} {meta.label}</span>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_COLOR[flag.status]}`}>{flag.status}</span>
+                      <span className="text-xs text-gray-400">{new Date(flag.created_at).toLocaleString()}</span>
+                    </div>
+
+                    {/* User info */}
+                    <p className="text-sm font-semibold text-gray-900">
+                      {d.sender_name ?? d.business_name ?? "Unknown user"}
+                      {d.sender_email && <span className="text-gray-400 font-normal ml-2">{d.sender_email}</span>}
+                    </p>
+
+                    {/* Detail */}
+                    {d.message_preview && (
+                      <p className="text-sm text-gray-500 mt-1 italic bg-gray-50 rounded-lg px-3 py-2">
+                        "{d.message_preview}"
+                        {d.duplicate_type && (
+                          <span className="ml-2 text-xs text-red-500 not-italic font-semibold">
+                            {d.duplicate_type === "cross_vendor" ? "· sent to multiple vendors" : "· repeated in same chat"}
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    {d.title && (
+                      <p className="text-sm text-gray-500 mt-1 italic bg-gray-50 rounded-lg px-3 py-2">
+                        Listing: "{d.title}"
+                        {d.business_name && <span className="ml-2 text-xs text-gray-400 not-italic">by {d.business_name}</span>}
+                      </p>
+                    )}
+                  </div>
+
+                  {flag.status === "open" && (
+                    <div className="flex gap-2 shrink-0">
+                      <button onClick={() => updateFlag(flag.id, "warned")}
+                        className="text-xs bg-amber-100 text-amber-700 font-semibold px-3 py-1.5 rounded-lg hover:bg-amber-200 transition-colors">
+                        Warn User
+                      </button>
+                      <button onClick={() => updateFlag(flag.id, "dismissed")}
+                        className="text-xs bg-gray-100 text-gray-600 font-semibold px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors">
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       )}
     </div>
   );

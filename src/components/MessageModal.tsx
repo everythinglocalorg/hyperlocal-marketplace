@@ -105,21 +105,17 @@ export default function MessageModal({ listing, vendor, currentUser, onClose }: 
     setMessages((prev) => [...prev, optimistic]);
     setTimeout(scrollToBottom, 50);
 
-    const { data: inserted } = await supabase.from("messages").insert({
-      conversation_id: conversationId,
-      sender_id: currentUser.id,
-      body: text,
-    }).select("*").single();
+    const res = await fetch("/api/messages/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation_id: conversationId, body: text }),
+    });
+    const { message: inserted } = await res.json();
 
     // Replace optimistic with real record
     if (inserted) {
       setMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
     }
-
-    await supabase.from("conversations").update({
-      last_message_at: new Date().toISOString(),
-      last_message_preview: text.slice(0, 100),
-    }).eq("id", conversationId);
 
     setSending(false);
   }

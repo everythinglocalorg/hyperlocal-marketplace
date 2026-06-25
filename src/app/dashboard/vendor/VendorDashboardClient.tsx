@@ -269,15 +269,14 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     const conv = conversations.find((c) => c.id === activeConvId);
     const optimistic = { id: `tmp-${Date.now()}`, sender_id: vendor.user_id, body: text, created_at: new Date().toISOString() };
     setConvMessages((prev) => [...prev, optimistic]);
-    const { data: inserted } = await supabase.from("messages").insert({
-      conversation_id: activeConvId,
-      sender_id: vendor.user_id,
-      body: text,
-    }).select("*").single();
+    const res = await fetch("/api/messages/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ conversation_id: activeConvId, body: text }),
+    });
+    const { message: inserted } = await res.json();
     if (inserted) setConvMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
     await supabase.from("conversations").update({
-      last_message_at: new Date().toISOString(),
-      last_message_preview: text.slice(0, 100),
       buyer_unread: (conv?.buyer_unread ?? 0) + 1,
     }).eq("id", activeConvId);
     awardScore("message");
@@ -1082,6 +1081,23 @@ function ListingsTab({
   async function saveListing() {
     setSaving(true);
     setSaveError(null);
+
+    // Duplicate listing check (new listings only)
+    if (!editingListing && form.title.trim()) {
+      try {
+        const dupeRes = await fetch("/api/listings/check-dupe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vendor_id: vendorId, title: form.title.trim() }),
+        });
+        const { isDuplicate } = await dupeRes.json();
+        if (isDuplicate) {
+          setSaveError("A listing with this title already exists. Please use a unique title.");
+          setSaving(false);
+          return;
+        }
+      } catch { /* non-blocking — proceed if check fails */ }
+    }
 
     // Base payload — always works regardless of migration status
     const isThrift = form.type === "thrift";
