@@ -438,6 +438,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
         {/* Navigation */}
         <nav className="flex-1 p-3">
+          <div className="mb-2 text-center text-[10px] font-bold text-white bg-pink-600 rounded-md py-1">BUILD v3 · PAGE CONTENT LIVE</div>
           {NAV.map((item) => (
             <button
               key={item.id}
