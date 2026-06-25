@@ -28,9 +28,23 @@ export default function HomePage() {
   const [locating, setLocating] = useState(false);
   const [user, setUser] = useState<{ name: string | null; role: string | null } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [recentListings, setRecentListings] = useState<any[]>([]);
+  const [newVendors, setNewVendors] = useState<any[]>([]);
+  const [localCity, setLocalCity] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
+
+    // Pre-fill location from saved neighborhood
+    const saved = localStorage.getItem("hl_neighborhood");
+    let savedCity: string | null = null;
+    if (saved) {
+      try {
+        const { city, state } = JSON.parse(saved);
+        if (city) { setLocation(state ? `${city}, ${state}` : city); savedCity = city; setLocalCity(city); }
+      } catch {}
+    }
+
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       if (u) {
         const { data: profile } = await supabase
@@ -39,22 +53,37 @@ export default function HomePage() {
           .eq("id", u.id)
           .single();
         setUser({ name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
-        // Sync profile city into localStorage if not already set
-        if (profile?.city && !localStorage.getItem("hl_neighborhood")) {
+        if (profile?.city && !savedCity) {
           localStorage.setItem("hl_neighborhood", JSON.stringify({ city: profile.city, state: profile.state ?? "" }));
+          savedCity = profile.city;
+          setLocalCity(profile.city);
+          setLocation(profile.state ? `${profile.city}, ${profile.state}` : profile.city);
         }
       }
       setAuthChecked(true);
-    });
 
-    // Pre-fill location from saved neighborhood
-    const saved = localStorage.getItem("hl_neighborhood");
-    if (saved) {
-      try {
-        const { city, state } = JSON.parse(saved);
-        if (city) setLocation(state ? `${city}, ${state}` : city);
-      } catch {}
-    }
+      // Fetch recent listings
+      const listingsQuery = supabase
+        .from("listings")
+        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city)")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (savedCity) listingsQuery.ilike("vendors.city", `%${savedCity}%`);
+      const { data: listings } = await listingsQuery;
+      setRecentListings(listings ?? []);
+
+      // Fetch new vendors
+      const vendorsQuery = supabase
+        .from("vendors")
+        .select("id, business_name, slug, logo_url, category, city, rating")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (savedCity) vendorsQuery.ilike("city", `%${savedCity}%`);
+      const { data: vendors } = await vendorsQuery;
+      setNewVendors(vendors ?? []);
+    });
   }, []);
 
   function handleSearch(e: React.FormEvent) {
@@ -196,6 +225,65 @@ export default function HomePage() {
               ))}
             </div>
           </div>
+
+          {/* Recent listings */}
+          {recentListings.length > 0 && (
+            <div className="max-w-5xl mx-auto mt-14 px-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">
+                  {localCity ? `Recent listings near ${localCity}` : "Recent listings"}
+                </h2>
+                <Link href={`/search${localCity ? `?city=${encodeURIComponent(localCity)}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {recentListings.map((l) => {
+                  const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+                  return (
+                    <Link key={l.id} href={`/vendors/${vendor?.slug ?? ""}`}
+                      className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-green-200 transition-all">
+                      <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
+                        {l.images?.[0]
+                          ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+                          : <span className="text-3xl text-gray-300">{l.type === "product" ? "📦" : "🔧"}</span>}
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-1">{l.title}</p>
+                        <p className="text-xs text-gray-400 truncate">{vendor?.business_name}</p>
+                        {l.price != null
+                          ? <p className="text-xs font-bold text-green-700 mt-1">${Number(l.price).toFixed(2)}</p>
+                          : l.price_label && <p className="text-xs text-gray-500 mt-1">{l.price_label}</p>}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* New businesses */}
+          {newVendors.length > 0 && (
+            <div className="max-w-5xl mx-auto mt-10 px-4 pb-14">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">
+                  {localCity ? `New businesses in ${localCity}` : "New businesses"}
+                </h2>
+                <Link href={`/search${localCity ? `?city=${encodeURIComponent(localCity)}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                {newVendors.map((v) => (
+                  <Link key={v.id} href={`/vendors/${v.slug}`}
+                    className="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col items-center text-center hover:shadow-md hover:border-green-200 transition-all">
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 overflow-hidden mb-2">
+                      {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" /> : v.business_name[0]}
+                    </div>
+                    <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">{v.business_name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate w-full">{v.category}</p>
+                    {v.rating > 0 && <p className="text-xs text-amber-500 font-medium mt-1">★ {Number(v.rating).toFixed(1)}</p>}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Categories */}

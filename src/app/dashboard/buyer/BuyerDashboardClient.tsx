@@ -430,17 +430,6 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               </div>
             )}
 
-            {/* No neighborhood set yet */}
-            {!savedCity && (
-              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 mb-6 text-center">
-                <p className="text-2xl mb-2">🏘️</p>
-                <p className="font-semibold text-gray-900 mb-1">Set your neighborhood</p>
-                <p className="text-sm text-gray-500 mb-4">We'll show you recent listings and new businesses near you every time you log in.</p>
-                <Link href="/onboarding/buyer" className="inline-block bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-green-700 transition-colors">
-                  Set my location →
-                </Link>
-              </div>
-            )}
 
             {/* Discover CTA */}
             <div className="bg-green-600 rounded-2xl p-6 text-white flex items-center justify-between gap-4">
