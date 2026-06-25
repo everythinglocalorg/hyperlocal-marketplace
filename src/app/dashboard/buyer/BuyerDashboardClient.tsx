@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
+import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
   id: string;
@@ -119,11 +120,54 @@ const STATUS_ICONS: Record<string, string> = {
 };
 
 export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount }: Props) {
-  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals">("overview");
+  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages">("overview");
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [localProfile, setLocalProfile] = useState({ full_name: profile.full_name, avatar_url: profile.avatar_url, phone: profile.phone });
+  const supabase = createClient();
+  const [conversations, setBuyerConversations] = useState<any[]>([]);
+  const [activeConvId, setActiveBuyerConvId] = useState<string | null>(null);
+  const [convMessages, setBuyerConvMessages] = useState<any[]>([]);
+  const [msgBody, setBuyerMsgBody] = useState("");
+  const [unreadMsgCount, setBuyerUnreadCount] = useState(0);
+
+  useEffect(() => {
+    supabase
+      .from("conversations")
+      .select("*, vendor:vendors(id, business_name, user_id)")
+      .eq("buyer_id", profile.id)
+      .order("last_message_at", { ascending: false })
+      .then(({ data }) => {
+        if (data) {
+          setBuyerConversations(data);
+          setBuyerUnreadCount(data.reduce((n: number, c: any) => n + (c.buyer_unread ?? 0), 0));
+        }
+      });
+  }, [profile.id]);
+
+  async function openBuyerConversation(convId: string) {
+    setActiveBuyerConvId(convId);
+    const { data } = await supabase.from("messages").select("*").eq("conversation_id", convId).order("created_at", { ascending: true });
+    setBuyerConvMessages(data ?? []);
+    await supabase.from("conversations").update({ buyer_unread: 0 }).eq("id", convId);
+    setBuyerConversations((prev) => prev.map((c) => c.id === convId ? { ...c, buyer_unread: 0 } : c));
+    setBuyerUnreadCount((n) => Math.max(0, n - (conversations.find((c) => c.id === convId)?.buyer_unread ?? 0)));
+  }
+
+  async function sendBuyerMessage() {
+    if (!msgBody.trim() || !activeConvId) return;
+    const text = msgBody.trim();
+    setBuyerMsgBody("");
+    const conv = conversations.find((c) => c.id === activeConvId);
+    await supabase.from("messages").insert({ conversation_id: activeConvId, sender_id: profile.id, body: text });
+    await supabase.from("conversations").update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: text.slice(0, 100),
+      vendor_unread: (conv?.vendor_unread ?? 0) + 1,
+    }).eq("id", activeConvId);
+    setBuyerConvMessages((prev) => [...prev, { id: Date.now().toString(), sender_id: profile.id, body: text, created_at: new Date().toISOString() }]);
+  }
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -152,6 +196,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
 
   const NAV = [
     { id: "overview", label: "Overview", icon: "🏠" },
+    { id: "messages", label: "Messages", icon: "💬" },
     { id: "bookings", label: "Bookings", icon: "📅" },
     { id: "bucks", label: "Local Bucks", icon: "🪙" },
     { id: "referrals", label: "Referrals", icon: "🤝" },
@@ -235,6 +280,9 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
             >
               <span>{item.icon}</span>
               {item.label}
+              {item.id === "messages" && unreadMsgCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadMsgCount}</span>
+              )}
               {item.id === "bookings" && pendingBookings > 0 && (
                 <span className="ml-auto bg-yellow-400 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
                   {pendingBookings}
@@ -455,6 +503,73 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               >
                 Search now →
               </Link>
+            </div>
+          </div>
+        )}
+
+        {/* ── MESSAGES ── */}
+        {tab === "messages" && (
+          <div className="flex gap-4 h-[600px]">
+            {/* Conversation list */}
+            <div className="w-64 shrink-0 border border-gray-100 rounded-2xl overflow-y-auto bg-white">
+              <div className="px-4 py-3 border-b border-gray-100">
+                <h2 className="font-semibold text-gray-900 text-sm">💬 My Messages</h2>
+              </div>
+              {conversations.length === 0 ? (
+                <div className="p-6 text-center text-gray-400 text-sm">No messages yet.<br/>Click "Message" on any listing to start.</div>
+              ) : (
+                conversations.map((c) => {
+                  const v = Array.isArray(c.vendor) ? c.vendor[0] : c.vendor;
+                  return (
+                    <button key={c.id} onClick={() => openBuyerConversation(c.id)}
+                      className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-green-50 transition-colors ${activeConvId === c.id ? "bg-green-50" : ""}`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{v?.business_name ?? "Vendor"}</p>
+                        {c.buyer_unread > 0 && (
+                          <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">{c.buyer_unread}</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 truncate mt-0.5">{c.listing_title}</p>
+                      {c.last_message_preview && (
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{c.last_message_preview}</p>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Chat thread */}
+            <div className="flex-1 border border-gray-100 rounded-2xl flex flex-col bg-white overflow-hidden">
+              {!activeConvId ? (
+                <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Select a conversation</div>
+              ) : (
+                <>
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                    {convMessages.map((m) => {
+                      const isMe = m.sender_id === profile.id;
+                      return (
+                        <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                          <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-green-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}>
+                            <p>{m.body}</p>
+                            <p className={`text-xs mt-1 ${isMe ? "text-green-200" : "text-gray-400"}`}>
+                              {new Date(m.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+                    <input type="text" value={msgBody} onChange={(e) => setBuyerMsgBody(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") sendBuyerMessage(); }}
+                      placeholder="Type a reply..."
+                      className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    <button onClick={sendBuyerMessage} disabled={!msgBody.trim()}
+                      className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-40 transition-colors">Send</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

@@ -8,7 +8,7 @@ import RentalSetup from "@/components/rental/RentalSetup";
 import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages";
 
 interface Props {
   vendor: {
@@ -98,6 +98,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "bookings", label: "Bookings", icon: "📅", premiumOnly: true },
   { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
   { id: "referrals", label: "Referrals", icon: "🤝" },
+  { id: "messages", label: "Messages", icon: "💬" },
   { id: "notifications", label: "Notifications", icon: "🔔" },
 ];
 
@@ -120,6 +121,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [convMessages, setConvMessages] = useState<any[]>([]);
+  const [msgBody, setMsgBody] = useState("");
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0);
   const [stats, setStats] = useState({ totalViews: 0, totalClicks: 0, totalListings: 0, activeListings: 0, pendingBookings: 0, thisWeekViews: 0 });
   const [loadingListings, setLoadingListings] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(false);
@@ -218,6 +224,50 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
     }
   }, [supabase, vendor.id]);
 
+  const loadConversations = useCallback(async () => {
+    const { data } = await supabase
+      .from("conversations")
+      .select("*, buyer:profiles(id, full_name)")
+      .eq("vendor_id", vendor.id)
+      .order("last_message_at", { ascending: false });
+    if (data) {
+      setConversations(data);
+      setUnreadMsgCount(data.reduce((n: number, c: any) => n + (c.vendor_unread ?? 0), 0));
+    }
+  }, [supabase, vendor.id]);
+
+  async function openConversation(convId: string) {
+    setActiveConvId(convId);
+    const { data } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", convId)
+      .order("created_at", { ascending: true });
+    setConvMessages(data ?? []);
+    // Mark vendor unread = 0
+    await supabase.from("conversations").update({ vendor_unread: 0 }).eq("id", convId);
+    setConversations((prev) => prev.map((c) => c.id === convId ? { ...c, vendor_unread: 0 } : c));
+    setUnreadMsgCount((n) => Math.max(0, n - (conversations.find((c) => c.id === convId)?.vendor_unread ?? 0)));
+  }
+
+  async function sendVendorMessage() {
+    if (!msgBody.trim() || !activeConvId) return;
+    const text = msgBody.trim();
+    setMsgBody("");
+    const conv = conversations.find((c) => c.id === activeConvId);
+    await supabase.from("messages").insert({
+      conversation_id: activeConvId,
+      sender_id: vendor.user_id,
+      body: text,
+    });
+    await supabase.from("conversations").update({
+      last_message_at: new Date().toISOString(),
+      last_message_preview: text.slice(0, 100),
+      buyer_unread: (conv?.buyer_unread ?? 0) + 1,
+    }).eq("id", activeConvId);
+    setConvMessages((prev) => [...prev, { id: Date.now().toString(), sender_id: vendor.user_id, body: text, created_at: new Date().toISOString() }]);
+  }
+
   async function markInquiryRead(id: string) {
     await supabase.from("purchase_inquiries").update({ is_read: true }).eq("id", id);
     setInquiries((prev) => prev.map((i) => i.id === id ? { ...i, is_read: true } : i));
@@ -228,8 +278,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
     loadListings();
     loadBookings();
     loadInquiries();
+    loadConversations();
     if (isPremium) loadCustomers();
-  }, [loadListings, loadBookings, loadCustomers, loadInquiries, isPremium]);
+  }, [loadListings, loadBookings, loadCustomers, loadInquiries, loadConversations, isPremium]);
 
   async function toggleListingActive(id: string, current: boolean) {
     await supabase.from("listings").update({ is_active: !current }).eq("id", id);
@@ -375,6 +426,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
             >
               <span>{item.icon}</span>
               <span>{item.label}</span>
+              {item.id === "messages" && unreadMsgCount > 0 && (
+                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadMsgCount}</span>
+              )}
               {item.id === "notifications" && unreadCount > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadCount}</span>
               )}
@@ -700,6 +754,85 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
 
           {tab === "store" && (
             <StoreSettingsTab vendor={vendor} supabase={supabase} />
+          )}
+
+          {tab === "messages" && (
+            <div className="flex gap-4 h-[600px]">
+              {/* Conversation list */}
+              <div className="w-64 shrink-0 border border-gray-100 rounded-2xl overflow-y-auto bg-white">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <h2 className="font-semibold text-gray-900 text-sm">💬 Messages</h2>
+                </div>
+                {conversations.length === 0 ? (
+                  <div className="p-6 text-center text-gray-400 text-sm">No messages yet.</div>
+                ) : (
+                  conversations.map((c) => {
+                    const buyer = Array.isArray(c.buyer) ? c.buyer[0] : c.buyer;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => openConversation(c.id)}
+                        className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-green-50 transition-colors ${activeConvId === c.id ? "bg-green-50" : ""}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{buyer?.full_name ?? "Buyer"}</p>
+                          {c.vendor_unread > 0 && (
+                            <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">{c.vendor_unread}</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 truncate mt-0.5">{c.listing_title}</p>
+                        {c.last_message_preview && (
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{c.last_message_preview}</p>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Chat thread */}
+              <div className="flex-1 border border-gray-100 rounded-2xl flex flex-col bg-white overflow-hidden">
+                {!activeConvId ? (
+                  <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                    Select a conversation to view messages
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                      {convMessages.map((m) => {
+                        const isMe = m.sender_id === vendor.user_id;
+                        return (
+                          <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
+                            <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                              isMe ? "bg-green-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                            }`}>
+                              <p>{m.body}</p>
+                              <p className={`text-xs mt-1 ${isMe ? "text-green-200" : "text-gray-400"}`}>
+                                {new Date(m.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="px-4 py-3 border-t border-gray-100 flex gap-2">
+                      <input
+                        type="text"
+                        value={msgBody}
+                        onChange={(e) => setMsgBody(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") sendVendorMessage(); }}
+                        placeholder="Type a reply..."
+                        className="flex-1 border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                      <button onClick={sendVendorMessage} disabled={!msgBody.trim()}
+                        className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-40 transition-colors">
+                        Send
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           )}
 
           {tab === "notifications" && (

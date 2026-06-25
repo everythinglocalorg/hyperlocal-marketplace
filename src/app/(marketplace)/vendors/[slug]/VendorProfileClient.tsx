@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
+import MessageModal from "@/components/MessageModal";
 
 const BUY_NOW_CATEGORIES = [
   "Products", "Clothing & Accessories", "Auto & Transportation",
@@ -86,6 +87,7 @@ export default function VendorProfileClient({
   const [bookingListing, setBookingListing] = useState<Listing | null>(null);
   const [bookingDurations, setBookingDurations] = useState<any[]>([]);
   const [buyListing, setBuyListing] = useState<Listing | null>(null);
+  const [messageListing, setMessageListing] = useState<Listing | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
 
   useEffect(() => {
@@ -166,6 +168,14 @@ export default function VendorProfileClient({
   const orderedListings = [...featuredListings, ...regularListings];
 
   return (<>
+    {messageListing && (
+      <MessageModal
+        listing={{ id: messageListing.id, title: messageListing.title }}
+        vendor={{ id: vendor.id, business_name: vendor.business_name }}
+        currentUser={currentUser}
+        onClose={() => setMessageListing(null)}
+      />
+    )}
     {buyListing && (
       <BuyNowModal
         listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }}
@@ -440,10 +450,17 @@ export default function VendorProfileClient({
                           <span className="text-xs text-gray-400">{listing.quantity} left</span>
                         )}
                       </div>
+                      <div className="mt-3">
+                        <button
+                          onClick={() => setMessageListing(listing)}
+                          className="w-full text-xs border border-gray-200 text-gray-600 font-medium px-3 py-1.5 rounded-full hover:border-green-400 hover:text-green-700 transition-colors">
+                          💬 Message {vendor.business_name}
+                        </button>
+                      </div>
 
-                      {listing.tags?.length > 0 && (
+                      {listing.tags?.filter((t) => !t.startsWith("__")).length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {listing.tags.slice(0, 3).map((tag) => (
+                          {listing.tags.filter((t) => !t.startsWith("__")).slice(0, 3).map((tag) => (
                             <span key={tag} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">{tag}</span>
                           ))}
                         </div>
