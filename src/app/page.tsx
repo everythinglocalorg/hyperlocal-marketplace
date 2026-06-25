@@ -200,20 +200,19 @@ export default function HomePage() {
           <div className="max-w-6xl mx-auto px-4 py-2 flex flex-wrap justify-center gap-1">
             {[
               ["Services & Trades","🔧"],
-              ["Thrift Sales","🏷️"],
-              ["Rentals","🏠"],
               ["Restaurants","🍽️"],
+              ["Housing","🏠"],
               ["Products","📦"],
               ["Health & Beauty","💆"],
               ["Home & Garden","🏡"],
+              ["Auto","🚗"],
               ["Events","🎉"],
               ["Clothing","👗"],
-              ["Auto","🚗"],
-              ["Arts & Crafts","🎨"],
-              ["Sports","⚽"],
+              ["Thrift Sales","🏷️"],
               ["Pets","🐾"],
+              ["Sports","⚽"],
+              ["Arts & Crafts","🎨"],
               ["Childcare","📚"],
-              ["Housing","🏠"],
             ].map(([label, icon]) => (
               <button key={label} onClick={() => searchCategory(label)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 border border-gray-200 hover:border-green-300 transition-colors whitespace-nowrap">
