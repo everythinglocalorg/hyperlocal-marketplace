@@ -612,6 +612,8 @@ function ListingsTab({
     title: "", type: "product", price: "", price_label: "", description: "",
     category: "Products", quantity: "", condition: "new", tags: "",
   });
+  const [images, setImages] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -627,9 +629,48 @@ function ListingsTab({
         condition: editingListing.condition ?? "new",
         tags: editingListing.tags?.join(", ") ?? "",
       });
+      setImages(editingListing.images ?? []);
       onShowNew(true);
     }
   }, [editingListing, onShowNew]);
+
+  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    if (images.length + files.length > 6) {
+      alert("Maximum 6 photos per listing.");
+      return;
+    }
+    setUploadingImage(true);
+    const uploaded: string[] = [];
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) { alert(`${file.name} is over 5MB`); continue; }
+      const ext = file.name.split(".").pop();
+      const path = `${vendorId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("listing-images").upload(path, file, { upsert: true });
+      if (!error) {
+        const { data } = supabase.storage.from("listing-images").getPublicUrl(path);
+        uploaded.push(data.publicUrl);
+      }
+    }
+    setImages((prev) => [...prev, ...uploaded]);
+    setUploadingImage(false);
+    e.target.value = "";
+  }
+
+  function removeImage(url: string) {
+    setImages((prev) => prev.filter((u) => u !== url));
+  }
+
+  function moveImage(index: number, dir: -1 | 1) {
+    setImages((prev) => {
+      const next = [...prev];
+      const swap = index + dir;
+      if (swap < 0 || swap >= next.length) return prev;
+      [next[index], next[swap]] = [next[swap], next[index]];
+      return next;
+    });
+  }
 
   async function saveListing() {
     setSaving(true);
@@ -644,6 +685,7 @@ function ListingsTab({
       quantity: form.quantity ? Number(form.quantity) : null,
       condition: form.type === "product" ? form.condition : null,
       tags: form.tags ? form.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      images,
     };
 
     if (editingListing) {
@@ -654,6 +696,7 @@ function ListingsTab({
     }
 
     setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "" });
+    setImages([]);
     onShowNew(false);
     onRefresh();
     setSaving(false);
@@ -764,6 +807,51 @@ function ListingsTab({
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
               />
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-2">
+                Photos <span className="font-normal text-gray-400">({images.length}/6 · first photo is the cover)</span>
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {images.map((url, i) => (
+                  <div key={url} className="relative w-24 h-24 rounded-xl overflow-hidden border border-gray-200 group shrink-0">
+                    <img src={url} alt="" className="w-full h-full object-cover" />
+                    {i === 0 && (
+                      <span className="absolute top-1 left-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded font-medium">Cover</span>
+                    )}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                      {i > 0 && (
+                        <button onClick={() => moveImage(i, -1)} className="w-6 h-6 bg-white/80 rounded-full text-xs flex items-center justify-center hover:bg-white">←</button>
+                      )}
+                      {i < images.length - 1 && (
+                        <button onClick={() => moveImage(i, 1)} className="w-6 h-6 bg-white/80 rounded-full text-xs flex items-center justify-center hover:bg-white">→</button>
+                      )}
+                      <button onClick={() => removeImage(url)} className="w-6 h-6 bg-red-500 rounded-full text-white text-xs flex items-center justify-center hover:bg-red-600">✕</button>
+                    </div>
+                  </div>
+                ))}
+                {images.length < 6 && (
+                  <label className={`w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-colors shrink-0 ${uploadingImage ? "opacity-50 pointer-events-none" : ""}`}>
+                    {uploadingImage ? (
+                      <div className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <span className="text-2xl text-gray-300">+</span>
+                        <span className="text-xs text-gray-400 mt-1">Add photo</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      className="hidden"
+                      onChange={handleImageUpload}
+                    />
+                  </label>
+                )}
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">JPG, PNG or WebP · max 5MB each · up to 6 photos · drag to reorder</p>
+            </div>
+
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-1">Tags <span className="font-normal text-gray-400">(comma-separated)</span></label>
               <input
