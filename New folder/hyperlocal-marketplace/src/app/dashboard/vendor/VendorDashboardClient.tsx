@@ -965,7 +965,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
     {showSettings && profile && (
       <AccountSettingsModal
-        profile={{ id: vendor.user_id, full_name: localProfile.full_name, email: profile.email, avatar_url: localProfile.avatar_url, phone: localProfile.phone }}
+        profile={{ id: vendor.user_id, full_name: localProfile.full_name, email: profile.email ?? "", avatar_url: localProfile.avatar_url, phone: localProfile.phone }}
         onClose={() => setShowSettings(false)}
         onSaved={(updated) => setLocalProfile(updated)}
       />
