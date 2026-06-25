@@ -21,31 +21,16 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Childcare & Education": "📚",
 };
 
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA","HI","ID","IL","IN","IA",
-  "KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT",
-  "VA","WA","WV","WI","WY",
-];
-
 export default function HomePage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [locating, setLocating] = useState(false);
-
-  // Auth state
   const [user, setUser] = useState<{ name: string | null; role: string | null } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // Neighborhood form
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
-  const [neighborhoodSaved, setNeighborhoodSaved] = useState(false);
-
   useEffect(() => {
     const supabase = createClient();
-
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       if (u) {
         const { data: profile } = await supabase
@@ -54,32 +39,30 @@ export default function HomePage() {
           .eq("id", u.id)
           .single();
         setUser({ name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
-        // Populate neighborhood from profile if not in localStorage
-        if (profile?.city) {
-          const existing = localStorage.getItem("hl_neighborhood");
-          if (!existing) {
-            localStorage.setItem("hl_neighborhood", JSON.stringify({ city: profile.city, state: profile.state ?? "" }));
-          }
-          setCity(profile.city);
-          setState(profile.state ?? "");
+        // Sync profile city into localStorage if not already set
+        if (profile?.city && !localStorage.getItem("hl_neighborhood")) {
+          localStorage.setItem("hl_neighborhood", JSON.stringify({ city: profile.city, state: profile.state ?? "" }));
         }
       }
       setAuthChecked(true);
     });
 
-    // Load saved neighborhood
+    // Pre-fill location from saved neighborhood
     const saved = localStorage.getItem("hl_neighborhood");
     if (saved) {
       try {
-        const { city: c, state: s } = JSON.parse(saved);
-        setCity(c ?? "");
-        setState(s ?? "");
+        const { city, state } = JSON.parse(saved);
+        if (city) setLocation(state ? `${city}, ${state}` : city);
       } catch {}
     }
   }, []);
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
+    // Save whatever city they typed to localStorage
+    if (location.trim()) {
+      localStorage.setItem("hl_neighborhood", JSON.stringify({ city: location.trim(), state: "" }));
+    }
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (location.trim()) params.set("city", location.trim());
@@ -99,32 +82,18 @@ export default function HomePage() {
     );
   }
 
-  function saveNeighborhood() {
-    if (!city.trim() || !state) return;
-    localStorage.setItem("hl_neighborhood", JSON.stringify({ city: city.trim(), state }));
-    setNeighborhoodSaved(true);
-    setTimeout(() => setNeighborhoodSaved(false), 3000);
-  }
-
-  function browseNeighborhood() {
-    if (!city.trim()) return;
-    router.push(`/search?city=${encodeURIComponent(city.trim() + ", " + state)}`);
-  }
-
   function searchCategory(category: string) {
-    const saved = localStorage.getItem("hl_neighborhood");
     const params = new URLSearchParams();
     params.set("category", category);
+    const saved = localStorage.getItem("hl_neighborhood");
     if (saved) {
       try {
-        const { city: c, state: s } = JSON.parse(saved);
-        if (c) params.set("city", `${c}, ${s}`);
+        const { city, state } = JSON.parse(saved);
+        if (city) params.set("city", state ? `${city}, ${state}` : city);
       } catch {}
     }
     router.push(`/search?${params.toString()}`);
   }
-
-  const hasSavedNeighborhood = city.trim() && state;
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
@@ -175,7 +144,7 @@ export default function HomePage() {
             </p>
 
             {/* Search bar */}
-            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 flex flex-col sm:flex-row gap-2 mb-4">
+            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 flex flex-col sm:flex-row gap-2 mb-6">
               <input
                 type="text"
                 value={query}
@@ -212,71 +181,19 @@ export default function HomePage() {
             </form>
 
             {/* Popular searches */}
-            <div className="flex flex-wrap justify-center gap-2 mb-10">
+            <div className="flex flex-wrap justify-center gap-2">
               {["Plumbers", "Italian food", "Fresh eggs", "Hair salons", "Dog grooming", "Handmade crafts"].map((term) => (
                 <button
                   key={term}
-                  onClick={() => router.push(`/search?q=${encodeURIComponent(term)}`)}
+                  onClick={() => {
+                    if (location.trim()) localStorage.setItem("hl_neighborhood", JSON.stringify({ city: location.trim(), state: "" }));
+                    router.push(`/search?q=${encodeURIComponent(term)}${location.trim() ? `&city=${encodeURIComponent(location.trim())}` : ""}`);
+                  }}
                   className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full hover:border-green-400 hover:text-green-700 transition-colors"
                 >
                   {term}
                 </button>
               ))}
-            </div>
-
-            {/* Neighborhood section */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 max-w-xl mx-auto text-left">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-lg">🏘️</span>
-                <h3 className="font-semibold text-gray-900">Set your neighborhood</h3>
-              </div>
-              <p className="text-sm text-gray-500 mb-4">
-                Save your city so we can show you local businesses and new listings near you — automatically when you log in.
-              </p>
-              <div className="flex gap-2 mb-3">
-                <input
-                  type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  placeholder="Your city"
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <select
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  className="w-28 border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                >
-                  <option value="">State</option>
-                  {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={saveNeighborhood}
-                  disabled={!city.trim() || !state}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-40 ${
-                    neighborhoodSaved
-                      ? "bg-green-500 text-white"
-                      : "bg-gray-900 text-white hover:bg-gray-700"
-                  }`}
-                >
-                  {neighborhoodSaved ? "✓ Saved!" : "Save my neighborhood"}
-                </button>
-                {hasSavedNeighborhood && (
-                  <button
-                    onClick={browseNeighborhood}
-                    className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-green-500 text-green-700 hover:bg-green-50 transition-colors"
-                  >
-                    Browse {city} →
-                  </button>
-                )}
-              </div>
-              {hasSavedNeighborhood && !neighborhoodSaved && (
-                <p className="text-xs text-green-600 mt-2 text-center">
-                  📍 Showing results near <strong>{city}, {state}</strong> —{" "}
-                  <Link href="/signup" className="underline">sign up</Link> to save this permanently
-                </p>
-              )}
             </div>
           </div>
         </section>
@@ -306,19 +223,13 @@ export default function HomePage() {
             <p className="text-xs font-bold uppercase tracking-widest text-green-200 mb-3">Free to join</p>
             <h2 className="text-3xl font-bold mb-3">Earn rewards for shopping local</h2>
             <p className="text-green-100 text-lg mb-8">
-              Sign up free and earn <strong>10 Local Bucks</strong> instantly. Your neighborhood is saved to your account — we show you new businesses and listings near you every time you log in.
+              Sign up free and earn <strong>10 Local Bucks</strong> instantly. Your local area is saved to your account — we show you new businesses and listings near you every time you log in.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/signup"
-                className="bg-white text-green-700 font-bold px-8 py-3.5 rounded-full hover:bg-green-50 transition-colors"
-              >
+              <Link href="/signup" className="bg-white text-green-700 font-bold px-8 py-3.5 rounded-full hover:bg-green-50 transition-colors">
                 Create free account →
               </Link>
-              <Link
-                href="/signup?role=vendor"
-                className="border-2 border-white text-white font-semibold px-8 py-3.5 rounded-full hover:bg-white/10 transition-colors"
-              >
+              <Link href="/signup?role=vendor" className="border-2 border-white text-white font-semibold px-8 py-3.5 rounded-full hover:bg-white/10 transition-colors">
                 List your business
               </Link>
             </div>
@@ -345,17 +256,13 @@ export default function HomePage() {
             <p className="text-gray-400 mb-8">
               List for free. Upgrade for $49/month to unlock analytics, bookings, and CRM tools. No transaction fees — you keep 100% of your sales.
             </p>
-            <Link
-              href="/signup?role=vendor"
-              className="inline-block bg-green-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-green-400 transition-colors"
-            >
+            <Link href="/signup?role=vendor" className="inline-block bg-green-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-green-400 transition-colors">
               List your business free →
             </Link>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
       <footer className="border-t border-gray-100 py-8 px-4 bg-white">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
           <span>© 2025 HyperLocal Marketplace. Support Local.</span>

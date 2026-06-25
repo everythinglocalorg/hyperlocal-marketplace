@@ -10,6 +10,8 @@ interface Props {
     email: string;
     avatar_url: string | null;
     phone: string | null;
+    city?: string | null;
+    state?: string | null;
   };
   onClose: () => void;
   onSaved: (updated: { full_name: string; avatar_url: string | null; phone: string | null }) => void;
@@ -21,6 +23,13 @@ export default function AccountSettingsModal({ profile, onClose, onSaved }: Prop
 
   const [fullName, setFullName] = useState(profile.full_name ?? "");
   const [phone, setPhone] = useState(profile.phone ?? "");
+  const [localArea, setLocalArea] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("hl_neighborhood");
+      if (saved) { try { const { city, state } = JSON.parse(saved); return state ? `${city}, ${state}` : city ?? ""; } catch {} }
+    }
+    return profile.city ? (profile.state ? `${profile.city}, ${profile.state}` : profile.city) : "";
+  });
   const [avatarUrl, setAvatarUrl] = useState<string | null>(profile.avatar_url);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(profile.avatar_url);
@@ -75,12 +84,18 @@ export default function AccountSettingsModal({ profile, onClose, onSaved }: Prop
       finalAvatarUrl = publicUrl;
     }
 
+    // Save local area to localStorage
+    if (localArea.trim()) {
+      localStorage.setItem("hl_neighborhood", JSON.stringify({ city: localArea.trim(), state: "" }));
+    }
+
     const { error: updateError } = await supabase
       .from("profiles")
       .update({
         full_name: fullName.trim() || null,
         phone: phone.trim() || null,
         avatar_url: finalAvatarUrl,
+        city: localArea.trim() || null,
       })
       .eq("id", profile.id);
 
@@ -176,6 +191,17 @@ export default function AccountSettingsModal({ profile, onClose, onSaved }: Prop
                 placeholder="+1 (555) 000-0000"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Local area</label>
+              <input
+                type="text"
+                value={localArea}
+                onChange={(e) => setLocalArea(e.target.value)}
+                placeholder="e.g. Eau Claire, WI"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <p className="text-xs text-gray-400 mt-1">Used to show you nearby listings and businesses on your dashboard.</p>
             </div>
 
             {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">{error}</p>}
