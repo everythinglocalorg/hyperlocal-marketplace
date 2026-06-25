@@ -226,7 +226,7 @@ export default function HomePage() {
         <section className="bg-gradient-to-br from-green-50 via-white to-emerald-50 pt-20 pb-16 px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">
-              Find Hidden Gems and<br />Trusted Local Businesses<br />
+              Hidden Gems and<br />Trusted Locals<br />
               <span className="text-green-600">In Your Neighborhood</span>
             </h1>
             <p className="text-lg text-gray-500 mb-10">
