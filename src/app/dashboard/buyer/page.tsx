@@ -48,6 +48,13 @@ export default async function BuyerDashboardPage() {
         .single()
     : { data: null };
 
+  // Check if this buyer also has a vendor account
+  const { data: vendorAccount } = await supabase
+    .from("vendors")
+    .select("id, business_name, slug")
+    .eq("user_id", user.id)
+    .single();
+
   // Fetch recent listings & new vendors in their saved city
   const savedCity = profile.city as string | null;
   const savedState = profile.state as string | null;
@@ -83,6 +90,7 @@ export default async function BuyerDashboardPage() {
       newVendors={newVendors ?? []}
       savedCity={savedCity}
       savedState={savedState}
+      vendorAccount={vendorAccount ?? null}
     />
   );
 }

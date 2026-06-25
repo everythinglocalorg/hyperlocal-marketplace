@@ -76,6 +76,8 @@ type NewVendor = {
   is_verified: boolean;
 };
 
+type VendorAccount = { id: string; business_name: string; slug: string } | null;
+
 interface Props {
   profile: Profile;
   bookings: Booking[];
@@ -86,6 +88,7 @@ interface Props {
   newVendors: NewVendor[];
   savedCity: string | null;
   savedState: string | null;
+  vendorAccount: VendorAccount;
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -114,7 +117,7 @@ const STATUS_ICONS: Record<string, string> = {
   cancelled: "✕",
 };
 
-export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState }: Props) {
+export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount }: Props) {
   const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals">("overview");
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
 
@@ -186,17 +189,32 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           ))}
         </nav>
 
-        {/* Vendor CTA */}
+        {/* Vendor CTA or storefront link */}
         <div className="p-4 border-t border-gray-100">
           <div className="bg-green-50 rounded-xl p-3">
-            <p className="text-xs font-semibold text-green-800 mb-1">Have a business?</p>
-            <p className="text-xs text-green-600 mb-2">List it free on HyperLocal</p>
-            <Link
-              href="/onboarding/vendor"
-              className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Create Storefront →
-            </Link>
+            {vendorAccount ? (
+              <>
+                <p className="text-xs font-semibold text-green-800 mb-1">🏪 {vendorAccount.business_name}</p>
+                <p className="text-xs text-green-600 mb-2">You also have a storefront</p>
+                <Link
+                  href="/dashboard/vendor"
+                  className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Manage Storefront →
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-xs font-semibold text-green-800 mb-1">Have a business?</p>
+                <p className="text-xs text-green-600 mb-2">List it free on HyperLocal</p>
+                <Link
+                  href="/onboarding/vendor"
+                  className="block text-center text-xs font-semibold bg-green-600 text-white py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Create Storefront →
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </aside>
