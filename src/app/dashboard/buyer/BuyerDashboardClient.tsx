@@ -530,9 +530,9 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
 
         {/* ── MESSAGES ── */}
         {tab === "messages" && (
-          <div className="flex gap-4 h-[600px]">
-            {/* Conversation list */}
-            <div className="w-64 shrink-0 border border-gray-100 rounded-2xl overflow-y-auto bg-white">
+          <div className="flex gap-4 h-[70vh] lg:h-[600px]">
+            {/* Conversation list — full width on mobile, hidden once a chat is open */}
+            <div className={`w-full lg:w-64 lg:shrink-0 border border-gray-100 rounded-2xl overflow-y-auto bg-white ${activeConvId ? "hidden lg:block" : "block"}`}>
               <div className="px-4 py-3 border-b border-gray-100">
                 <h2 className="font-semibold text-gray-900 text-sm">💬 My Messages</h2>
               </div>
@@ -560,12 +560,16 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               )}
             </div>
 
-            {/* Chat thread */}
-            <div className="flex-1 border border-gray-100 rounded-2xl flex flex-col bg-white overflow-hidden">
+            {/* Chat thread — full screen on mobile when a chat is open */}
+            <div className={`flex-1 border border-gray-100 rounded-2xl flex-col bg-white overflow-hidden ${activeConvId ? "flex" : "hidden lg:flex"}`}>
               {!activeConvId ? (
                 <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Select a conversation</div>
               ) : (
                 <>
+                  {/* Mobile back to list */}
+                  <div className="lg:hidden px-4 py-2.5 border-b border-gray-100">
+                    <button onClick={() => setActiveBuyerConvId(null)} className="text-sm font-medium text-gray-500 hover:text-green-700">← All messages</button>
+                  </div>
                   <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                     {convMessages.map((m) => {
                       const isMe = m.sender_id === profile.id;
