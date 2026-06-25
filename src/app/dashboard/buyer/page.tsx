@@ -59,15 +59,12 @@ export default async function BuyerDashboardPage() {
   const savedCity = profile.city as string | null;
   const savedState = profile.state as string | null;
 
-  const { data: recentListings } = savedCity
-    ? await supabase
-        .from("listings")
-        .select("*, vendor:vendors!inner(business_name, slug, logo_url, city, state)")
-        .eq("is_active", true)
-        .ilike("vendors.city", `%${savedCity}%`)
-        .order("created_at", { ascending: false })
-        .limit(6)
-    : { data: [] };
+  const { data: recentListings } = await supabase
+    .from("listings")
+    .select("*, vendor:vendors(business_name, slug, logo_url, city, state)")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(6);
 
   const { data: newVendors } = savedCity
     ? await supabase

@@ -62,21 +62,19 @@ export default function HomePage() {
       }
       setAuthChecked(true);
 
-      // Fetch recent listings — join vendor to get slug, filter by city if known
-      let listingsQuery = supabase
+      // Fetch recent listings — always show latest regardless of city filter
+      const { data: listings } = await supabase
         .from("listings")
-        .select("id, title, price, price_label, images, type, vendor:vendors!inner(business_name, slug, city)")
+        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city)")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(6);
-      if (savedCity) listingsQuery = listingsQuery.ilike("vendors.city", `%${savedCity}%`);
-      const { data: listings } = await listingsQuery;
+        .limit(8);
       setRecentListings((listings ?? []).filter((l: any) => {
         const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
         return v?.slug;
       }));
 
-      // Fetch new vendors
+      // Fetch new vendors — filter by city if known, otherwise show all recent
       let vendorsQuery = supabase
         .from("vendors")
         .select("id, business_name, slug, logo_url, category, city, rating")
