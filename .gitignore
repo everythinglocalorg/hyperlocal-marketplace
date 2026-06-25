@@ -39,3 +39,40 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# -----------------------------------------------------------------------------
+# Home-directory protection
+# This repo's root is currently the Windows home folder (C:\Users\dakot), so the
+# entire home directory sits inside the git working tree. These rules make sure
+# system/credential files can NEVER be accidentally staged (e.g. via git add -A).
+# The real fix is to move the app into its own repo — see notes — but keep these.
+# -----------------------------------------------------------------------------
+NTUSER.DAT*
+ntuser.dat*
+ntuser.ini
+*.regtrans-ms
+*.TM.blf
+*Credentials*
+/AppData/
+/Application Data/
+/Local Settings/
+/Cookies/
+/Contacts/
+/Downloads/
+/Favorites/
+/Links/
+/Music/
+/Videos/
+/Searches/
+/Saved Games/
+/OneDrive/
+/IntelGraphicsProfiles/
+/Documents/
+/Pictures/
+/Desktop/
+.claude/
+.claude.json*
+.cursor/
+.gitconfig
+.node_repl_history
+.config/
