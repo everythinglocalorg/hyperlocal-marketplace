@@ -206,10 +206,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-green-800 to-emerald-600" />
         )}
-        {/* Layered overlays: an even dim across the whole banner + a strong
-            bottom scrim behind the text so the name is legible over any image */}
-        <div className="absolute inset-0 bg-black/35" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent" />
+        {/* Light dim + a soft bottom scrim. Text shadows below keep the name
+            legible without heavily darkening the banner photo. */}
+        <div className="absolute inset-0 bg-black/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
 
         {/* Hero content */}
         <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 pb-6 sm:pb-8">
