@@ -21,6 +21,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Childcare & Education": "📚",
   "Thrift Sales": "🏷️",
   "Rentals": "🏠",
+  "Housing & Rentals": "🏠",
 };
 
 export default function HomePage() {
@@ -124,6 +125,7 @@ export default function HomePage() {
       "Sports": "Sports & Outdoors",
       "Pets": "Pet Services",
       "Childcare": "Childcare & Education",
+      "Housing": "Housing & Rentals",
     };
     // Rentals and Thrift Sales are listing types, not vendor categories — search by type
     const TYPE_MAP: Record<string, string> = {
@@ -211,6 +213,7 @@ export default function HomePage() {
               ["Sports","⚽"],
               ["Pets","🐾"],
               ["Childcare","📚"],
+              ["Housing","🏠"],
             ].map(([label, icon]) => (
               <button key={label} onClick={() => searchCategory(label)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 border border-gray-200 hover:border-green-300 transition-colors whitespace-nowrap">
