@@ -9,6 +9,7 @@ import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
+import CustomDomainPanel from "@/components/CustomDomainPanel";
 import { hasFeature, FeatureKey } from "@/lib/features";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent";
@@ -34,6 +35,8 @@ interface Props {
     city: string;
     state: string;
     page_blocks?: any[] | null;
+    custom_domain?: string | null;
+    domain_verified?: boolean | null;
   };
   profile: { local_bucks: number; full_name: string | null; referral_code: string; email?: string | null; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
   isPremium: boolean;
@@ -841,7 +844,15 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           )}
 
           {tab === "store" && (
-            <StoreSettingsTab vendor={vendor} supabase={supabase} />
+            <div className="space-y-6">
+              <StoreSettingsTab vendor={vendor} supabase={supabase} />
+              <CustomDomainPanel
+                isPremium={isPremium}
+                slug={vendor.slug}
+                initialDomain={vendor.custom_domain ?? null}
+                initialVerified={vendor.domain_verified ?? false}
+              />
+            </div>
           )}
 
           {tab === "pagecontent" && (
