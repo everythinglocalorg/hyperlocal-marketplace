@@ -7,6 +7,8 @@ import AccountSettingsModal from "@/components/AccountSettingsModal";
 import RentalSetup from "@/components/rental/RentalSetup";
 import { formatLocalBucks, formatPrice } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
+import CrmBoard from "@/components/vendor/CrmBoard";
+import EstimateCreator from "@/components/vendor/EstimateCreator";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages";
 
@@ -105,6 +107,8 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
 export default function VendorDashboardClient({ vendor, profile, isPremium, connectEnabled, connectAccountId }: Props) {
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>("overview");
+  const [crmView, setCrmView] = useState<"board" | "estimates">("board");
+  const [estimateContact, setEstimateContact] = useState<any>(null);
   const [showUpgradedToast, setShowUpgradedToast] = useState(
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("upgraded") === "1"
   );
@@ -745,7 +749,34 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
           {/* ── CRM ── */}
           {tab === "crm" && (
             isPremium ? (
-              <CRMTab customers={customers} />
+              <div className="flex flex-col h-full">
+                <div className="flex gap-3 mb-5">
+                  <button
+                    onClick={() => { setCrmView("board"); setEstimateContact(null); }}
+                    className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "board" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    👥 Pipeline
+                  </button>
+                  <button
+                    onClick={() => setCrmView("estimates")}
+                    className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "estimates" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    📋 Estimates
+                  </button>
+                </div>
+                {crmView === "board" ? (
+                  <CrmBoard
+                    vendorId={vendor.id}
+                    onCreateEstimate={(contact) => { setEstimateContact(contact); setCrmView("estimates"); }}
+                  />
+                ) : (
+                  <EstimateCreator
+                    vendorId={vendor.id}
+                    defaultContact={estimateContact}
+                    onBack={() => { setCrmView("board"); setEstimateContact(null); }}
+                  />
+                )}
+              </div>
             ) : <PremiumGate feature="Customer CRM" />
           )}
 
