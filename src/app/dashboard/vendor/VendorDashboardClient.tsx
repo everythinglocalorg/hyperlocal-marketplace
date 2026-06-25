@@ -300,6 +300,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, conn
               <p className="text-xs text-amber-600">Local Bucks balance</p>
             </div>
           </div>
+
+          <button
+            onClick={() => setTab("listings")}
+            className="mt-2 w-full flex items-center justify-center gap-2 bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-700 transition-colors"
+          >
+            🏪 Manage My Store
+          </button>
         </div>
 
         {/* Navigation */}
