@@ -263,13 +263,13 @@ export default function VendorProfileClient({
           <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900">{vendor.business_name}</h1>
             {vendor.is_verified && (
-              <span className="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium border border-blue-100">
-                ✓ Verified
+              <span className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-semibold border border-green-200">
+                ✓ Local Verified
               </span>
             )}
             {vendor.tier === "premium" && (
-              <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-medium border border-amber-100">
-                ⭐ Premium
+              <span className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-2.5 py-1 rounded-full font-semibold border border-amber-200">
+                🏅 Founding Member
               </span>
             )}
           </div>

@@ -418,15 +418,45 @@ export default function HomePage() {
         </section>
       </main>
 
-      <footer className="border-t border-gray-100 py-8 px-4 bg-white">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <span>© 2025 Everything Local Marketplace. Support Local.</span>
-          <div className="flex gap-6">
-            <Link href="/about" className="hover:text-gray-900">About</Link>
-            <Link href="/privacy" className="hover:text-gray-900">Privacy</Link>
-            <Link href="/terms" className="hover:text-gray-900">Terms</Link>
-            <Link href="/contact" className="hover:text-gray-900">Contact</Link>
+      <footer className="border-t border-gray-100 py-12 px-6 bg-white">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8 text-sm text-gray-500 mb-10">
+          <div>
+            <p className="font-bold text-gray-900 mb-3">Explore</p>
+            <ul className="space-y-2">
+              <li><Link href="/search" className="hover:text-green-600">Browse All</Link></li>
+              <li><Link href="/search?mode=listings&type=rental" className="hover:text-green-600">Rentals</Link></li>
+              <li><Link href="/search?mode=listings&type=thrift" className="hover:text-green-600">Thrift Sales</Link></li>
+              <li><Link href="/search?mode=listings&category=Restaurants+%26+Food" className="hover:text-green-600">Restaurants</Link></li>
+            </ul>
           </div>
+          <div>
+            <p className="font-bold text-gray-900 mb-3">For Businesses</p>
+            <ul className="space-y-2">
+              <li><Link href="/signup?role=vendor" className="hover:text-green-600">Get Started</Link></li>
+              <li><Link href="/pricing" className="hover:text-green-600">Pricing</Link></li>
+              <li><Link href="/dashboard/vendor" className="hover:text-green-600">Vendor Dashboard</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-bold text-gray-900 mb-3">Community</p>
+            <ul className="space-y-2">
+              <li><Link href="/community/wells-township-mn" className="hover:text-green-600">Neighbor Board</Link></li>
+              <li><Link href="/signup" className="hover:text-green-600">Join Free</Link></li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-bold text-gray-900 mb-3">Company</p>
+            <ul className="space-y-2">
+              <li><Link href="/about" className="hover:text-green-600">About</Link></li>
+              <li><Link href="/contact" className="hover:text-green-600">Contact</Link></li>
+              <li><Link href="/privacy" className="hover:text-green-600">Privacy</Link></li>
+              <li><Link href="/terms" className="hover:text-green-600">Terms</Link></li>
+            </ul>
+          </div>
+        </div>
+        <div className="max-w-5xl mx-auto border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
+          <span className="font-semibold text-green-600 text-sm">Everything Local</span>
+          <span>© 2026 Everything Local · Made for local communities</span>
         </div>
       </footer>
     </div>
