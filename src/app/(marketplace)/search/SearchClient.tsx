@@ -29,6 +29,7 @@ type Vendor = {
 type SearchResult = {
   result_type: string;
   id: string;
+  slug: string;
   title: string;
   subtitle: string;
   image_url: string | null;
@@ -347,7 +348,7 @@ export default function SearchClient() {
             {keywordResults.map((r) => (
               <Link
                 key={`${r.result_type}-${r.id}`}
-                href={r.result_type === "vendor" ? `/vendors/${r.id}` : `/listings/${r.id}`}
+                href={r.result_type === "vendor" ? `/vendors/${r.slug}` : `/listings/${r.id}`}
                 className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
               >
                 <div className="h-36 bg-gray-100 relative">

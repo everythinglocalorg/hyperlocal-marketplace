@@ -69,6 +69,7 @@ create or replace function keyword_search(
 returns table (
   result_type text,
   id uuid,
+  slug text,
   title text,
   subtitle text,
   image_url text,
@@ -101,6 +102,7 @@ begin
   select
     'vendor'::text,
     v.id,
+    v.slug,
     v.business_name,
     v.category,
     v.logo_url,
@@ -119,10 +121,11 @@ begin
 
   union all
 
-  -- Listing results
+  -- Listing results (slug = vendor slug so we can link to vendor profile)
   select
     'listing'::text,
     l.id,
+    v2.slug,
     l.title,
     l.category,
     l.images[1],
