@@ -49,3 +49,57 @@ create policy "Authenticated users can respond" on public.community_responses
 
 create policy "Users can update their own responses" on public.community_responses
   for update using (auth.uid() = user_id);
+
+create policy "Users can delete own posts" on public.community_posts
+  for delete using (auth.uid() = user_id);
+
+create policy "Admins can delete any post" on public.community_posts
+  for delete using (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+create policy "Users can delete own responses" on public.community_responses
+  for delete using (auth.uid() = user_id);
+
+create policy "Admins can delete any response" on public.community_responses
+  for delete using (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
+
+-- High Fives
+create table if not exists public.community_post_highfives (
+  post_id uuid references public.community_posts(id) on delete cascade,
+  user_id uuid references public.profiles(id) on delete cascade,
+  primary key (post_id, user_id)
+);
+
+alter table public.community_post_highfives enable row level security;
+
+create policy "Anyone can view highfives" on public.community_post_highfives
+  for select using (true);
+
+create policy "Authenticated users can highfive" on public.community_post_highfives
+  for insert with check (auth.uid() = user_id);
+
+create policy "Users can remove their own highfive" on public.community_post_highfives
+  for delete using (auth.uid() = user_id);
+
+-- Flags
+create table if not exists public.community_flags (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references public.profiles(id) on delete cascade not null,
+  post_id uuid references public.community_posts(id) on delete cascade,
+  response_id uuid references public.community_responses(id) on delete cascade,
+  reason text,
+  created_at timestamptz default now()
+);
+
+alter table public.community_flags enable row level security;
+
+create policy "Users can submit flags" on public.community_flags
+  for insert with check (auth.uid() = user_id);
+
+create policy "Admins can view all flags" on public.community_flags
+  for select using (
+    exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
+  );
