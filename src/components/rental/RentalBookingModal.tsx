@@ -14,6 +14,12 @@ interface Props {
 }
 
 const TIMES = ["07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00"];
+function to12Hour(t: string) {
+  const [h, m] = t.split(":").map(Number);
+  const ampm = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2,"0")} ${ampm}`;
+}
 
 function toDateStr(d: Date) {
   return d.toISOString().split("T")[0];
@@ -190,7 +196,7 @@ export default function RentalBookingModal({ listing, vendor, durations, current
                       className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                         selectedTime === t ? "bg-green-600 text-white border-green-600" : "border-gray-200 text-gray-600 hover:border-green-400"
                       }`}>
-                      {t}
+                      {to12Hour(t)}
                     </button>
                   ))}
                 </div>
@@ -273,7 +279,7 @@ export default function RentalBookingModal({ listing, vendor, durations, current
                   ["Listing", listing.title],
                   ["Duration", `${selectedDuration.label} (${selectedDuration.hours}h)`],
                   ["Date", new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric", year:"numeric" })],
-                  ["Start time", selectedTime],
+                  ["Start time", to12Hour(selectedTime)],
                   ["Waiver signed by", waiverName],
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between text-sm">
