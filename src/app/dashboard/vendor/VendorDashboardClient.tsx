@@ -702,6 +702,16 @@ function ListingsTab({
   const [rentalDurations, setRentalDurations] = useState<{ label: string; hours: number; price: number }[]>([]);
   const [rentalWaiverUrl, setRentalWaiverUrl] = useState<string | null>(null);
   const [rentalWaiverFilename, setRentalWaiverFilename] = useState<string | null>(null);
+  const [thriftAddress, setThriftAddress] = useState("");
+  const [thriftHours, setThriftHours] = useState([
+    { day: "Monday", open: "", close: "", closed: false },
+    { day: "Tuesday", open: "", close: "", closed: false },
+    { day: "Wednesday", open: "", close: "", closed: false },
+    { day: "Thursday", open: "", close: "", closed: false },
+    { day: "Friday", open: "", close: "", closed: false },
+    { day: "Saturday", open: "", close: "", closed: false },
+    { day: "Sunday", open: "", close: "", closed: true },
+  ]);
 
   useEffect(() => {
     if (editingListing) {
@@ -722,6 +732,13 @@ function ListingsTab({
           : [editingListing.category]
       );
       setImages(editingListing.images ?? []);
+      if (editingListing.type === "thrift") {
+        setThriftAddress(editingListing.price_label ?? "");
+        try {
+          const parsed = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__hours:"))?.replace("__hours:", "") ?? "null");
+          if (parsed) setThriftHours(parsed);
+        } catch {}
+      }
       onShowNew(true);
     }
   }, [editingListing, onShowNew]);
@@ -771,18 +788,22 @@ function ListingsTab({
     setSaveError(null);
 
     // Base payload — always works regardless of migration status
+    const isThrift = form.type === "thrift";
+    const regularTags = form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [];
+    const thriftTags = isThrift ? [`__hours:${JSON.stringify(thriftHours)}`] : [];
+
     const basePayload: Record<string, any> = {
       vendor_id: vendorId,
       title: form.title,
       type: form.type,
-      price: form.price ? Number(form.price) : null,
-      price_label: form.price_label || null,
+      price: isThrift ? null : (form.price ? Number(form.price) : null),
+      price_label: isThrift ? (thriftAddress || null) : (form.price_label || null),
       description: form.description || null,
       category: selectedCategories[0] ?? form.category,
       categories: selectedCategories,
       quantity: form.quantity ? Number(form.quantity) : null,
       condition: form.type === "product" ? form.condition : null,
-      tags: form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [],
+      tags: isThrift ? thriftTags : regularTags,
       images,
       is_active: true,
     };
@@ -832,6 +853,16 @@ function ListingsTab({
     setRentalDurations([]);
     setRentalWaiverUrl(null);
     setRentalWaiverFilename(null);
+    setThriftAddress("");
+    setThriftHours([
+      { day: "Monday", open: "", close: "", closed: false },
+      { day: "Tuesday", open: "", close: "", closed: false },
+      { day: "Wednesday", open: "", close: "", closed: false },
+      { day: "Thursday", open: "", close: "", closed: false },
+      { day: "Friday", open: "", close: "", closed: false },
+      { day: "Saturday", open: "", close: "", closed: false },
+      { day: "Sunday", open: "", close: "", closed: true },
+    ]);
     onShowNew(false);
     onRefresh();
     setSaving(false);
@@ -914,26 +945,82 @@ function ListingsTab({
                 <p className="text-xs text-red-500 mt-1">Select at least one category.</p>
               )}
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Price ($)</label>
-              <input
-                type="number"
-                value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-                placeholder="0.00"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Price label <span className="font-normal text-gray-400">(if no fixed price)</span></label>
-              <input
-                type="text"
-                value={form.price_label}
-                onChange={(e) => setForm((f) => ({ ...f, price_label: e.target.value }))}
-                placeholder="e.g. Starting at $50 / Free estimate"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
+            {form.type !== "thrift" && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Price ($)</label>
+                  <input
+                    type="number"
+                    value={form.price}
+                    onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Price label <span className="font-normal text-gray-400">(if no fixed price)</span></label>
+                  <input
+                    type="text"
+                    value={form.price_label}
+                    onChange={(e) => setForm((f) => ({ ...f, price_label: e.target.value }))}
+                    placeholder="e.g. Starting at $50 / Free estimate"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </>
+            )}
+            {form.type === "thrift" && (
+              <div className="sm:col-span-2 space-y-4 pt-2 border-t border-gray-100">
+                <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">🏷️ Thrift Sale Details</p>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Sale Location / Address</label>
+                  <input
+                    type="text"
+                    value={thriftAddress}
+                    onChange={(e) => setThriftAddress(e.target.value)}
+                    placeholder="e.g. 123 Main St, Faribault, MN 55021"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Open Hours</label>
+                  <div className="space-y-2">
+                    {thriftHours.map((row, i) => (
+                      <div key={row.day} className="flex items-center gap-2 text-sm">
+                        <span className="w-24 text-gray-600 shrink-0">{row.day}</span>
+                        <label className="flex items-center gap-1 text-xs text-gray-400 shrink-0">
+                          <input
+                            type="checkbox"
+                            checked={row.closed}
+                            onChange={(e) => setThriftHours((h) => h.map((r, idx) => idx === i ? { ...r, closed: e.target.checked } : r))}
+                            className="accent-green-600"
+                          />
+                          Closed
+                        </label>
+                        {!row.closed && (
+                          <>
+                            <input
+                              type="time"
+                              value={row.open}
+                              onChange={(e) => setThriftHours((h) => h.map((r, idx) => idx === i ? { ...r, open: e.target.value } : r))}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                            <span className="text-gray-400 text-xs">to</span>
+                            <input
+                              type="time"
+                              value={row.close}
+                              onChange={(e) => setThriftHours((h) => h.map((r, idx) => idx === i ? { ...r, close: e.target.value } : r))}
+                              className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+                            />
+                          </>
+                        )}
+                        {row.closed && <span className="text-xs text-gray-300 italic">Closed</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {form.type === "rental" && (
               <div className="sm:col-span-2">
                 <RentalSetup

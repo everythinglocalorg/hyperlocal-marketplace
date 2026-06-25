@@ -39,7 +39,7 @@ type Listing = {
   quantity: number | null;
   images: string[];
   category: string;
-  tags: string[];
+  tags: string[] | null;
   is_featured: boolean;
   view_count: number;
   waiver_url: string | null;
@@ -374,11 +374,31 @@ export default function VendorProfileClient({
                         <p className="text-xs text-gray-400 mt-1 line-clamp-2">{listing.description}</p>
                       )}
 
+                      {listing.type === "thrift" && (() => {
+                        const address = listing.price_label;
+                        const hoursTag = listing.tags?.find((t) => t.startsWith("__hours:"));
+                        let hours: { day: string; open: string; close: string; closed: boolean }[] = [];
+                        try { if (hoursTag) hours = JSON.parse(hoursTag.replace("__hours:", "")); } catch {}
+                        const openDays = hours.filter((h) => !h.closed && h.open && h.close);
+                        return (
+                          <div className="mt-2 space-y-1">
+                            {address && (
+                              <p className="text-xs text-gray-500 flex items-center gap-1">📍 {address}</p>
+                            )}
+                            {openDays.length > 0 && (
+                              <div className="text-xs text-gray-500">
+                                🕐 {openDays.map((h) => `${h.day.slice(0,3)} ${h.open}–${h.close}`).join(" · ")}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
                       <div className="flex items-center justify-between mt-3">
                         <div>
-                          {listing.price !== null ? (
+                          {listing.type !== "thrift" && listing.price !== null ? (
                             <span className="font-bold text-green-700">{formatPrice(listing.price)}</span>
-                          ) : listing.price_label ? (
+                          ) : listing.type !== "thrift" && listing.price_label ? (
                             <span className="text-sm text-gray-600">{listing.price_label}</span>
                           ) : null}
                           {listing.condition && (
