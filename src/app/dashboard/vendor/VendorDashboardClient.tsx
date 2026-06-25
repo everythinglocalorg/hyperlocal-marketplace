@@ -94,12 +94,12 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
   { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "listings", label: "Listings", icon: "📦" },
-  { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
-  { id: "bookings", label: "Estimate & Apt Manager", icon: "📅", premiumOnly: true },
-  { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
   { id: "referrals", label: "Referrals", icon: "🤝" },
-  { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
   { id: "notifications", label: "Notifications", icon: "🔔" },
+  { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
+  { id: "bookings", label: "Estimate & Apt Manager", icon: "📅", premiumOnly: true },
+  { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
+  { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
 ];
 
 export default function VendorDashboardClient({ vendor, profile, isPremium, connectEnabled, connectAccountId }: Props) {
