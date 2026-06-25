@@ -370,7 +370,7 @@ export default function CommunityBoardClient({
                             className="text-xs text-gray-300 hover:text-red-400 px-1 transition-colors">🚩</button>
                         )}
                         {myFlags.has(post.id) && <span className="text-xs text-gray-300 italic">Reported</span>}
-                        {isAdmin && (
+                        {(isAdmin || currentUser?.id === author?.id) && (
                           <button onClick={() => adminDeletePost(post.id)}
                             className="text-xs text-red-500 hover:text-red-700 font-semibold px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
                             Delete
@@ -400,7 +400,7 @@ export default function CommunityBoardClient({
                                     <button onClick={() => setFlagModal({ type: "response", id: r.id })} title="Report"
                                       className="text-xs text-gray-300 hover:text-red-400 transition-colors">🚩</button>
                                   )}
-                                  {isAdmin && (
+                                  {(isAdmin || currentUser?.id === ru?.id) && (
                                     <button onClick={() => adminDeleteResponse(post.id, r.id)}
                                       className="text-xs text-red-500 hover:text-red-700 font-semibold">Delete</button>
                                   )}
