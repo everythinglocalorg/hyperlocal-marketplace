@@ -19,6 +19,8 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Auto & Transportation": "🚗",
   "Pet Services": "🐾",
   "Childcare & Education": "📚",
+  "Thrift Sales": "🏷️",
+  "Rentals": "🏠",
 };
 
 export default function HomePage() {
@@ -298,24 +300,38 @@ export default function HomePage() {
           )}
         </section>
 
-        {/* Categories */}
-        <section className="py-14 px-4 bg-white">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-xl font-bold text-gray-900 mb-6 text-center">Browse by category</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-              {CATEGORIES.map((category) => (
+        {/* Category bar */}
+        <div className="bg-white border-b border-gray-100 sticky top-16 z-40 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex gap-1 overflow-x-auto scrollbar-hide py-2">
+              {[
+                "Services & Trades",
+                "Thrift Sales",
+                "Rentals",
+                "Restaurants & Food",
+                "Products",
+                "Health & Beauty",
+                "Home & Garden",
+                "Events & Rentals",
+                "Clothing & Accessories",
+                "Auto & Transportation",
+                "Arts & Crafts",
+                "Sports & Outdoors",
+                "Pet Services",
+                "Childcare & Education",
+              ].map((category) => (
                 <button
                   key={category}
                   onClick={() => searchCategory(category)}
-                  className="flex flex-col items-center p-4 rounded-2xl border border-gray-100 hover:border-green-300 hover:bg-green-50 transition-all group"
+                  className="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 transition-colors whitespace-nowrap"
                 >
-                  <span className="text-2xl mb-1.5">{CATEGORY_ICONS[category] ?? "🏪"}</span>
-                  <span className="text-xs font-medium text-gray-600 group-hover:text-green-700 text-center leading-tight">{category}</span>
+                  <span>{CATEGORY_ICONS[category] ?? "🏪"}</span>
+                  {category}
                 </button>
               ))}
             </div>
           </div>
-        </section>
+        </div>
 
         {/* Ask Your Neighbors */}
         <section className="py-14 px-4 bg-gray-50 border-t border-gray-100">
