@@ -7,7 +7,6 @@ type Dns = { type: string; name: string; value: string };
 
 interface Props {
   isPremium: boolean;
-  slug: string;
   initialDomain: string | null;
   initialVerified: boolean;
 }
@@ -21,7 +20,6 @@ function dnsFor(domain: string): Dns {
 
 export default function CustomDomainPanel({
   isPremium,
-  slug,
   initialDomain,
   initialVerified,
 }: Props) {
@@ -32,8 +30,6 @@ export default function CustomDomainPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "the marketplace";
 
   async function connect() {
     setBusy(true);
@@ -113,9 +109,10 @@ export default function CustomDomainPanel({
             Local Pro
           </span>
         </div>
-        <p className="text-sm text-gray-500 mb-4">
-          Use your own web address (like <span className="font-medium">yourbusiness.com</span>)
-          instead of the default link. Available on Local Pro.
+        <p className="text-[15px] text-gray-600 mb-4 leading-relaxed">
+          <span className="font-semibold text-gray-900">Connect a live domain and start ranking on Google!</span>{" "}
+          Use your own web address like <span className="font-medium">yourbusiness.com</span> to look
+          more professional and get found faster. Available on Local Pro.
         </p>
         <div className="flex items-center gap-4">
           <a
@@ -143,9 +140,10 @@ export default function CustomDomainPanel({
         <Globe className="w-5 h-5 text-green-600" />
         <h3 className="font-semibold text-gray-900">Custom domain</h3>
       </div>
-      <p className="text-sm text-gray-500 mb-2">
-        Point your own web address at your {appName} page. Your default link
-        (<span className="font-mono text-gray-600">/vendors/{slug}</span>) keeps working too.
+      <p className="text-[15px] text-gray-600 mb-3 leading-relaxed">
+        <span className="font-semibold text-gray-900">Connect a live domain and start ranking on Google!</span>{" "}
+        Point your own web address straight at your storefront for a more professional, easier-to-find
+        business. Your old link keeps working too.
       </p>
       <a
         href="/connect-domain"

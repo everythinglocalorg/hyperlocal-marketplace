@@ -848,7 +848,6 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               <StoreSettingsTab vendor={vendor} supabase={supabase} />
               <CustomDomainPanel
                 isPremium={isPremium}
-                slug={vendor.slug}
                 initialDomain={vendor.custom_domain ?? null}
                 initialVerified={vendor.domain_verified ?? false}
               />
