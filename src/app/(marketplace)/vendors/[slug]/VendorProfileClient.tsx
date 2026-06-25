@@ -323,7 +323,7 @@ export default function VendorProfileClient({
                         <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">
-                          {listing.type === "product" ? "📦" : listing.type === "service" ? "🔧" : listing.type === "restaurant" ? "🍽️" : "🎉"}
+                          {({ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" } as Record<string,string>)[listing.type] ?? "📦"}
                         </div>
                       )}
                       {listing.is_featured && (

@@ -374,7 +374,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                           {l.images?.[0]
                             ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
                             : <div className="w-full h-full flex items-center justify-center text-3xl text-gray-300">
-                                {l.type === "product" ? "📦" : l.type === "restaurant" ? "🍽️" : "🔧"}
+                                {({ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" } as Record<string,string>)[l.type] ?? "📦"}
                               </div>}
                         </div>
                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{l.title}</p>

@@ -782,7 +782,14 @@ function ListingsTab({
     setSaving(false);
   }
 
-  const LISTING_TYPES = ["product", "service", "restaurant", "event"];
+  const LISTING_TYPES = [
+    { value: "product", label: "Product" },
+    { value: "service", label: "Service" },
+    { value: "restaurant", label: "Restaurant / Food" },
+    { value: "event", label: "Event" },
+    { value: "rental", label: "Rental" },
+    { value: "thrift", label: "Thrift Sale" },
+  ];
   const CATEGORIES = ["Products", "Services & Trades", "Restaurants & Food", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education"];
 
   return (
@@ -819,7 +826,7 @@ function ListingsTab({
                 onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                {LISTING_TYPES.map((t) => <option key={t} value={t} className="capitalize">{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                {LISTING_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
             <div className="sm:col-span-2">

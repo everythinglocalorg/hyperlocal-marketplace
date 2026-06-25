@@ -248,7 +248,7 @@ export default function HomePage() {
                       <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
                         {l.images?.[0]
                           ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
-                          : <span className="text-3xl text-gray-300">{l.type === "product" ? "📦" : "🔧"}</span>}
+                          : <span className="text-3xl text-gray-300">{{ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" }[l.type as string] ?? "📦"}</span>}
                       </div>
                       <div className="p-2.5">
                         <p className="text-xs font-semibold text-gray-900 line-clamp-1">{l.title}</p>
