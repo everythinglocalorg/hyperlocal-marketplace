@@ -132,6 +132,23 @@ export default function RentalBookingModal({ listing, vendor, durations, current
     });
 
     if (err) { setError("Booking failed. Please try again."); setSubmitting(false); return; }
+
+    // Fire email to vendor (non-blocking — don't fail booking if email fails)
+    fetch("/api/booking-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vendorId: vendor.id,
+        customerName: currentUser.full_name ?? "A customer",
+        listingTitle: listing.title,
+        date: new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
+        time: to12Hour(selectedTime),
+        duration: `${selectedDuration.label} (${selectedDuration.hours}h)`,
+        price: `$${Number(selectedDuration.price).toFixed(2)}`,
+        notes: notes.trim() || null,
+      }),
+    }).catch(() => {});
+
     setStep("done");
     setSubmitting(false);
   }
