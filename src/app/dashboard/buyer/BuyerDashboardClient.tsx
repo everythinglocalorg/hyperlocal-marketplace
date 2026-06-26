@@ -562,10 +562,29 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
         {/* ── PUBLIC PROFILE ── */}
         {tab === "profile" && (
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-1">⭐ Your Top 8 Local Picks</h1>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">⭐ Your Local Profile</h1>
             <p className="text-gray-500 text-sm mb-6">
-              Your public stamp of approval — the 8 local businesses you stand behind. Share your profile to put your neighbors onto your favorites and help great local spots get recognized.
+              Your public stamp of approval — the local businesses you stand behind. Share your profile to put your neighbors onto your favorites and help great local spots get recognized.
             </p>
+
+            {/* Profile photo + identity */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6 flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-2xl font-bold text-green-700 overflow-hidden shrink-0">
+                {localProfile.avatar_url
+                  ? <img src={localProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                  : (localProfile.full_name ?? profile.email)[0]?.toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{localProfile.full_name ?? "Your name"}</p>
+                <p className="text-xs text-gray-400">This photo shows at the top of your Local Profile.</p>
+              </div>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="shrink-0 text-sm font-semibold border border-gray-200 text-gray-700 px-4 py-2 rounded-xl hover:border-green-400 hover:text-green-700 transition-colors"
+              >
+                📷 Change photo
+              </button>
+            </div>
 
             {/* Share / view bar */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
