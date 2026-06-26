@@ -2362,11 +2362,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const menuPdfRef = useRef<HTMLInputElement>(null);
 
   const initCta = vendor.cta_button ?? {};
-  const [ctaEnabled, setCtaEnabled] = useState(!!(initCta.enabled));
-  const [ctaLabel, setCtaLabel] = useState(initCta.label ?? "");
-  const [ctaLinkType, setCtaLinkType] = useState<"url" | "form">(initCta.link_type ?? "url");
-  const [ctaUrl, setCtaUrl] = useState(initCta.url ?? "");
-  const [ctaCustomQuestion, setCtaCustomQuestion] = useState(initCta.custom_question ?? "");
+  const [ctaAction, setCtaAction] = useState<"none" | "call" | "estimate" | "order">(initCta.action ?? "none");
   const [featureSaving, setFeatureSaving] = useState(false);
   const [featureSaved, setFeatureSaved] = useState(false);
 
@@ -2386,9 +2382,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
     setFeatureSaving(true);
     await supabase.from("vendors").update({
       menu_pdf_url: menuEnabled ? menuPdfUrl : null,
-      cta_button: ctaEnabled
-        ? { enabled: true, label: ctaLabel.trim() || "Contact Us", link_type: ctaLinkType, url: ctaUrl.trim() || null, custom_question: ctaCustomQuestion.trim() || null }
-        : null,
+      cta_button: ctaAction === "none" ? null : { action: ctaAction },
     }).eq("id", vendor.id);
     setFeatureSaving(false); setFeatureSaved(true); setTimeout(() => setFeatureSaved(false), 3000);
   }
@@ -2549,88 +2543,37 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           )}
         </div>
 
-        {/* Custom CTA Button */}
-        <div className={`border rounded-2xl p-5 transition-colors ${ctaEnabled ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}`}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">🔘 Custom Action Button</p>
-              <p className="text-xs text-gray-400 mt-0.5">Add a custom button to your page — "Apply Now", "Order Online", "Get a Free Estimate", etc.</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setCtaEnabled((v) => !v)}
-              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none ${ctaEnabled ? "bg-green-500" : "bg-gray-300"}`}
-            >
-              <span className={`inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow transition-transform ${ctaEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
-            </button>
+        {/* Contact Action */}
+        <div className="border border-gray-200 bg-white rounded-2xl p-5">
+          <p className="font-semibold text-gray-900 text-sm mb-1">🔘 Contact Action Button</p>
+          <p className="text-xs text-gray-400 mb-4">Choose what appears in the Contact dropdown on your store page. Message is always shown separately.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([
+              { value: "none",     label: "None",                   icon: "—" },
+              { value: "call",     label: "Call",                   icon: "📞" },
+              { value: "estimate", label: "Request Free Estimate",  icon: "📋" },
+              { value: "order",    label: "Order Now",              icon: "🛒" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setCtaAction(opt.value)}
+                className={`flex flex-col items-center gap-1 py-3 px-2 rounded-xl border text-xs font-semibold transition-colors ${
+                  ctaAction === opt.value
+                    ? "border-green-500 bg-green-50 text-green-800"
+                    : "border-gray-200 text-gray-600 hover:border-green-300 hover:bg-gray-50"
+                }`}
+              >
+                <span className="text-xl">{opt.icon}</span>
+                {opt.label}
+              </button>
+            ))}
           </div>
-          {ctaEnabled && (
-            <div className="mt-4 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Button label</label>
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {["Order Now", "Apply Now", "Get a Free Estimate", "Book Now", "Contact Us"].map((preset) => (
-                    <button key={preset} type="button" onClick={() => setCtaLabel(preset)}
-                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${ctaLabel === preset ? "border-green-500 bg-green-100 text-green-800 font-semibold" : "border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700"}`}>
-                      {preset}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={ctaLabel}
-                  onChange={(e) => setCtaLabel(e.target.value)}
-                  placeholder="Or type a custom label…"
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">When clicked, take customer to:</label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCtaLinkType("url")}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${ctaLinkType === "url" ? "border-green-500 bg-green-100 text-green-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-                  >
-                    🔗 External link / URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCtaLinkType("form")}
-                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${ctaLinkType === "form" ? "border-green-500 bg-green-100 text-green-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-                  >
-                    📋 Built-in contact form
-                  </button>
-                </div>
-              </div>
-              {ctaLinkType === "url" && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">URL</label>
-                  <input
-                    type="url"
-                    value={ctaUrl}
-                    onChange={(e) => setCtaUrl(e.target.value)}
-                    placeholder="https://yoursite.com/apply"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                  />
-                </div>
-              )}
-              {ctaLinkType === "form" && (
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500">A form will pop up on your store page collecting the customer's name, email, phone, and message. Responses go to your bookings inbox.</p>
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-600 mb-1">Custom question <span className="font-normal text-gray-400">(optional)</span></label>
-                    <input
-                      type="text"
-                      value={ctaCustomQuestion}
-                      onChange={(e) => setCtaCustomQuestion(e.target.value)}
-                      placeholder='e.g. "What service are you interested in?"'
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+          {ctaAction !== "none" && ctaAction !== "call" && (
+            <p className="text-xs text-gray-400 mt-3">A form will pop up collecting the customer's name, email, phone, and message. Responses go to your bookings inbox.</p>
+          )}
+          {ctaAction === "call" && (
+            <p className="text-xs text-gray-400 mt-3">Make sure your phone number is saved in Store Settings above.</p>
           )}
         </div>
 
