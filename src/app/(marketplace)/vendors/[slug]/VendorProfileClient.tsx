@@ -275,7 +275,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             {showContactDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowContactDropdown(false)} />
-                <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
+                <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden min-w-[180px]">
                   {vendor.phone && (
                     <a href={`tel:${vendor.phone}`} onClick={() => setShowContactDropdown(false)} className="flex items-center gap-2.5 px-4 py-3 text-sm text-gray-800 hover:bg-green-50 transition-colors">
                       📞 <span>Call</span>
@@ -284,6 +284,15 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                   <button onClick={() => { setShowContactDropdown(false); setShowMessageModal(true); }} className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-800 hover:bg-green-50 transition-colors text-left">
                     💬 <span>Message</span>
                   </button>
+                  {ctaBtn?.enabled && (
+                    ctaBtn.link_type === "url" && ctaBtn.url
+                      ? <a href={ctaBtn.url} target="_blank" rel="noreferrer" onClick={() => setShowContactDropdown(false)} className="flex items-center gap-2.5 px-4 py-3 text-sm text-green-700 font-semibold hover:bg-green-50 transition-colors border-t border-gray-100">
+                          ✨ <span>{ctaBtn.label || "Learn More"}</span>
+                        </a>
+                      : <button onClick={() => { setShowContactDropdown(false); setShowCtaForm(true); }} className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-green-700 font-semibold hover:bg-green-50 transition-colors text-left border-t border-gray-100">
+                          ✨ <span>{ctaBtn.label || "Contact Us"}</span>
+                        </button>
+                  )}
                 </div>
               </>
             )}
@@ -354,15 +363,6 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               <a href={vendor.menu_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full transition-colors">
                 📄 View Menu
               </a>
-            )}
-            {ctaBtn?.enabled && (
-              ctaBtn.link_type === "url" && ctaBtn.url
-                ? <a href={ctaBtn.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-400 text-white px-4 py-1.5 rounded-full font-semibold transition-colors">
-                    {ctaBtn.label || "Learn More"} →
-                  </a>
-                : <button onClick={() => setShowCtaForm(true)} className="flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-400 text-white px-4 py-1.5 rounded-full font-semibold transition-colors">
-                    {ctaBtn.label || "Contact Us"} →
-                  </button>
             )}
             <button onClick={copyShareLink} className="text-xs text-white/50 hover:text-white/80 transition-colors">
               {copied ? "✓ Copied!" : "🔗 Share"}
