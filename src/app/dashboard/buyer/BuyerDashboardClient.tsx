@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPicksManager";
+import ProfileDetailsEditor, { normalizeDetails } from "@/components/ProfileDetailsEditor";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
@@ -94,6 +95,8 @@ interface Props {
   vendorAccount: VendorAccount;
   engagedVendors: PickVendor[];
   businessPicks: PickVendor[];
+  profileDetails: any;
+  ownedBusinessCount: number;
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -122,7 +125,7 @@ const STATUS_ICONS: Record<string, string> = {
   cancelled: "✕",
 };
 
-export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks }: Props) {
+export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks, profileDetails, ownedBusinessCount }: Props) {
   const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile">(() => {
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tab");
@@ -619,6 +622,12 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
               userId={profile.id}
               engagedVendors={engagedVendors}
               initialPicks={businessPicks}
+            />
+
+            <ProfileDetailsEditor
+              userId={profile.id}
+              initial={normalizeDetails(profileDetails)}
+              ownedBusinessCount={ownedBusinessCount}
             />
           </div>
         )}

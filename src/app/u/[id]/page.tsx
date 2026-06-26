@@ -26,11 +26,19 @@ async function loadProfile(id: string) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, avatar_url, city, state, created_at")
+    .select("id, full_name, avatar_url, city, state, created_at, profile_details")
     .eq("id", id)
     .single();
 
   if (!profile) return null;
+
+  // Businesses this user owns (verified, derived live — not self-claimed)
+  const { data: ownedBusinesses } = await supabase
+    .from("vendors")
+    .select("id, business_name, slug, logo_url, category, is_verified")
+    .eq("user_id", id)
+    .eq("is_active", true)
+    .order("business_name");
 
   const { data: rawPicks } = await supabase
     .from("profile_business_picks")
@@ -44,7 +52,7 @@ async function loadProfile(id: string) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  return { profile, picks, isOwner: user?.id === id };
+  return { profile, picks, ownedBusinesses: ownedBusinesses ?? [], isOwner: user?.id === id };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -62,9 +70,21 @@ export default async function PublicProfilePage({ params }: Props) {
   const data = await loadProfile(id);
   if (!data) notFound();
 
-  const { profile, picks, isOwner } = data;
+  const { profile, picks, ownedBusinesses, isOwner } = data;
   const displayName = profile.full_name ?? "A neighbor";
   const memberSince = profile.created_at ? new Date(profile.created_at).getFullYear() : null;
+
+  // "About you" boxes
+  const det = (profile.profile_details && typeof profile.profile_details === "object" ? profile.profile_details : {}) as any;
+  const show = det.show ?? {};
+  const positions = (Array.isArray(det.positions) ? det.positions : []).filter((p: any) => p?.title || p?.org);
+  const achievements = (Array.isArray(det.achievements) ? det.achievements : []).filter((a: any) => typeof a === "string" && a.trim());
+  const ask = typeof det.ask === "string" ? det.ask.trim() : "";
+  const hasAbout =
+    (show.positions && positions.length > 0) ||
+    (show.businesses && ownedBusinesses.length > 0) ||
+    (show.achievements && achievements.length > 0) ||
+    (show.ask && ask);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -104,6 +124,67 @@ export default async function PublicProfilePage({ params }: Props) {
           </div>
         </div>
       </div>
+
+      {/* About boxes */}
+      {hasAbout && (
+        <div className="max-w-3xl mx-auto px-4 pt-8">
+          <div className="grid sm:grid-cols-2 gap-3">
+            {show.ask && ask && (
+              <div className="sm:col-span-2 bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                <p className="text-xs font-bold text-amber-700 uppercase tracking-wide mb-1">🙋 {displayName.split(" ")[0]}'s ask for the community</p>
+                <p className="text-gray-800">{ask}</p>
+              </div>
+            )}
+
+            {show.businesses && ownedBusinesses.length > 0 && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">🏢 Businesses owned</p>
+                <div className="space-y-2">
+                  {ownedBusinesses.map((b: any) => (
+                    <Link key={b.id} href={`/vendors/${b.slug}`} className="flex items-center gap-3 group">
+                      <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center font-bold text-green-700 text-sm overflow-hidden shrink-0">
+                        {b.logo_url ? <img src={b.logo_url} alt="" className="w-full h-full object-cover" /> : b.business_name[0]?.toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-green-700 transition-colors">
+                          {b.business_name}{b.is_verified && <span className="ml-1 text-blue-500">✓</span>}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">{b.category}</p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {show.positions && positions.length > 0 && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">🏷️ Roles</p>
+                <ul className="space-y-1.5">
+                  {positions.map((p: any, i: number) => (
+                    <li key={i} className="text-sm text-gray-700">
+                      <span className="font-semibold">{p.title}</span>
+                      {p.title && p.org ? <span className="text-gray-400"> @ </span> : null}
+                      <span>{p.org}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {show.achievements && achievements.length > 0 && (
+              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm sm:col-span-2">
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-3">🏆 Achievements</p>
+                <div className="flex flex-wrap gap-2">
+                  {achievements.map((a: string, i: number) => (
+                    <span key={i} className="text-sm bg-green-50 text-green-800 border border-green-100 px-3 py-1 rounded-full">{a}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Top 8 board */}
       <main className="max-w-3xl mx-auto px-4 py-8">

@@ -55,6 +55,12 @@ export default async function BuyerDashboardPage() {
     .eq("user_id", user.id)
     .single();
 
+  // How many businesses this user owns (for the "Businesses Owned" profile box)
+  const { count: ownedBusinessCount } = await supabase
+    .from("vendors")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
   // ── Top 8 business picks ──
   // Pool of businesses the user has engaged with (messaged, reviewed, or booked).
   const VENDOR_FIELDS = "id, business_name, slug, logo_url, category, city, state, tier, is_verified, rating";
@@ -127,6 +133,8 @@ export default async function BuyerDashboardPage() {
       vendorAccount={vendorAccount ?? null}
       engagedVendors={engagedVendors ?? []}
       businessPicks={businessPicks}
+      profileDetails={profile.profile_details ?? {}}
+      ownedBusinessCount={ownedBusinessCount ?? 0}
     />
   );
 }
