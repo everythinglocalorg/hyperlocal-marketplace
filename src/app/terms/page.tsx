@@ -19,7 +19,7 @@ export default function TermsPage() {
           { title: "Listings and content", body: "You are responsible for the content you post. Listings must be accurate, legal, and related to real goods or services you offer. We reserve the right to remove listings that violate these terms or our community standards." },
           { title: "Prohibited content", body: "You may not post illegal items, counterfeit goods, adult content, or anything intended to deceive buyers. Spam, harassment, and impersonation are strictly prohibited." },
           { title: "Transactions", body: "Everything Local is a discovery and connection platform. We are not a party to transactions between buyers and vendors. All disputes should be resolved directly between parties." },
-          { title: "Local Pro subscription", body: "Local Pro is billed monthly at $49/month after the 30-day free trial. You may cancel at any time. No refunds are provided for partial billing periods." },
+          { title: "Local Pro subscription", body: "Local Pro is billed monthly at $49/month (regularly $99/month) after the 30-day free trial. You may cancel at any time. No refunds are provided for partial billing periods." },
           { title: "Termination", body: "We may suspend or terminate accounts that violate these terms. You may delete your account at any time by contacting hello@everythinglocal.org." },
           { title: "Limitation of liability", body: "Everything Local is provided as-is. We are not liable for any damages arising from use of the platform, transactions between users, or third-party services." },
           { title: "Contact", body: "Questions? Reach us at hello@everythinglocal.org." },

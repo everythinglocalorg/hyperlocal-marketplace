@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
+import LocalProPrice from "@/components/LocalProPrice";
 
 const FEATURES = [
   { icon: "📊", title: "Analytics Dashboard", desc: "Track views, clicks, and CTR for every listing in real time." },
@@ -91,9 +92,8 @@ function UpgradePageInner() {
               {/* Card header */}
               <div className="bg-gradient-to-br from-green-600 to-emerald-700 p-6 text-white text-center">
                 <p className="text-green-100 text-sm font-medium mb-1">Everything Local — Local Pro</p>
-                <div className="flex items-end justify-center gap-1">
-                  <span className="text-5xl font-bold">$49</span>
-                  <span className="text-green-200 mb-2">/month</span>
+                <div className="flex justify-center">
+                  <LocalProPrice size="xl" inverted suffix="/month" />
                 </div>
                 <p className="text-green-100 text-xs mt-1">Cancel anytime · No contracts</p>
               </div>

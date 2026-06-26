@@ -10,6 +10,7 @@ import PremiumGate from "@/components/vendor/PremiumGate";
 import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
+import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey } from "@/lib/features";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent";
@@ -750,7 +751,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                     <div>
                       <p className="font-bold text-lg mb-1">Unlock your full dashboard</p>
                       <p className="text-green-100 text-sm mb-4">
-                        Get analytics, CRM tools, booking management, and smart buttons for $49/month.
+                        Get analytics, CRM tools, booking management, and smart buttons for <LocalProPriceInline inverted />.
                       </p>
                       <Link
                         href="/dashboard/vendor/upgrade"

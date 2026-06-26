@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LocalProPrice from "@/components/LocalProPrice";
 
 export const metadata = { title: "Pricing — Everything Local" };
 
@@ -46,7 +47,7 @@ export default function PricingPage() {
           <div className="border-2 border-green-600 rounded-2xl p-8 text-left relative bg-green-50">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-600 text-white text-xs font-bold px-4 py-1 rounded-full">Most Popular</div>
             <p className="text-sm font-semibold text-green-600 uppercase tracking-wide mb-2">Local Pro</p>
-            <p className="text-4xl font-bold text-gray-900 mb-1">$49<span className="text-lg font-normal text-gray-400">/mo</span></p>
+            <p className="mb-1"><LocalProPrice size="lg" /></p>
             <p className="text-gray-400 text-sm mb-6">30-day free trial · Cancel anytime</p>
             <ul className="space-y-3 text-sm text-gray-600 mb-8">
               {[

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { LocalProPriceInline } from "@/components/LocalProPrice";
+import { LOCAL_PRO_ORIGINAL_PRICE, LOCAL_PRO_PRICE } from "@/lib/pricing";
 
 interface PremiumGateProps {
   feature: string;
@@ -13,7 +15,8 @@ export default function PremiumGate({ feature }: PremiumGateProps) {
         <span className="font-medium text-gray-700">{feature}</span> is available on the Premium plan.
       </p>
       <p className="text-gray-400 text-sm mb-8 max-w-sm">
-        Upgrade to unlock analytics, CRM tools, smart buttons, and everything you need to grow your business — all for $49/month.
+        Upgrade to unlock analytics, CRM tools, smart buttons, and everything you need to grow your business — all for{" "}
+        <LocalProPriceInline />.
       </p>
 
       <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-6 w-full max-w-sm shadow-sm text-left">
@@ -41,7 +44,7 @@ export default function PremiumGate({ feature }: PremiumGateProps) {
         href="/dashboard/vendor/upgrade"
         className="bg-green-600 text-white px-8 py-3.5 rounded-full font-semibold hover:bg-green-700 transition-colors text-sm"
       >
-        Upgrade to Premium — $49/month
+        Upgrade to Premium — <span className="line-through opacity-60">${LOCAL_PRO_ORIGINAL_PRICE}</span> ${LOCAL_PRO_PRICE}/month
       </Link>
       <p className="text-xs text-gray-400 mt-3">Cancel anytime. No contracts.</p>
     </div>

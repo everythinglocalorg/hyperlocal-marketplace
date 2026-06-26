@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
+import { LocalProPriceInline } from "@/components/LocalProPrice";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -411,7 +412,7 @@ export default function HomePage() {
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-2xl font-bold mb-3">Have a local business?</h2>
             <p className="text-gray-400 mb-8">
-              List for free. Upgrade for $49/month to unlock analytics, bookings, and CRM tools. No transaction fees — you keep 100% of your sales.
+              List for free. Upgrade for <LocalProPriceInline inverted /> to unlock analytics, bookings, and CRM tools. No transaction fees — you keep 100% of your sales.
             </p>
             <Link href="/signup?role=vendor" className="inline-block bg-green-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-green-400 transition-colors">
               List your business free →
