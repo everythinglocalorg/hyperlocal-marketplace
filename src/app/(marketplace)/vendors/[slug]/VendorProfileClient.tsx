@@ -260,25 +260,6 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
     <div className="min-h-screen bg-white">
 
-      {/* ── DARK TOP INFO BAR ─────────────────────────────────────── */}
-      <div className="bg-gray-900 text-white text-xs py-2 hidden sm:block">
-        <div className="max-w-6xl mx-auto px-4 flex items-center justify-between">
-          <span className="text-gray-400">{vendor.address ? `${vendor.address} · ` : ""}{vendor.city}, {vendor.state}</span>
-          <div className="flex items-center gap-5">
-            {vendor.website && (
-              <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
-                ✉ {vendor.website.replace(/^https?:\/\//, "").split("/")[0]}
-              </a>
-            )}
-            {vendor.phone && (
-              <a href={`tel:${vendor.phone}`} className="text-green-400 font-semibold hover:text-green-300 transition-colors">
-                📞 {vendor.phone}
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* ── STICKY MAIN NAV ───────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
@@ -344,38 +325,6 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           ))}
         </div>
       </header>
-
-      {/* ── IDENTITY SECTION ──────────────────────────────────────── */}
-      <div className="bg-gray-50 border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 py-8 flex items-start gap-5">
-          <div className="w-20 h-20 rounded-2xl border border-gray-200 bg-white overflow-hidden shrink-0 shadow-sm">
-            {vendor.logo_url
-              ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-2xl font-bold text-gray-700">{vendor.business_name[0]}</div>}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-              {vendor.is_verified && <span className="text-xs bg-green-600 text-white px-2 py-0.5 rounded-full font-semibold">✓ Verified</span>}
-              {vendor.tier === "premium" && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">⭐ Local Pro</span>}
-              {inboundRefCode && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">🪙 Referred</span>}
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
-            <p className="text-gray-500 text-sm mt-0.5">{vendor.category} · {vendor.city}, {vendor.state}</p>
-            {vendor.review_count > 0 && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <div className="flex">{stars(vendor.rating, "text-sm")}</div>
-                <span className="text-gray-500 text-sm">{vendor.rating.toFixed(1)} <span className="text-gray-400">({vendor.review_count} reviews)</span></span>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3">
-              {vendor.phone && <a href={`tel:${vendor.phone}`} className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 sm:hidden">📞 {vendor.phone}</a>}
-              {vendor.address && <span className="flex items-center gap-1.5 text-sm text-gray-500">📍 {vendor.address}</span>}
-              {vendor.website && <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900">🌐 {vendor.website.replace(/^https?:\/\//, "").split("/")[0]}</a>}
-              {vendor.menu_pdf_url && <a href={vendor.menu_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800">📄 View Menu</a>}
-            </div>
-          </div>
-        </div>
-      </div>
 
       <div className="max-w-6xl mx-auto px-4 py-10">
 
