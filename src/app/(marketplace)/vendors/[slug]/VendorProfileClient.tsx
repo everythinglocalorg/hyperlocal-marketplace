@@ -79,7 +79,21 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     });
   }, []);
 
+  // Track a store-page view once per browser session (counts as a view for each listing).
+  useEffect(() => {
+    const key = `viewed_vendor_${vendor.id}`;
+    if (typeof window === "undefined" || sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    supabase.rpc("increment_vendor_listing_views", { vendor_id_in: vendor.id }).then(() => {});
+  }, [supabase, vendor.id]);
+
+  // Bump a listing's click count when a visitor acts on it (buy/book/message).
+  function trackClick(listingId: string) {
+    supabase.rpc("increment_listing_clicks", { listing_id_in: listingId }).then(() => {});
+  }
+
   async function openBooking(listing: Listing) {
+    trackClick(listing.id);
     const { data: durations } = await supabase.from("rental_durations").select("*").eq("listing_id", listing.id).order("hours");
     setBookingDurations(durations ?? []);
     setBookingListing(listing);
@@ -310,8 +324,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                       vendorName={vendor.business_name}
                       vendorPhone={vendor.phone}
                       onBook={() => openBooking(listing)}
-                      onBuy={() => setBuyListing(listing)}
-                      onMessage={() => setMessageListing(listing)}
+                      onBuy={() => { trackClick(listing.id); setBuyListing(listing); }}
+                      onMessage={() => { trackClick(listing.id); setMessageListing(listing); }}
                     />
                   ))}
                 </div>
@@ -331,8 +345,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                         vendorName={vendor.business_name}
                         vendorPhone={vendor.phone}
                         onBook={() => openBooking(listing)}
-                        onBuy={() => setBuyListing(listing)}
-                        onMessage={() => setMessageListing(listing)}
+                        onBuy={() => { trackClick(listing.id); setBuyListing(listing); }}
+                        onMessage={() => { trackClick(listing.id); setMessageListing(listing); }}
                       />
                     ))}
                   </div>
