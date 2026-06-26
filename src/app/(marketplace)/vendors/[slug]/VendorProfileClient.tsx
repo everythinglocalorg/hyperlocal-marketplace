@@ -317,7 +317,6 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-blue-800 to-blue-600" />
         )}
-        <div className="absolute inset-0 bg-black/10" />
       </section>
 
       {/* ── IDENTITY BAR (blue) ───────────────────────────────────── */}
