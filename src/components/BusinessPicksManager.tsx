@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
@@ -41,14 +41,34 @@ export default function BusinessPicksManager({ userId, engagedVendors, initialPi
   const [error, setError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [query, setQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<PickVendor[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Live search across ALL local businesses (debounced).
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("vendors")
+        .select("id, business_name, slug, logo_url, category, city, state, tier, is_verified, rating")
+        .eq("is_active", true)
+        .or(`business_name.ilike.%${q}%,category.ilike.%${q}%,city.ilike.%${q}%`)
+        .order("business_name")
+        .limit(20);
+      setSearchResults((data as PickVendor[]) ?? []);
+      setSearching(false);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [query, supabase]);
 
   const available = useMemo(() => {
     const pickedIds = new Set(picks.map((p) => p.id));
-    const q = query.trim().toLowerCase();
-    return engagedVendors
-      .filter((v) => !pickedIds.has(v.id))
-      .filter((v) => !q || v.business_name.toLowerCase().includes(q) || v.category.toLowerCase().includes(q));
-  }, [engagedVendors, picks, query]);
+    // When searching, show matches from all businesses; otherwise suggest ones you've engaged with.
+    const source = query.trim() ? searchResults : engagedVendors;
+    return source.filter((v) => !pickedIds.has(v.id));
+  }, [engagedVendors, searchResults, picks, query]);
 
   const dirty = useMemo(() => {
     if (picks.length !== savedPicks.length) return true;
@@ -173,30 +193,31 @@ export default function BusinessPicksManager({ userId, engagedVendors, initialPi
       {showAdd && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
           <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="font-semibold text-gray-900 text-sm">Businesses you&rsquo;ve connected with</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Featuring is open to businesses you&rsquo;ve messaged, reviewed, or booked.</p>
-            {engagedVendors.length > 6 && (
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search your businesses…"
-                className="mt-3 w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+            <h3 className="font-semibold text-gray-900 text-sm">Find a business to feature</h3>
+            <p className="text-xs text-gray-400 mt-0.5">Search any local business and add it to your Top 8.</p>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name, category, or city…"
+              autoFocus
+              className="mt-3 w-full border border-gray-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+            {!query.trim() && engagedVendors.length > 0 && (
+              <p className="text-xs text-gray-400 mt-2">Suggestions below are businesses you&rsquo;ve connected with — or search for any other.</p>
             )}
           </div>
 
-          {engagedVendors.length === 0 ? (
+          {searching ? (
+            <div className="text-center py-10 text-gray-400 text-sm px-6">Searching…</div>
+          ) : picks.length >= MAX_PICKS ? (
+            <div className="text-center py-10 text-gray-400 text-sm px-6">You&rsquo;ve featured the maximum of {MAX_PICKS}. Remove one to add another.</div>
+          ) : query.trim() && available.length === 0 ? (
+            <div className="text-center py-10 text-gray-400 text-sm px-6">No businesses match &ldquo;{query.trim()}&rdquo;.</div>
+          ) : !query.trim() && available.length === 0 ? (
             <div className="text-center py-10 px-6">
-              <p className="text-3xl mb-2">🤝</p>
-              <p className="text-gray-500 text-sm mb-1">No businesses to feature yet.</p>
-              <p className="text-gray-400 text-xs mb-4">Once you message, review, or book a local business, it'll appear here.</p>
-              <Link href="/search" className="inline-block bg-green-600 text-white text-xs font-semibold px-5 py-2 rounded-xl hover:bg-green-700 transition-colors">
-                Discover businesses →
-              </Link>
-            </div>
-          ) : available.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 text-sm px-6">
-              {picks.length >= MAX_PICKS ? `You've featured the maximum of ${MAX_PICKS}.` : "Everything you've connected with is already featured."}
+              <p className="text-3xl mb-2">🔎</p>
+              <p className="text-gray-500 text-sm mb-1">Start typing to find a business.</p>
+              <p className="text-gray-400 text-xs">Search any local business by name, category, or city.</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-50 max-h-72 overflow-y-auto">
