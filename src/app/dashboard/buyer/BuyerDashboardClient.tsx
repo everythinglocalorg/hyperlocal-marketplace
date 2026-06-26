@@ -224,7 +224,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
 
   const NAV = [
     { id: "overview", label: "Overview", icon: "🏠" },
-    { id: "profile", label: "Public Profile", icon: "⭐" },
+    { id: "profile", label: "Local Profile", icon: "⭐" },
     { id: "messages", label: "Messages", icon: "💬" },
     { id: "bookings", label: "Bookings", icon: "📅" },
     { id: "bucks", label: "Local Bucks", icon: "🪙" },

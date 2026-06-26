@@ -422,19 +422,19 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             </Link>
           )}
 
-          {/* Personal profile — switch from this business view to your own Top 8 */}
+          {/* Local Profile — switch from this business view to your own Top 8 */}
           <Link
             href="/dashboard/buyer?tab=profile"
             className="mt-2 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-amber-100 transition-colors"
           >
-            ⭐ Edit My Top 8
+            ⭐ Edit Local Profile
           </Link>
           <Link
             href={`/u/${vendor.user_id}`}
             target="_blank"
             className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            👤 View Personal Profile
+            👤 View Local Profile
           </Link>
         </div>
 
@@ -479,7 +479,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             target="_blank"
             className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
           >
-            <span>🔗</span> View public profile
+            <span>🔗</span> View store page
           </Link>
           <button
             onClick={() => setShowSettings(true)}
