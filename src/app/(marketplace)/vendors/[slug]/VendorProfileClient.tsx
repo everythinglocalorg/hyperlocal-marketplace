@@ -270,7 +270,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center font-bold text-gray-700 text-sm">{vendor.business_name[0]}</div>}
           </div>
-          <span className="font-bold text-gray-900 text-sm hidden lg:block truncate max-w-[180px]">{vendor.business_name}</span>
+          <div className="hidden lg:block min-w-0">
+            <p className="font-bold text-gray-900 text-sm truncate max-w-[180px] leading-tight">{vendor.business_name}</p>
+            <p className="text-gray-400 text-xs truncate max-w-[180px]">{vendor.city}, {vendor.state}</p>
+          </div>
 
           {/* Desktop tab nav */}
           <nav className="hidden md:flex items-center gap-0 ml-2 h-16">
