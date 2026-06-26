@@ -48,6 +48,103 @@ const SORT_OPTIONS = [
   { value: "local_bucks", label: "Most Local Bucks" },
 ];
 
+function ListingCard({ l }: { l: any }) {
+  const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+  return (
+    <Link
+      href={vendor?.slug ? `/vendors/${vendor.slug}` : `/listings/${l.id}`}
+      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+    >
+      <div className="h-36 bg-gray-100 relative">
+        {l.images?.[0] ? (
+          <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-4xl">
+            {l.type === "rental" ? "🏠" : l.type === "thrift" ? "🏷️" : "📦"}
+          </div>
+        )}
+        <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600 capitalize">{l.type}</span>
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold text-gray-900 text-sm">{l.title}</h3>
+        <p className="text-xs text-gray-400 mt-0.5">{l.category}</p>
+        {vendor && (
+          <p className="text-xs text-gray-500 mt-1">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
+        )}
+        {l.price !== null && l.price !== undefined && (
+          <p className="text-sm font-bold text-green-700 mt-2">${Number(l.price).toFixed(2)}</p>
+        )}
+        {l.price_label && !l.price && l.type !== "thrift" && (
+          <p className="text-xs text-gray-500 mt-2">{l.price_label}</p>
+        )}
+        {l.type === "thrift" && l.price_label && (
+          <p className="text-xs text-gray-500 mt-2">📍 {l.price_label}</p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+function KeywordListingCard({ r }: { r: SearchResult }) {
+  return (
+    <Link
+      href={`/listings/${r.id}`}
+      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+    >
+      <div className="h-36 bg-gray-100 relative">
+        {r.image_url ? (
+          <img src={r.image_url} alt={r.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>
+        )}
+        <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600">listing</span>
+      </div>
+      <div className="p-4">
+        <h3 className="font-semibold text-gray-900 text-sm leading-snug">{r.title}</h3>
+        <p className="text-xs text-gray-500 mt-1">{r.subtitle}</p>
+        <div className="flex items-center gap-1 mt-2">
+          <span className="text-xs text-gray-400">{r.city}, {r.state}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+function KeywordVendorCard({ r }: { r: SearchResult }) {
+  return (
+    <Link
+      href={r.slug ? `/vendors/${r.slug}` : "#"}
+      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+    >
+      <div className="h-36 bg-gray-100 relative">
+        {r.image_url ? (
+          <img src={r.image_url} alt={r.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-4xl">🏪</div>
+        )}
+        <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600">business</span>
+        {r.tier === "premium" && (
+          <span className="absolute top-2 right-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+            FEATURED
+          </span>
+        )}
+      </div>
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="font-semibold text-gray-900 text-sm leading-snug">{r.title}</h3>
+          {r.is_verified && <span className="text-blue-500 shrink-0">✓</span>}
+        </div>
+        <p className="text-xs text-gray-500 mt-1">{r.subtitle}</p>
+        <div className="flex items-center gap-1 mt-2">
+          <span className="text-amber-400 text-xs">★</span>
+          <span className="text-xs font-medium text-gray-700">{r.rating?.toFixed(1) ?? "New"}</span>
+          <span className="text-xs text-gray-400 ml-1">{r.city}, {r.state}</span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 export default function SearchClient() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -58,17 +155,21 @@ export default function SearchClient() {
   const [category, setCategory] = useState(searchParams.get("category") ?? "");
   const [radius, setRadius] = useState(Number(searchParams.get("radius") ?? 25));
   const [sort, setSort] = useState(searchParams.get("sort") ?? "rating");
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [keywordResults, setKeywordResults] = useState<SearchResult[]>([]);
+
+  // Products/listings section
   const [listingResults, setListingResults] = useState<any[]>([]);
+  // Keyword search: split by result_type
+  const [kwListings, setKwListings] = useState<SearchResult[]>([]);
+  const [kwVendors, setKwVendors] = useState<SearchResult[]>([]);
+  // Geo / browse: vendors section
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
 
   const listingMode = searchParams.get("mode") === "listings";
   const listingType = searchParams.get("type") ?? "";
 
-  // Support lat/lng from buyer onboarding location detection
   const paramLat = searchParams.get("lat");
   const paramLng = searchParams.get("lng");
   const paramCity = searchParams.get("city_name") ?? searchParams.get("city") ?? "";
@@ -76,7 +177,6 @@ export default function SearchClient() {
 
   const selectedCity = CITIES.find((c) => c.slug === citySlug);
 
-  // Resolved coordinates — either from a known city slug or from lat/lng params
   const resolvedCoords = selectedCity
     ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude, label: `${selectedCity.name}, ${selectedCity.state}` }
     : (paramLat && paramLng)
@@ -96,9 +196,8 @@ export default function SearchClient() {
     setLoading(true);
 
     try {
-      // Listing-mode: show individual listing cards filtered by type or category
+      // Category pill / listing-type browse — show listings only (products first, no vendor section)
       if (listingMode) {
-        // Read directly from URL to avoid stale state
         const urlType = searchParams.get("type") ?? "";
         const urlCategory = searchParams.get("category") ?? "";
         let q = supabase
@@ -110,14 +209,14 @@ export default function SearchClient() {
         q = q.order("created_at", { ascending: false }).limit(40);
         const { data } = await q;
         setListingResults(data ?? []);
+        setKwListings([]);
+        setKwVendors([]);
         setVendors([]);
-        setKeywordResults([]);
-        setTotalCount(data?.length ?? 0);
         return;
       }
 
       if (query.trim()) {
-        // Keyword search via RPC
+        // Keyword search — split into listings (top) and vendors (bottom, featured first)
         const { data } = await supabase.rpc("keyword_search", {
           p_query: query,
           p_city_slug: citySlug || null,
@@ -125,58 +224,84 @@ export default function SearchClient() {
           p_limit: 40,
           p_offset: 0,
         });
-        setKeywordResults(data ?? []);
-        setVendors([]);
+        const results: SearchResult[] = data ?? [];
+        const listings = results.filter((r) => r.result_type === "listing");
+        const vendorResults = results
+          .filter((r) => r.result_type === "vendor")
+          .sort((a, b) => (b.tier === "premium" ? 1 : 0) - (a.tier === "premium" ? 1 : 0));
+        setKwListings(listings);
+        setKwVendors(vendorResults);
         setListingResults([]);
-        setTotalCount(data?.length ?? 0);
+        setVendors([]);
       } else if (resolvedCoords) {
-        // Geo search by coordinates (works for any location)
-        const { data } = await supabase.rpc("search_vendors_nearby", {
-          p_latitude: resolvedCoords.latitude,
-          p_longitude: resolvedCoords.longitude,
-          p_radius_miles: radius,
-          p_category: category || null,
-          p_limit: 40,
-          p_offset: 0,
-        });
+        // Geo/nearby mode — listings section (newest) above vendors section (nearest)
+        const [listingRes, vendorRes] = await Promise.all([
+          supabase
+            .from("listings")
+            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase.rpc("search_vendors_nearby", {
+            p_latitude: resolvedCoords.latitude,
+            p_longitude: resolvedCoords.longitude,
+            p_radius_miles: radius,
+            p_category: category || null,
+            p_limit: 40,
+            p_offset: 0,
+          }),
+        ]);
 
-        let results: Vendor[] = data ?? [];
+        let nearbyVendors: Vendor[] = vendorRes.data ?? [];
+        if (sort === "rating") nearbyVendors.sort((a, b) => b.rating - a.rating);
+        else if (sort === "distance") nearbyVendors.sort((a, b) => (a.distance_miles ?? 0) - (b.distance_miles ?? 0));
+        else if (sort === "local_bucks") nearbyVendors.sort((a, b) => b.local_bucks_earned - a.local_bucks_earned);
 
-        // Client-side sort
-        if (sort === "rating") results.sort((a, b) => b.rating - a.rating);
-        else if (sort === "distance") results.sort((a, b) => (a.distance_miles ?? 0) - (b.distance_miles ?? 0));
-        else if (sort === "local_bucks") results.sort((a, b) => b.local_bucks_earned - a.local_bucks_earned);
-
-        setVendors(results);
-        setKeywordResults([]);
-        setTotalCount(results.length);
+        setListingResults(listingRes.data ?? []);
+        setVendors(nearbyVendors);
+        setKwListings([]);
+        setKwVendors([]);
       } else {
-        // No city selected — show all active vendors filtered by category
-        let q = supabase
-          .from("vendors")
-          .select("*")
-          .eq("is_active", true);
-
-        if (category) q = q.eq("category", category);
-        if (sort === "rating") q = q.order("rating", { ascending: false });
-        else if (sort === "local_bucks") q = q.order("local_bucks_earned", { ascending: false });
-        else q = q.order("created_at", { ascending: false });
-
-        q = q.limit(40);
-
-        const { data } = await q;
-        setVendors(data ?? []);
-        setKeywordResults([]);
-        setTotalCount(data?.length ?? 0);
+        // No query, no city — show newest listings + featured-then-newest vendors
+        const [listingRes, vendorRes] = await Promise.all([
+          supabase
+            .from("listings")
+            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
+            .eq("is_active", true)
+            .order("created_at", { ascending: false })
+            .limit(20),
+          supabase
+            .from("vendors")
+            .select("*")
+            .eq("is_active", true)
+            .order("tier", { ascending: false })
+            .order("created_at", { ascending: false })
+            .limit(12),
+        ]);
+        let browseVendors: Vendor[] = vendorRes.data ?? [];
+        if (category) browseVendors = browseVendors.filter((v) => v.category === category);
+        setListingResults(listingRes.data ?? []);
+        setVendors(browseVendors);
+        setKwListings([]);
+        setKwVendors([]);
       }
     } finally {
       setLoading(false);
     }
-  }, [query, citySlug, category, radius, sort, selectedCity, supabase, listingMode, listingType]);
+  }, [query, citySlug, category, radius, sort, selectedCity, supabase, listingMode, listingType, resolvedCoords]);
 
   useEffect(() => {
     runSearch();
   }, [runSearch]);
+
+  // Derived counts for results header
+  const isKeyword = !!query.trim() && !listingMode;
+  const productCount = listingMode
+    ? listingResults.length
+    : isKeyword
+    ? kwListings.length
+    : listingResults.length;
+  const bizCount = isKeyword ? kwVendors.length : vendors.length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -184,11 +309,9 @@ export default function SearchClient() {
       <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center gap-3">
-            {/* Full wordmark on desktop */}
             <Link href="/" className="text-xl font-bold text-green-600 shrink-0 hidden sm:block">
               Everything Local
             </Link>
-            {/* Compact home button on mobile so users can always get back */}
             <Link href="/" aria-label="Home" className="sm:hidden shrink-0 p-2 -ml-1 text-green-600 hover:text-green-700">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" />
@@ -202,7 +325,7 @@ export default function SearchClient() {
                   updateURL({ q: v });
                 }}
                 onSearch={runSearch}
-                placeholder="Search vendors, products, services..."
+                placeholder="Search products, services, businesses..."
               />
             </div>
             <button
@@ -228,35 +351,25 @@ export default function SearchClient() {
           {/* Filter panel */}
           {showFilters && (
             <div className="mt-3 pb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-gray-100 pt-3">
-              {/* City */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
                 <select
                   value={citySlug}
-                  onChange={(e) => {
-                    setCitySlug(e.target.value);
-                    updateURL({ city: e.target.value });
-                  }}
+                  onChange={(e) => { setCitySlug(e.target.value); updateURL({ city: e.target.value }); }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="">All cities</option>
                   {CITIES.map((c) => (
-                    <option key={c.slug} value={c.slug}>
-                      {c.name}, {c.state}
-                    </option>
+                    <option key={c.slug} value={c.slug}>{c.name}, {c.state}</option>
                   ))}
                 </select>
               </div>
 
-              {/* Category */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
                 <select
                   value={category}
-                  onChange={(e) => {
-                    setCategory(e.target.value);
-                    updateURL({ category: e.target.value });
-                  }}
+                  onChange={(e) => { setCategory(e.target.value); updateURL({ category: e.target.value }); }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="">All categories</option>
@@ -266,37 +379,25 @@ export default function SearchClient() {
                 </select>
               </div>
 
-              {/* Radius */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">
                   Radius: <span className="text-green-600 font-semibold">{radius} miles</span>
                 </label>
                 <input
-                  type="range"
-                  min={1}
-                  max={50}
-                  value={radius}
-                  onChange={(e) => {
-                    setRadius(Number(e.target.value));
-                    updateURL({ radius: e.target.value });
-                  }}
+                  type="range" min={1} max={50} value={radius}
+                  onChange={(e) => { setRadius(Number(e.target.value)); updateURL({ radius: e.target.value }); }}
                   className="w-full accent-green-600"
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-0.5">
-                  <span>1 mi</span>
-                  <span>50 mi</span>
+                  <span>1 mi</span><span>50 mi</span>
                 </div>
               </div>
 
-              {/* Sort */}
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Sort by</label>
                 <select
                   value={sort}
-                  onChange={(e) => {
-                    setSort(e.target.value);
-                    updateURL({ sort: e.target.value });
-                  }}
+                  onChange={(e) => { setSort(e.target.value); updateURL({ sort: e.target.value }); }}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
                   {SORT_OPTIONS.map((o) => (
@@ -314,9 +415,9 @@ export default function SearchClient() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
             <button
-              onClick={() => { setCategory(""); updateURL({ category: "", type: "" }); }}
+              onClick={() => { setCategory(""); updateURL({ category: "", type: "", mode: "" }); }}
               className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                !category ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                !category && !listingMode ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               All
@@ -337,30 +438,7 @@ export default function SearchClient() {
       </div>
 
       {/* Results */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Results header */}
-        <div className="flex items-center justify-between mb-4">
-          <p className="text-sm text-gray-500">
-            {loading ? "Searching..." : (
-              <>
-                <span className="font-semibold text-gray-900">{totalCount}</span>{" "}
-                {query ? `results for "${query}"` : "vendors found"}
-                {resolvedCoords ? ` near ${resolvedCoords.label}` : ""}
-              </>
-            )}
-          </p>
-          {!showFilters && (
-            <select
-              value={sort}
-              onChange={(e) => { setSort(e.target.value); updateURL({ sort: e.target.value }); }}
-              className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          )}
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
 
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -374,120 +452,97 @@ export default function SearchClient() {
               </div>
             ))}
           </div>
-        ) : listingMode && listingResults.length > 0 ? (
-          /* Listing-type browse results */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {listingResults.map((l: any) => {
-              const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return (
+        ) : (
+          <>
+            {/* ── PRODUCTS / LISTINGS SECTION ── */}
+            {(listingMode ? listingResults : isKeyword ? kwListings : listingResults).length > 0 ? (
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">
+                      {listingMode
+                        ? listingType
+                          ? `${listingType.charAt(0).toUpperCase()}${listingType.slice(1)} Listings`
+                          : category
+                          ? `${category} Listings`
+                          : "All Listings"
+                        : isKeyword
+                        ? `Products & Listings`
+                        : "Latest Products"}
+                    </h2>
+                    <p className="text-sm text-gray-400 mt-0.5">
+                      {productCount} {productCount === 1 ? "result" : "results"}
+                      {resolvedCoords && !listingMode && ` near ${resolvedCoords.label}`}
+                    </p>
+                  </div>
+                  {!listingMode && !isKeyword && !showFilters && (
+                    <select
+                      value={sort}
+                      onChange={(e) => { setSort(e.target.value); updateURL({ sort: e.target.value }); }}
+                      className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    >
+                      {SORT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {listingMode
+                    ? listingResults.map((l: any) => <ListingCard key={l.id} l={l} />)
+                    : isKeyword
+                    ? kwListings.map((r) => <KeywordListingCard key={r.id} r={r} />)
+                    : listingResults.map((l: any) => <ListingCard key={l.id} l={l} />)}
+                </div>
+              </section>
+            ) : !listingMode ? null : (
+              <div className="text-center py-20">
+                <div className="text-5xl mb-4">🔍</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No listings found</h3>
+                <p className="text-gray-500 text-sm">No {listingType || category} listings yet in this area.</p>
+              </div>
+            )}
+
+            {/* ── LOCAL BUSINESSES SECTION ── */}
+            {!listingMode && (isKeyword ? kwVendors : vendors).length > 0 && (
+              <section>
+                <div className="flex items-center gap-3 mb-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Local Businesses</h2>
+                    <p className="text-sm text-gray-400 mt-0.5">
+                      {bizCount} {bizCount === 1 ? "business" : "businesses"}
+                      {resolvedCoords ? ` near ${resolvedCoords.label}` : ""} · Featured first
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {isKeyword
+                    ? kwVendors.map((r) => <KeywordVendorCard key={r.id} r={r} />)
+                    : vendors.map((v) => <VendorCard key={v.id} vendor={v} />)}
+                </div>
+              </section>
+            )}
+
+            {/* ── EMPTY STATE ── */}
+            {!loading && !listingMode && productCount === 0 && bizCount === 0 && (
+              <div className="text-center py-24">
+                <div className="text-5xl mb-4">🔍</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No results found</h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  {query
+                    ? `No products or businesses matched "${query}". Try different keywords.`
+                    : "No listings in this area yet. Be the first to list your business!"}
+                </p>
                 <Link
-                  key={l.id}
-                  href={vendor?.slug ? `/vendors/${vendor.slug}` : `/listings/${l.id}`}
-                  className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+                  href="/signup?role=vendor"
+                  className="inline-block bg-green-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-green-700 transition-colors"
                 >
-                  <div className="h-36 bg-gray-100 relative">
-                    {l.images?.[0] ? (
-                      <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-4xl">
-                        {l.type === "rental" ? "🏠" : l.type === "thrift" ? "🏷️" : "📦"}
-                      </div>
-                    )}
-                    <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600 capitalize">{l.type}</span>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-gray-900 text-sm">{l.title}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">{l.category}</p>
-                    {vendor && (
-                      <p className="text-xs text-gray-500 mt-1">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
-                    )}
-                    {l.price !== null && (
-                      <p className="text-sm font-bold text-green-700 mt-2">${Number(l.price).toFixed(2)}</p>
-                    )}
-                    {l.price_label && !l.price && l.type !== "thrift" && (
-                      <p className="text-xs text-gray-500 mt-2">{l.price_label}</p>
-                    )}
-                    {l.type === "thrift" && l.price_label && (
-                      <p className="text-xs text-gray-500 mt-2">📍 {l.price_label}</p>
-                    )}
-                  </div>
+                  List Your Business Free
                 </Link>
-              );
-            })}
-          </div>
-        ) : listingMode && !loading ? (
-          <div className="text-center py-24">
-            <div className="text-5xl mb-4">🔍</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No listings found</h3>
-            <p className="text-gray-500 text-sm">No {listingType || category} listings yet in this area.</p>
-          </div>
-        ) : query && keywordResults.length > 0 ? (
-          /* Keyword search results */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {keywordResults.map((r) => (
-              <Link
-                key={`${r.result_type}-${r.id}`}
-                href={r.result_type === "vendor"
-                ? (r.slug ? `/vendors/${r.slug}` : `#`)
-                : `/listings/${r.id}`}
-                className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
-              >
-                <div className="h-36 bg-gray-100 relative">
-                  {r.image_url ? (
-                    <img src={r.image_url} alt={r.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-4xl">
-                      {r.result_type === "vendor" ? "🏪" : "📦"}
-                    </div>
-                  )}
-                  <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600 capitalize">
-                    {r.result_type}
-                  </span>
-                  {r.tier === "premium" && (
-                    <span className="absolute top-2 right-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                      PREMIUM
-                    </span>
-                  )}
-                </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-gray-900 text-sm leading-snug">{r.title}</h3>
-                    {r.is_verified && <span className="text-blue-500 shrink-0">✓</span>}
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">{r.subtitle}</p>
-                  <div className="flex items-center gap-1 mt-2">
-                    <span className="text-amber-400 text-xs">★</span>
-                    <span className="text-xs font-medium text-gray-700">{r.rating?.toFixed(1) ?? "New"}</span>
-                    <span className="text-xs text-gray-400 ml-1">{r.city}, {r.state}</span>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        ) : vendors.length > 0 ? (
-          /* Geo / browse results */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {vendors.map((v) => (
-              <VendorCard key={v.id} vendor={v} />
-            ))}
-          </div>
-        ) : !loading ? (
-          <div className="text-center py-24">
-            <div className="text-5xl mb-4">🔍</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No results found</h3>
-            <p className="text-gray-500 text-sm mb-6">
-              {query
-                ? `No vendors or listings matched "${query}". Try different keywords.`
-                : "No vendors in this area yet. Be the first to list your business!"}
-            </p>
-            <Link
-              href="/signup?role=vendor"
-              className="inline-block bg-green-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-green-700 transition-colors"
-            >
-              List Your Business Free
-            </Link>
-          </div>
-        ) : null}
+              </div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

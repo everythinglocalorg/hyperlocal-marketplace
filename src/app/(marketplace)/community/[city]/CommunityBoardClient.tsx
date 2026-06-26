@@ -285,7 +285,14 @@ export default function CommunityBoardClient({
             };
           })
           .filter(Boolean);
-        if (notifs.length) supabase.from("notifications").insert(notifs as any[]).then(() => {});
+        if (notifs.length) {
+          notifs.forEach((n: any) => {
+            supabase.rpc("create_notification", {
+              p_user_id: n.user_id, p_actor_id: n.actor_id,
+              p_type: n.type, p_title: n.title, p_body: n.body, p_link: n.link,
+            }).then(() => {});
+          });
+        }
       }
 
       const newPost: any = {
@@ -346,7 +353,14 @@ export default function CommunityBoardClient({
             return { user_id: recipient, actor_id: currentUser.id, type: "mention", title: `${currentUser.full_name ?? "Someone"} tagged you in a reply`, body: text.slice(0, 140), link: `/community/${citySlug}` };
           })
           .filter(Boolean);
-        if (notifs.length) supabase.from("notifications").insert(notifs as any[]).then(() => {});
+        if (notifs.length) {
+          notifs.forEach((n: any) => {
+            supabase.rpc("create_notification", {
+              p_user_id: n.user_id, p_actor_id: n.actor_id,
+              p_type: n.type, p_title: n.title, p_body: n.body, p_link: n.link,
+            }).then(() => {});
+          });
+        }
       }
 
       setResponses((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), data] }));
