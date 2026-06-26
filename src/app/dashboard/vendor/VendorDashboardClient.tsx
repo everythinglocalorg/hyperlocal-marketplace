@@ -2568,11 +2568,19 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
             <div className="mt-4 space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Button label</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {["Order Now", "Apply Now", "Get a Free Estimate", "Book Now", "Contact Us"].map((preset) => (
+                    <button key={preset} type="button" onClick={() => setCtaLabel(preset)}
+                      className={`text-xs px-3 py-1 rounded-full border transition-colors ${ctaLabel === preset ? "border-green-500 bg-green-100 text-green-800 font-semibold" : "border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700"}`}>
+                      {preset}
+                    </button>
+                  ))}
+                </div>
                 <input
                   type="text"
                   value={ctaLabel}
                   onChange={(e) => setCtaLabel(e.target.value)}
-                  placeholder='e.g. "Apply Now", "Order Online", "Get a Free Estimate"'
+                  placeholder="Or type a custom label…"
                   className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
                 />
               </div>
