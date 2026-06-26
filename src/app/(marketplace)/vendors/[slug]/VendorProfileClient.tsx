@@ -320,13 +320,13 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       </section>
 
       {/* ── IDENTITY BAR (blue) ───────────────────────────────────── */}
-      <div className="bg-gray-900">
+      <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
           {/* Logo */}
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 border-white/20 bg-white/10 overflow-hidden shrink-0 shadow-lg">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border border-gray-200 bg-gray-50 overflow-hidden shrink-0 shadow-sm">
             {vendor.logo_url
               ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white">{vendor.business_name[0]}</div>}
+              : <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-gray-700">{vendor.business_name[0]}</div>}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-1.5 mb-1">
@@ -334,12 +334,12 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               {vendor.tier === "premium" && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">⭐ Local Pro</span>}
               {inboundRefCode && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">🪙 Referred</span>}
             </div>
-            <h1 className="text-xl sm:text-3xl font-black text-white leading-tight">{vendor.business_name}</h1>
-            <p className="text-gray-400 text-xs sm:text-sm mt-0.5">{vendor.category} · {vendor.city}, {vendor.state}</p>
+            <h1 className="text-xl sm:text-3xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
+            <p className="text-gray-500 text-xs sm:text-sm mt-0.5">{vendor.category} · {vendor.city}, {vendor.state}</p>
             {vendor.review_count > 0 && (
               <div className="flex items-center gap-1.5 mt-1">
                 <div className="flex">{stars(vendor.rating, "text-xs")}</div>
-                <span className="text-gray-400 text-xs">{vendor.rating.toFixed(1)} ({vendor.review_count} reviews)</span>
+                <span className="text-gray-500 text-xs">{vendor.rating.toFixed(1)} ({vendor.review_count} reviews)</span>
               </div>
             )}
           </div>
