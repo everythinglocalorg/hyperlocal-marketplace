@@ -147,6 +147,48 @@ export default function CommunityBoardClient({
   const [responseVendorId, setResponseVendorId] = useState<Record<string, string>>({});
   const [submittingResponse, setSubmittingResponse] = useState<string | null>(null);
 
+  // @ mentions in replies (one active dropdown at a time, keyed by post)
+  const replyRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const replyAnchor = useRef<number>(-1);
+  const [replyMentions, setReplyMentions] = useState<Record<string, Mention[]>>({});
+  const [replyMentionState, setReplyMentionState] = useState<{ postId: string; results: Mention[] } | null>(null);
+
+  async function handleReplyChange(postId: string, value: string, caret: number) {
+    setResponseText((prev) => ({ ...prev, [postId]: value }));
+    const upToCaret = value.slice(0, caret);
+    const at = upToCaret.lastIndexOf("@");
+    if (at === -1 || (at > 0 && !/\s/.test(upToCaret[at - 1]))) { setReplyMentionState(null); return; }
+    const query = upToCaret.slice(at + 1);
+    if (query.includes("\n") || query.length > 30) { setReplyMentionState(null); return; }
+    const q = query.trim();
+    if (q.length < 1) { setReplyMentionState(null); return; }
+    replyAnchor.current = at;
+    const [{ data: people }, { data: biz }] = await Promise.all([
+      supabase.from("profiles").select("id, full_name").ilike("full_name", `%${q}%`).not("full_name", "is", null).limit(4),
+      supabase.from("vendors").select("id, business_name, slug, user_id").eq("is_active", true).ilike("business_name", `%${q}%`).limit(4),
+    ]);
+    const results: Mention[] = [
+      ...(people ?? []).map((p: any) => ({ type: "profile" as const, id: p.id, label: p.full_name as string })),
+      ...(biz ?? []).map((v: any) => ({ type: "vendor" as const, id: v.id, label: v.business_name as string, slug: v.slug, ownerId: v.user_id })),
+    ];
+    setReplyMentionState(results.length ? { postId, results } : null);
+  }
+
+  function selectReplyMention(postId: string, m: Mention) {
+    const el = replyRefs.current[postId];
+    const at = replyAnchor.current;
+    const current = responseText[postId] ?? "";
+    const caret = el ? el.selectionStart : current.length;
+    const inserted = `@${m.label} `;
+    const newText = current.slice(0, at) + inserted + current.slice(caret);
+    setResponseText((prev) => ({ ...prev, [postId]: newText }));
+    setReplyMentions((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []).filter((x) => !(x.type === m.type && x.id === m.id)), m] }));
+    setReplyMentionState(null);
+    requestAnimationFrame(() => {
+      if (el) { el.focus(); const pos = at + inserted.length; el.setSelectionRange(pos, pos); }
+    });
+  }
+
   const filteredPosts = filterType === "all" ? posts : posts.filter((p) => p.type === filterType);
 
   function getVendorSuggestions(search: string) {
@@ -269,7 +311,7 @@ export default function CommunityBoardClient({
     setLoadingResponses(postId);
     const { data } = await supabase
       .from("community_responses")
-      .select("id, body, created_at, user:profiles!user_id(id, full_name, avatar_url), tagged_vendor:vendors(id, business_name, slug, logo_url)")
+      .select("id, body, created_at, mentions, user:profiles!user_id(id, full_name, avatar_url), tagged_vendor:vendors(id, business_name, slug, logo_url)")
       .eq("post_id", postId).order("created_at");
     setResponses((prev) => ({ ...prev, [postId]: data ?? [] }));
     setExpandedPost(postId);
@@ -281,18 +323,37 @@ export default function CommunityBoardClient({
     const text = responseText[postId]?.trim();
     if (!text) return;
     setSubmittingResponse(postId);
+    const finalMentions = (replyMentions[postId] ?? []).filter((m) => text.includes(`@${m.label}`));
+    const mentionsJson = finalMentions.map((m) => ({ type: m.type, id: m.id, label: m.label, slug: m.slug ?? null }));
+
     const { data, error } = await supabase.from("community_responses").insert({
       post_id: postId,
       user_id: currentUser.id,
       body: text,
       tagged_vendor_id: responseVendorId[postId] || null,
-    }).select("id, body, created_at, user:profiles!user_id(id, full_name, avatar_url), tagged_vendor:vendors(id, business_name, slug, logo_url)").single();
+      mentions: mentionsJson,
+    }).select("id, body, created_at, mentions, user:profiles!user_id(id, full_name, avatar_url), tagged_vendor:vendors(id, business_name, slug, logo_url)").single();
 
     if (!error && data) {
+      if (finalMentions.length) {
+        supabase.from("community_mentions").insert(
+          finalMentions.map((m) => ({ post_id: postId, author_id: currentUser.id, target_type: m.type, target_id: m.id }))
+        ).then(() => {});
+        const notifs = finalMentions
+          .map((m) => {
+            const recipient = m.type === "profile" ? m.id : m.ownerId;
+            if (!recipient || recipient === currentUser.id) return null;
+            return { user_id: recipient, actor_id: currentUser.id, type: "mention", title: `${currentUser.full_name ?? "Someone"} tagged you in a reply`, body: text.slice(0, 140), link: `/community/${citySlug}` };
+          })
+          .filter(Boolean);
+        if (notifs.length) supabase.from("notifications").insert(notifs as any[]).then(() => {});
+      }
+
       setResponses((prev) => ({ ...prev, [postId]: [...(prev[postId] ?? []), data] }));
       setResponseText((prev) => ({ ...prev, [postId]: "" }));
       setResponseVendorSearch((prev) => ({ ...prev, [postId]: "" }));
       setResponseVendorId((prev) => ({ ...prev, [postId]: "" }));
+      setReplyMentions((prev) => ({ ...prev, [postId]: [] }));
       setPosts((prev) => prev.map((p) => p.id === postId
         ? { ...p, response_count: [{ count: (p.response_count?.[0]?.count ?? 0) + 1 }] } : p));
     }
@@ -527,7 +588,7 @@ export default function CommunityBoardClient({
                                   )}
                                 </div>
                               </div>
-                              <p className="text-sm text-gray-700">{r.body}</p>
+                              <p className="text-sm text-gray-700 whitespace-pre-wrap">{renderBody(r.body, r.mentions)}</p>
                               {rv && (
                                 <Link href={`/vendors/${rv.slug}`} className="inline-flex items-center gap-1.5 mt-1 bg-green-50 border border-green-200 rounded-lg px-2 py-1 hover:bg-green-100 transition-colors">
                                   <div className="w-4 h-4 rounded bg-green-200 flex items-center justify-center text-xs font-bold text-green-800 overflow-hidden">
@@ -547,13 +608,29 @@ export default function CommunityBoardClient({
                           <div className="flex gap-2">
                             {avatar(currentUser.full_name, currentUser.avatar_url, "w-7 h-7")}
                             <div className="flex-1">
-                              <textarea
-                                value={responseText[post.id] ?? ""}
-                                onChange={(e) => setResponseText((prev) => ({ ...prev, [post.id]: e.target.value }))}
-                                placeholder="Write a reply or recommend a business..."
-                                rows={2}
-                                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
-                              />
+                              <div className="relative">
+                                <textarea
+                                  ref={(el) => { replyRefs.current[post.id] = el; }}
+                                  value={responseText[post.id] ?? ""}
+                                  onChange={(e) => handleReplyChange(post.id, e.target.value, e.target.selectionStart)}
+                                  onKeyUp={(e) => handleReplyChange(post.id, (e.target as HTMLTextAreaElement).value, (e.target as HTMLTextAreaElement).selectionStart)}
+                                  placeholder="Reply… tag people or businesses with @"
+                                  rows={2}
+                                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none bg-white"
+                                />
+                                {replyMentionState?.postId === post.id && replyMentionState.results.length > 0 && (
+                                  <div className="absolute left-0 right-0 top-full mt-1 z-30 border border-gray-200 rounded-xl bg-white shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+                                    {replyMentionState.results.map((m) => (
+                                      <button type="button" key={`${m.type}-${m.id}`} onMouseDown={(e) => { e.preventDefault(); selectReplyMention(post.id, m); }}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 transition-colors">
+                                        <span>{m.type === "vendor" ? "🏢" : "👤"}</span>
+                                        <span className="font-medium text-gray-800 truncate">{m.label}</span>
+                                        <span className="ml-auto text-xs text-gray-400 shrink-0">{m.type === "vendor" ? "Business" : "Person"}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
 
                               {/* Vendor tag in reply */}
                               <div className="mt-1.5">

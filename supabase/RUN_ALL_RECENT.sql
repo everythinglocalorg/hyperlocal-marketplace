@@ -33,6 +33,7 @@ alter table public.profiles add column if not exists profile_details jsonb defau
 
 -- ---- @ mentions (people + businesses) --------------------------------------
 alter table public.community_posts add column if not exists mentions jsonb default '[]'::jsonb;
+alter table public.community_responses add column if not exists mentions jsonb default '[]'::jsonb;
 
 create table if not exists public.community_mentions (
   id uuid primary key default gen_random_uuid(),
