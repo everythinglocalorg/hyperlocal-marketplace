@@ -33,6 +33,8 @@ type Vendor = {
   is_verified: boolean; rating: number; review_count: number;
   local_bucks_earned: number; service_radius_miles: number;
   page_blocks?: PageBlock[] | null;
+  menu_pdf_url?: string | null;
+  cta_button?: { enabled?: boolean; label?: string; link_type?: string; url?: string; custom_question?: string } | null;
 };
 
 type Listing = {
@@ -70,6 +72,32 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [messageListing, setMessageListing] = useState<Listing | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showCtaForm, setShowCtaForm] = useState(false);
+  const [ctaFormName, setCtaFormName] = useState("");
+  const [ctaFormEmail, setCtaFormEmail] = useState("");
+  const [ctaFormPhone, setCtaFormPhone] = useState("");
+  const [ctaFormMessage, setCtaFormMessage] = useState("");
+  const [ctaFormCustom, setCtaFormCustom] = useState("");
+  const [ctaFormSubmitting, setCtaFormSubmitting] = useState(false);
+  const [ctaFormDone, setCtaFormDone] = useState(false);
+
+  const ctaBtn = vendor.cta_button as { enabled?: boolean; label?: string; link_type?: string; url?: string; custom_question?: string } | null;
+
+  async function submitCtaForm(e: React.FormEvent) {
+    e.preventDefault();
+    setCtaFormSubmitting(true);
+    const supabase = createClient();
+    await supabase.from("purchase_inquiries").insert({
+      vendor_id: vendor.id,
+      buyer_id: currentUser?.id ?? null,
+      buyer_name: ctaFormName,
+      buyer_email: ctaFormEmail,
+      buyer_phone: ctaFormPhone || null,
+      message: [ctaFormMessage, ctaBtn?.custom_question && ctaFormCustom ? `${ctaBtn.custom_question}: ${ctaFormCustom}` : ""].filter(Boolean).join("\n\n"),
+      inquiry_type: "cta",
+    });
+    setCtaFormSubmitting(false); setCtaFormDone(true);
+  }
 
   useEffect(() => {
     createClient().auth.getUser().then(async ({ data: { user } }) => {
@@ -191,6 +219,41 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
     {showMessageModal && <MessageModal listing={{ id: vendor.id, title: `Contact ${vendor.business_name}` }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
+
+    {/* CTA built-in form modal */}
+    {showCtaForm && ctaBtn?.link_type === "form" && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCtaForm(false)}>
+        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+          {ctaFormDone ? (
+            <div className="text-center py-8">
+              <p className="text-4xl mb-3">✅</p>
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Sent!</h3>
+              <p className="text-sm text-gray-500 mb-4">{vendor.business_name} will be in touch soon.</p>
+              <button onClick={() => { setShowCtaForm(false); setCtaFormDone(false); }} className="text-sm text-green-600 hover:underline">Close</button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-gray-900">{ctaBtn.label || "Contact Us"}</h3>
+                <button onClick={() => setShowCtaForm(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+              </div>
+              <form onSubmit={submitCtaForm} className="space-y-3">
+                <input required value={ctaFormName} onChange={(e) => setCtaFormName(e.target.value)} placeholder="Your name" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <input required type="email" value={ctaFormEmail} onChange={(e) => setCtaFormEmail(e.target.value)} placeholder="Email address" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <input value={ctaFormPhone} onChange={(e) => setCtaFormPhone(e.target.value)} placeholder="Phone (optional)" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                {ctaBtn.custom_question && (
+                  <input required value={ctaFormCustom} onChange={(e) => setCtaFormCustom(e.target.value)} placeholder={ctaBtn.custom_question} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                )}
+                <textarea required value={ctaFormMessage} onChange={(e) => setCtaFormMessage(e.target.value)} rows={3} placeholder="Message" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                <button type="submit" disabled={ctaFormSubmitting} className="w-full bg-green-600 text-white py-3 rounded-xl text-sm font-bold hover:bg-green-700 transition-colors disabled:opacity-50">
+                  {ctaFormSubmitting ? "Sending…" : "Send →"}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
+    )}
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
     {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
 
@@ -272,9 +335,25 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               </a>
             )}
           </div>
-          <button onClick={copyShareLink} className="text-xs text-white/50 hover:text-white/80 transition-colors">
-            {copied ? "✓ Copied!" : "🔗 Share"}
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            {vendor.menu_pdf_url && (
+              <a href={vendor.menu_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full transition-colors">
+                📄 View Menu
+              </a>
+            )}
+            {ctaBtn?.enabled && (
+              ctaBtn.link_type === "url" && ctaBtn.url
+                ? <a href={ctaBtn.url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-400 text-white px-4 py-1.5 rounded-full font-semibold transition-colors">
+                    {ctaBtn.label || "Learn More"} →
+                  </a>
+                : <button onClick={() => setShowCtaForm(true)} className="flex items-center gap-1.5 text-xs bg-green-500 hover:bg-green-400 text-white px-4 py-1.5 rounded-full font-semibold transition-colors">
+                    {ctaBtn.label || "Contact Us"} →
+                  </button>
+            )}
+            <button onClick={copyShareLink} className="text-xs text-white/50 hover:text-white/80 transition-colors">
+              {copied ? "✓ Copied!" : "🔗 Share"}
+            </button>
+          </div>
         </div>
       </div>
 

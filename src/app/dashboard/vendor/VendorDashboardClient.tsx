@@ -2353,6 +2353,45 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [bannerPreview, setBannerPreview] = useState<string | null>(vendor.banner_url);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // ── Store Features ─────────────────────────────────────────────
+  const [menuEnabled, setMenuEnabled] = useState(!!(vendor.menu_pdf_url));
+  const [menuPdfUrl, setMenuPdfUrl] = useState<string | null>(vendor.menu_pdf_url ?? null);
+  const [menuPdfFile, setMenuPdfFile] = useState<File | null>(null);
+  const [menuUploading, setMenuUploading] = useState(false);
+  const menuPdfRef = useRef<HTMLInputElement>(null);
+
+  const initCta = vendor.cta_button ?? {};
+  const [ctaEnabled, setCtaEnabled] = useState(!!(initCta.enabled));
+  const [ctaLabel, setCtaLabel] = useState(initCta.label ?? "");
+  const [ctaLinkType, setCtaLinkType] = useState<"url" | "form">(initCta.link_type ?? "url");
+  const [ctaUrl, setCtaUrl] = useState(initCta.url ?? "");
+  const [ctaCustomQuestion, setCtaCustomQuestion] = useState(initCta.custom_question ?? "");
+  const [featureSaving, setFeatureSaving] = useState(false);
+  const [featureSaved, setFeatureSaved] = useState(false);
+
+  async function uploadMenuPdf(file: File) {
+    setMenuUploading(true);
+    const ext = file.name.split(".").pop();
+    const path = `${vendor.id}/menu.${ext}`;
+    const { error } = await supabase.storage.from("vendor-logos").upload(path, file, { upsert: true, contentType: "application/pdf" });
+    if (!error) {
+      const url = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
+      setMenuPdfUrl(url);
+    }
+    setMenuUploading(false);
+  }
+
+  async function saveFeatures() {
+    setFeatureSaving(true);
+    await supabase.from("vendors").update({
+      menu_pdf_url: menuEnabled ? menuPdfUrl : null,
+      cta_button: ctaEnabled
+        ? { enabled: true, label: ctaLabel.trim() || "Contact Us", link_type: ctaLinkType, url: ctaUrl.trim() || null, custom_question: ctaCustomQuestion.trim() || null }
+        : null,
+    }).eq("id", vendor.id);
+    setFeatureSaving(false); setFeatureSaved(true); setTimeout(() => setFeatureSaved(false), 3000);
+  }
   const [error, setError] = useState<string | null>(null);
   const logoRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
@@ -2467,6 +2506,134 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       </form>
       <div className="mt-6 p-4 bg-gray-50 rounded-xl">
         <p className="text-xs text-gray-500">Your public storefront: <a href={`/vendors/${vendor.slug}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline font-medium">/vendors/{vendor.slug}</a></p>
+      </div>
+
+      {/* ── STORE FEATURES ─────────────────────────────────────── */}
+      <div className="mt-8 border-t border-gray-100 pt-8 space-y-4">
+        <div>
+          <h3 className="text-lg font-bold text-gray-900">Store Features</h3>
+          <p className="text-sm text-gray-400 mt-0.5">Toggle optional features that appear on your public store page.</p>
+        </div>
+
+        {/* Menu PDF */}
+        <div className={`border rounded-2xl p-5 transition-colors ${menuEnabled ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">🍽️ Menu PDF</p>
+              <p className="text-xs text-gray-400 mt-0.5">Show a "View Menu" button on your page linking to a PDF menu.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMenuEnabled((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none ${menuEnabled ? "bg-green-500" : "bg-gray-300"}`}
+            >
+              <span className={`inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow transition-transform ${menuEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+            </button>
+          </div>
+          {menuEnabled && (
+            <div className="mt-4 space-y-3">
+              {menuPdfUrl && (
+                <div className="flex items-center gap-2 text-xs text-green-700 bg-green-100 px-3 py-2 rounded-lg">
+                  <span>📄</span>
+                  <a href={menuPdfUrl} target="_blank" rel="noreferrer" className="underline truncate">{menuPdfUrl.split("/").pop()}</a>
+                </div>
+              )}
+              <div>
+                <input ref={menuPdfRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setMenuPdfFile(f); uploadMenuPdf(f); } }} />
+                <button type="button" onClick={() => menuPdfRef.current?.click()} className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                  {menuUploading ? "Uploading…" : menuPdfUrl ? "Replace PDF" : "Upload PDF"}
+                </button>
+                <p className="text-xs text-gray-400 mt-1">PDF format, max 10MB</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Custom CTA Button */}
+        <div className={`border rounded-2xl p-5 transition-colors ${ctaEnabled ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-gray-900 text-sm">🔘 Custom Action Button</p>
+              <p className="text-xs text-gray-400 mt-0.5">Add a custom button to your page — "Apply Now", "Order Online", "Get a Free Estimate", etc.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCtaEnabled((v) => !v)}
+              className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none ${ctaEnabled ? "bg-green-500" : "bg-gray-300"}`}
+            >
+              <span className={`inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow transition-transform ${ctaEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+            </button>
+          </div>
+          {ctaEnabled && (
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Button label</label>
+                <input
+                  type="text"
+                  value={ctaLabel}
+                  onChange={(e) => setCtaLabel(e.target.value)}
+                  placeholder='e.g. "Apply Now", "Order Online", "Get a Free Estimate"'
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">When clicked, take customer to:</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCtaLinkType("url")}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${ctaLinkType === "url" ? "border-green-500 bg-green-100 text-green-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    🔗 External link / URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCtaLinkType("form")}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${ctaLinkType === "form" ? "border-green-500 bg-green-100 text-green-800" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    📋 Built-in contact form
+                  </button>
+                </div>
+              </div>
+              {ctaLinkType === "url" && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">URL</label>
+                  <input
+                    type="url"
+                    value={ctaUrl}
+                    onChange={(e) => setCtaUrl(e.target.value)}
+                    placeholder="https://yoursite.com/apply"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                  />
+                </div>
+              )}
+              {ctaLinkType === "form" && (
+                <div className="space-y-2">
+                  <p className="text-xs text-gray-500">A form will pop up on your store page collecting the customer's name, email, phone, and message. Responses go to your bookings inbox.</p>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1">Custom question <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input
+                      type="text"
+                      value={ctaCustomQuestion}
+                      onChange={(e) => setCtaCustomQuestion(e.target.value)}
+                      placeholder='e.g. "What service are you interested in?"'
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={saveFeatures}
+          disabled={featureSaving}
+          className={`w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${featureSaved ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}
+        >
+          {featureSaving ? "Saving features…" : featureSaved ? "✓ Features saved!" : "Save store features"}
+        </button>
       </div>
 
     </div>
