@@ -114,7 +114,7 @@ export default async function PublicProfilePage({ params }: Props) {
               <ShareProfileButton />
               {isOwner && (
                 <Link
-                  href="/dashboard/buyer?tab=profile"
+                  href="/profile"
                   className="inline-flex items-center gap-2 bg-white text-green-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-green-50 transition-colors"
                 >
                   ✏️ Edit my picks
@@ -221,7 +221,7 @@ export default async function PublicProfilePage({ params }: Props) {
                 </div>
               );
               return isOwner ? (
-                <Link key={`empty-${i}`} href="/dashboard/buyer?tab=profile" className="block h-full">{EmptySlot}</Link>
+                <Link key={`empty-${i}`} href="/profile" className="block h-full">{EmptySlot}</Link>
               ) : (
                 <div key={`empty-${i}`} className="h-full">{EmptySlot}</div>
               );
@@ -260,7 +260,7 @@ export default async function PublicProfilePage({ params }: Props) {
         )}
         {isOwner && picks.length < 8 && (
           <div className="mt-6 text-center">
-            <Link href="/dashboard/buyer?tab=profile" className="inline-block bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-green-700 transition-colors">
+            <Link href="/profile" className="inline-block bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-green-700 transition-colors">
               {picks.length === 0 ? "Choose your Top 8 →" : `Fill your remaining ${8 - picks.length} ${8 - picks.length === 1 ? "spot" : "spots"} →`}
             </Link>
           </div>

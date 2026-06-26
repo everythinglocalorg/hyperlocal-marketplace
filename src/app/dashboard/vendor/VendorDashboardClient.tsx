@@ -424,14 +424,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
           {/* Local Profile — switch from this business view to your own Top 8 */}
           <Link
-            href="/dashboard/buyer?tab=profile"
+            href="/profile"
             className="mt-2 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-amber-100 transition-colors"
           >
             ⭐ Edit Local Profile
           </Link>
           <Link
             href={`/u/${vendor.user_id}`}
-            target="_blank"
             className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
           >
             👤 View Local Profile
@@ -476,7 +475,6 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
         <div className="p-3 border-t border-gray-100">
           <Link
             href={`/vendors/${vendor.slug}`}
-            target="_blank"
             className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
           >
             <span>🔗</span> View store page
