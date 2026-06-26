@@ -429,12 +429,6 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           >
             ⭐ Edit Local Profile
           </Link>
-          <Link
-            href={`/u/${vendor.user_id}`}
-            className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            👤 View Local Profile
-          </Link>
         </div>
 
         {/* Navigation */}
@@ -473,12 +467,23 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
         </nav>
 
         <div className="p-3 border-t border-gray-100">
-          <Link
-            href={`/vendors/${vendor.slug}`}
-            className="flex items-center gap-2 px-3 py-2.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
-          >
-            <span>🔗</span> View store page
-          </Link>
+          {/* View boxes — your business storefront and your personal Local Profile */}
+          <div className="grid grid-cols-2 gap-2 mb-1">
+            <Link
+              href={`/vendors/${vendor.slug}`}
+              className="flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-colors text-center"
+            >
+              <span className="text-lg">🔗</span>
+              <span className="text-xs font-semibold leading-tight">View store page</span>
+            </Link>
+            <Link
+              href={`/u/${vendor.user_id}`}
+              className="flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-xl border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 hover:bg-green-50 transition-colors text-center"
+            >
+              <span className="text-lg">⭐</span>
+              <span className="text-xs font-semibold leading-tight">View Local Profile</span>
+            </Link>
+          </div>
           <button
             onClick={() => setShowSettings(true)}
             className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
