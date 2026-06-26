@@ -85,6 +85,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     if (typeof window === "undefined" || sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
     supabase.rpc("increment_vendor_listing_views", { vendor_id_in: vendor.id }).then(() => {});
+    supabase.rpc("increment_vendor_profile_views", { vendor_id_in: vendor.id }).then(() => {});
   }, [supabase, vendor.id]);
 
   // Bump a listing's click count when a visitor acts on it (buy/book/message).

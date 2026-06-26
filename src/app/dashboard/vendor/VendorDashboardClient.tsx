@@ -36,6 +36,7 @@ interface Props {
     city: string;
     state: string;
     page_blocks?: any[] | null;
+    profile_views?: number | null;
     custom_domain?: string | null;
     domain_verified?: boolean | null;
   };
@@ -643,6 +644,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               {/* Stats grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {[
+                  { label: "Store Visits", value: (vendor.profile_views ?? 0).toLocaleString(), icon: "🏬", color: "blue" },
                   { label: "Total Views", value: stats.totalViews.toLocaleString(), icon: "👁️", color: "blue" },
                   { label: "Total Clicks", value: stats.totalClicks.toLocaleString(), icon: "🖱️", color: "purple" },
                   { label: "Active Listings", value: `${stats.activeListings}/${stats.totalListings}`, icon: "📦", color: "green" },
