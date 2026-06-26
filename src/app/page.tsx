@@ -32,6 +32,7 @@ export default function HomePage() {
   const [location, setLocation] = useState("");
   const [locating, setLocating] = useState(false);
   const [user, setUser] = useState<{ name: string | null; role: string | null } | null>(null);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [recentListings, setRecentListings] = useState<any[]>([]);
   const [newVendors, setNewVendors] = useState<any[]>([]);
@@ -58,6 +59,8 @@ export default function HomePage() {
           .eq("id", u.id)
           .single();
         setUser({ name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
+        supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", u.id).eq("is_read", false)
+          .then(({ count }) => setNotifUnread(count ?? 0));
         if (profile?.city && !savedCity) {
           localStorage.setItem("hl_neighborhood", JSON.stringify({ city: profile.city, state: profile.state ?? "" }));
           savedCity = profile.city;
@@ -177,6 +180,14 @@ export default function HomePage() {
                     🏘️ Ask Your Neighbors
                   </Link>
                 )}
+                <Link href="/notifications" title="Notifications" className="relative text-xl leading-none">
+                  🔔
+                  {notifUnread > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                      {notifUnread > 9 ? "9+" : notifUnread}
+                    </span>
+                  )}
+                </Link>
                 <Link
                   href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
                   className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors"
