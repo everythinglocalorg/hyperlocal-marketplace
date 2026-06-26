@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import RentalSetup from "@/components/rental/RentalSetup";
-import { formatLocalBucks, formatPrice } from "@/lib/utils";
+import { formatLocalBucks, formatPrice, slugify } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
@@ -2416,8 +2416,20 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       if (err) { setError("Banner upload failed: " + err.message); setSaving(false); return; }
       bannerUrl = supabase.storage.from("vendor-banners").getPublicUrl(`${vendor.id}/banner.${ext}`).data.publicUrl;
     }
+    // Regenerate slug if business name changed
+    let newSlug = vendor.slug;
+    const trimmedName = businessName.trim();
+    if (trimmedName !== vendor.business_name) {
+      const base = slugify(trimmedName);
+      // Find a unique slug by appending a short random suffix if needed
+      const { data: existing } = await supabase
+        .from("vendors").select("id").eq("slug", base).neq("id", vendor.id).maybeSingle();
+      newSlug = existing ? `${base}-${Math.random().toString(36).slice(2, 6)}` : base;
+    }
+
     const { error: updateErr } = await supabase.from("vendors").update({
-      business_name: businessName.trim(),
+      business_name: trimmedName,
+      slug: newSlug,
       description: description.trim() || null,
       category,
       phone: phone.trim() || null,
@@ -2428,7 +2440,13 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       logo_url: logoUrl,
       banner_url: bannerUrl,
     }).eq("id", vendor.id);
-    if (updateErr) { setError(updateErr.message); } else { setSaved(true); setTimeout(() => setSaved(false), 3000); }
+    if (updateErr) { setError(updateErr.message); } else {
+      setSaved(true); setTimeout(() => setSaved(false), 3000);
+      // Redirect to the new URL if the slug changed
+      if (newSlug !== vendor.slug) {
+        window.location.href = `/dashboard/vendor`;
+      }
+    }
     setSaving(false);
   }
 
