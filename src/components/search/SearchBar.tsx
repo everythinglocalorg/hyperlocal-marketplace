@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import AtMentionDropdown from "@/components/AtMentionDropdown";
 
 interface SearchBarProps {
   value: string;
@@ -44,6 +45,7 @@ export default function SearchBar({ value, onChange, onSearch, placeholder }: Se
           ✕
         </button>
       )}
+      <AtMentionDropdown query={value} />
     </div>
   );
 }
