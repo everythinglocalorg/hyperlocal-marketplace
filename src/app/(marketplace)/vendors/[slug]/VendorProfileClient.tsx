@@ -72,6 +72,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [messageListing, setMessageListing] = useState<Listing | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
   const [showCtaForm, setShowCtaForm] = useState(false);
   const [ctaFormName, setCtaFormName] = useState("");
   const [ctaFormEmail, setCtaFormEmail] = useState("");
@@ -264,15 +265,28 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <Link href="/search" className="text-gray-400 hover:text-gray-600 text-sm shrink-0">← Back</Link>
           <p className="font-bold text-gray-900 text-sm truncate">{vendor.business_name}</p>
-          <div className="flex items-center gap-2 shrink-0">
-            {vendor.phone && (
-              <a href={`tel:${vendor.phone}`} className="text-sm bg-green-600 text-white px-4 py-1.5 rounded-full font-semibold hover:bg-green-700 transition-colors">
-                📞 Call
-              </a>
-            )}
-            <button onClick={() => setShowMessageModal(true)} className="text-sm border border-gray-200 text-gray-700 px-4 py-1.5 rounded-full font-semibold hover:border-green-400 hover:text-green-700 transition-colors">
-              💬 Message
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setShowContactDropdown((v) => !v)}
+              className="text-sm bg-green-600 text-white px-4 py-1.5 rounded-full font-semibold hover:bg-green-700 transition-colors flex items-center gap-1.5"
+            >
+              Contact ▾
             </button>
+            {showContactDropdown && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowContactDropdown(false)} />
+                <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden min-w-[160px]">
+                  {vendor.phone && (
+                    <a href={`tel:${vendor.phone}`} onClick={() => setShowContactDropdown(false)} className="flex items-center gap-2.5 px-4 py-3 text-sm text-gray-800 hover:bg-green-50 transition-colors">
+                      📞 <span>Call</span>
+                    </a>
+                  )}
+                  <button onClick={() => { setShowContactDropdown(false); setShowMessageModal(true); }} className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-gray-800 hover:bg-green-50 transition-colors text-left">
+                    💬 <span>Message</span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </header>
