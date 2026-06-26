@@ -310,76 +310,70 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
       </header>
 
-      {/* ── HERO ──────────────────────────────────────────────────── */}
-      <section className="relative h-72 sm:h-96 overflow-hidden bg-gray-900">
+      {/* ── BANNER (half height) ──────────────────────────────────── */}
+      <section className="relative h-36 sm:h-48 overflow-hidden bg-gray-900">
         {vendor.banner_url ? (
           <img src={vendor.banner_url} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-green-800 to-emerald-600" />
+          <div className="w-full h-full bg-gradient-to-br from-blue-800 to-blue-600" />
         )}
-        {/* Light dim + a soft bottom scrim. Text shadows below keep the name
-            legible without heavily darkening the banner photo. */}
-        <div className="absolute inset-0 bg-black/15" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
-
-        {/* Hero content */}
-        <div className="absolute bottom-0 left-0 right-0 px-4 sm:px-8 pb-6 sm:pb-8">
-          <div className="max-w-6xl mx-auto flex items-end gap-4">
-            {/* Logo */}
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-white/40 bg-white/10 backdrop-blur overflow-hidden shrink-0 shadow-xl ring-1 ring-black/20">
-              {vendor.logo_url
-                ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
-                : <div className="w-full h-full flex items-center justify-center text-3xl sm:text-4xl font-bold text-white">{vendor.business_name[0]}</div>}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2 mb-2">
-                {vendor.is_verified && <span className="text-xs bg-white/20 backdrop-blur text-white px-2 py-0.5 rounded-full font-semibold">✓ Verified</span>}
-                {vendor.tier === "premium" && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">⭐ Local Pro</span>}
-                {inboundRefCode && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">🪙 Referred</span>}
-              </div>
-              <h1 className="text-2xl sm:text-4xl font-black text-white leading-tight" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.85), 0 1px 3px rgba(0,0,0,0.9)" }}>{vendor.business_name}</h1>
-              <p className="text-white/90 text-sm mt-1.5 font-medium" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>{vendor.category} · {vendor.city}, {vendor.state}</p>
-              <div className="flex items-center gap-2 mt-1.5">
-                <div className="flex" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.8))" }}>{stars(vendor.rating, "text-sm")}</div>
-                {vendor.review_count > 0 && <span className="text-white/90 text-xs font-medium" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.9)" }}>{vendor.rating.toFixed(1)} ({vendor.review_count} reviews)</span>}
-              </div>
-            </div>
-          </div>
-        </div>
+        <div className="absolute inset-0 bg-black/10" />
       </section>
 
-      {/* ── CTA BAR ───────────────────────────────────────────────── */}
-      <div className="bg-gray-900 border-t border-white/10">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-3">
-            {vendor.phone && (
-              <a href={`tel:${vendor.phone}`} className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors">
-                📞 <span>{vendor.phone}</span>
-              </a>
-            )}
-            {vendor.address && (
-              <span className="flex items-center gap-2 text-sm text-white/60">
-                📍 {vendor.address}, {vendor.city}
-              </span>
-            )}
-            {vendor.website && (
-              <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-white/80 hover:text-white transition-colors">
-                🌐 {vendor.website.replace(/^https?:\/\//, "")}
-              </a>
-            )}
+      {/* ── IDENTITY BAR (blue) ───────────────────────────────────── */}
+      <div className="bg-blue-700">
+        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
+          {/* Logo */}
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl border-2 border-white/30 bg-white/10 overflow-hidden shrink-0 shadow-lg">
+            {vendor.logo_url
+              ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white">{vendor.business_name[0]}</div>}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {vendor.menu_pdf_url && (
-              <a href={vendor.menu_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full transition-colors">
-                📄 View Menu
-              </a>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-1.5 mb-1">
+              {vendor.is_verified && <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full font-semibold">✓ Verified</span>}
+              {vendor.tier === "premium" && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">⭐ Local Pro</span>}
+              {inboundRefCode && <span className="text-xs bg-amber-400 text-white px-2 py-0.5 rounded-full font-semibold">🪙 Referred</span>}
+            </div>
+            <h1 className="text-xl sm:text-3xl font-black text-white leading-tight">{vendor.business_name}</h1>
+            <p className="text-blue-100 text-xs sm:text-sm mt-0.5">{vendor.category} · {vendor.city}, {vendor.state}</p>
+            {vendor.review_count > 0 && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <div className="flex">{stars(vendor.rating, "text-xs")}</div>
+                <span className="text-blue-100 text-xs">{vendor.rating.toFixed(1)} ({vendor.review_count} reviews)</span>
+              </div>
             )}
-            <button onClick={copyShareLink} className="text-xs text-white/50 hover:text-white/80 transition-colors">
-              {copied ? "✓ Copied!" : "🔗 Share"}
-            </button>
           </div>
         </div>
       </div>
+
+      {/* ── CONTACT INFO (vertical, above tabs) ───────────────────── */}
+      {(vendor.phone || vendor.address || vendor.website || vendor.menu_pdf_url) && (
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-1.5">
+            {vendor.phone && (
+              <a href={`tel:${vendor.phone}`} className="flex items-center gap-2 text-sm text-gray-700 hover:text-green-700 transition-colors">
+                <span className="text-base">📞</span> {vendor.phone}
+              </a>
+            )}
+            {vendor.address && (
+              <span className="flex items-center gap-2 text-sm text-gray-500">
+                <span className="text-base">📍</span> {vendor.address}, {vendor.city}, {vendor.state}
+              </span>
+            )}
+            {vendor.website && (
+              <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-gray-700 hover:text-green-700 transition-colors">
+                <span className="text-base">🌐</span> {vendor.website.replace(/^https?:\/\//, "")}
+              </a>
+            )}
+            {vendor.menu_pdf_url && (
+              <a href={vendor.menu_pdf_url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 transition-colors">
+                <span className="text-base">📄</span> View Menu
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── NAV TABS ──────────────────────────────────────────────── */}
       <div className="sticky top-14 z-30 bg-white border-b border-gray-100 shadow-sm">
