@@ -156,7 +156,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const [convMessages, setConvMessages] = useState<any[]>([]);
   const [msgBody, setMsgBody] = useState("");
   const [unreadMsgCount, setUnreadMsgCount] = useState(0);
-  const [stats, setStats] = useState({ totalViews: 0, totalClicks: 0, totalListings: 0, activeListings: 0, pendingBookings: 0, thisWeekViews: 0 });
+  const [stats, setStats] = useState({ totalViews: 0, totalClicks: 0, totalListings: 0, activeListings: 0, pendingBookings: 0, thisWeekViews: 0, timesTagged: 0 });
   const [loadingListings, setLoadingListings] = useState(false);
   const [loadingBookings, setLoadingBookings] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -183,6 +183,16 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       activeListings: data?.filter((l) => l.is_active).length ?? 0,
     }));
     setLoadingListings(false);
+  }, [supabase, vendor.id]);
+
+  const loadMentions = useCallback(async () => {
+    // How many times this business has been @-tagged in the community.
+    const { count } = await supabase
+      .from("community_mentions")
+      .select("id", { count: "exact", head: true })
+      .eq("target_type", "vendor")
+      .eq("target_id", vendor.id);
+    setStats((prev) => ({ ...prev, timesTagged: count ?? 0 }));
   }, [supabase, vendor.id]);
 
   const loadBookings = useCallback(async () => {
@@ -299,6 +309,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   useEffect(() => {
     loadListings();
     loadBookings();
+    loadMentions();
     loadInquiries();
     loadConversations();
     if (isPremium || isAdmin) loadCustomers();
@@ -636,6 +647,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   { label: "Total Clicks", value: stats.totalClicks.toLocaleString(), icon: "🖱️", color: "purple" },
                   { label: "Active Listings", value: `${stats.activeListings}/${stats.totalListings}`, icon: "📦", color: "green" },
                   { label: "Pending Bookings", value: stats.pendingBookings.toString(), icon: "📅", color: "amber" },
+                  { label: "Times Tagged", value: stats.timesTagged.toLocaleString(), icon: "🏷️", color: "green" },
                 ].map((s) => (
                   <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-2">
