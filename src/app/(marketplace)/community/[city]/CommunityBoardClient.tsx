@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +14,8 @@ const TYPE_CONFIG = {
 
 const FLAG_REASONS = ["Spam", "Inappropriate", "Wrong location", "Duplicate", "Other"];
 
+type Mention = { type: "profile" | "vendor"; id: string; label: string; slug?: string | null; ownerId?: string | null };
+
 type Post = {
   id: string;
   title: string;
@@ -22,6 +24,7 @@ type Post = {
   city: string;
   state: string;
   created_at: string;
+  mentions?: Mention[];
   author: { id: string; full_name: string | null; avatar_url: string | null } | null;
   tagged_vendor: { id: string; business_name: string; slug: string; logo_url: string | null } | null;
   response_count: { count: number }[];
@@ -74,6 +77,69 @@ export default function CommunityBoardClient({
   const [postType, setPostType] = useState("general");
   const [submitting, setSubmitting] = useState(false);
   const [filterType, setFilterType] = useState("all");
+
+  // @ mentions (people + businesses)
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const mentionAnchor = useRef<number>(-1);
+  const [mentionResults, setMentionResults] = useState<Mention[]>([]);
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [postMentions, setPostMentions] = useState<Mention[]>([]);
+
+  async function handleComposerChange(value: string, caret: number) {
+    setPostText(value);
+    const upToCaret = value.slice(0, caret);
+    const at = upToCaret.lastIndexOf("@");
+    // @ must start the text or follow whitespace
+    if (at === -1 || (at > 0 && !/\s/.test(upToCaret[at - 1]))) { setMentionOpen(false); return; }
+    const query = upToCaret.slice(at + 1);
+    if (query.includes("\n") || query.length > 30) { setMentionOpen(false); return; }
+    const q = query.trim();
+    if (q.length < 1) { setMentionOpen(false); return; }
+    mentionAnchor.current = at;
+
+    const [{ data: people }, { data: biz }] = await Promise.all([
+      supabase.from("profiles").select("id, full_name").ilike("full_name", `%${q}%`).not("full_name", "is", null).limit(4),
+      supabase.from("vendors").select("id, business_name, slug, user_id").eq("is_active", true).ilike("business_name", `%${q}%`).limit(4),
+    ]);
+    const results: Mention[] = [
+      ...(people ?? []).map((p: any) => ({ type: "profile" as const, id: p.id, label: p.full_name as string })),
+      ...(biz ?? []).map((v: any) => ({ type: "vendor" as const, id: v.id, label: v.business_name as string, slug: v.slug, ownerId: v.user_id })),
+    ];
+    setMentionResults(results);
+    setMentionOpen(results.length > 0);
+  }
+
+  function selectMention(m: Mention) {
+    const el = composerRef.current;
+    const at = mentionAnchor.current;
+    if (!el || at < 0) return;
+    const caret = el.selectionStart;
+    const inserted = `@${m.label} `;
+    const newText = postText.slice(0, at) + inserted + postText.slice(caret);
+    setPostText(newText);
+    setPostMentions((prev) => [...prev.filter((x) => !(x.type === m.type && x.id === m.id)), m]);
+    setMentionOpen(false);
+    requestAnimationFrame(() => {
+      el.focus();
+      const pos = at + inserted.length;
+      el.setSelectionRange(pos, pos);
+    });
+  }
+
+  // Render a body with @mentions turned into links.
+  function renderBody(body: string, mentions?: Mention[]) {
+    const ms = (mentions ?? []).filter((m) => m?.label);
+    if (ms.length === 0) return body;
+    const sorted = [...ms].sort((a, b) => b.label.length - a.label.length);
+    const escaped = sorted.map((m) => `@${m.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+    const re = new RegExp(`(${escaped.join("|")})`, "g");
+    return body.split(re).map((part, i) => {
+      const m = sorted.find((mm) => `@${mm.label}` === part);
+      if (!m) return <span key={i}>{part}</span>;
+      const href = m.type === "profile" ? `/u/${m.id}` : `/vendors/${m.slug ?? ""}`;
+      return <Link key={i} href={href} className="text-green-700 font-semibold hover:underline">{part}</Link>;
+    });
+  }
 
   // Response form per post
   const [responseText, setResponseText] = useState<Record<string, string>>({});
@@ -141,6 +207,10 @@ export default function CommunityBoardClient({
     if (!text) return;
     setSubmitting(true);
 
+    // Only keep mentions whose @label still appears in the final text.
+    const finalMentions = postMentions.filter((m) => text.includes(`@${m.label}`));
+    const mentionsJson = finalMentions.map((m) => ({ type: m.type, id: m.id, label: m.label, slug: m.slug ?? null }));
+
     const { data, error } = await supabase.from("community_posts").insert({
       user_id: currentUser.id,
       city_slug: citySlug,
@@ -149,9 +219,33 @@ export default function CommunityBoardClient({
       title: text.slice(0, 120),
       body: text,
       type: postType,
-    }).select("id, title, body, type, city, state, created_at, user_id").single();
+      mentions: mentionsJson,
+    }).select("id, title, body, type, city, state, created_at, user_id, mentions").single();
 
     if (!error && data) {
+      // Record the mention graph + notify tagged parties (best-effort).
+      if (finalMentions.length) {
+        supabase.from("community_mentions").insert(
+          finalMentions.map((m) => ({ post_id: data.id, author_id: currentUser.id, target_type: m.type, target_id: m.id }))
+        ).then(() => {});
+
+        const notifs = finalMentions
+          .map((m) => {
+            const recipient = m.type === "profile" ? m.id : m.ownerId;
+            if (!recipient || recipient === currentUser.id) return null;
+            return {
+              user_id: recipient,
+              actor_id: currentUser.id,
+              type: "mention",
+              title: `${currentUser.full_name ?? "Someone"} tagged you in ${cityName}`,
+              body: text.slice(0, 140),
+              link: `/community/${citySlug}`,
+            };
+          })
+          .filter(Boolean);
+        if (notifs.length) supabase.from("notifications").insert(notifs as any[]).then(() => {});
+      }
+
       const newPost: any = {
         ...data,
         author: { id: currentUser.id, full_name: currentUser.full_name, avatar_url: currentUser.avatar_url },
@@ -163,6 +257,8 @@ export default function CommunityBoardClient({
       setHighfiveCounts((prev) => ({ ...prev, [newPost.id]: 0 }));
       setPostText("");
       setPostType("general");
+      setPostMentions([]);
+      setMentionOpen(false);
     }
     setSubmitting(false);
   }
@@ -267,12 +363,33 @@ export default function CommunityBoardClient({
                 {avatar(currentUser.full_name, currentUser.avatar_url)}
                 <div className="flex-1">
                   <textarea
+                    ref={composerRef}
                     value={postText}
-                    onChange={(e) => setPostText(e.target.value)}
-                    placeholder="What's on your mind? Ask your neighbors for help, a product, or a service..."
+                    onChange={(e) => handleComposerChange(e.target.value, e.target.selectionStart)}
+                    onKeyUp={(e) => handleComposerChange((e.target as HTMLTextAreaElement).value, (e.target as HTMLTextAreaElement).selectionStart)}
+                    placeholder="What's on your mind? Tag people or businesses with @…"
                     rows={3}
                     className="w-full text-sm text-gray-800 placeholder-gray-400 resize-none focus:outline-none leading-relaxed"
                   />
+
+                  {/* @ mention autocomplete */}
+                  {mentionOpen && mentionResults.length > 0 && (
+                    <div className="mt-1 border border-gray-200 rounded-xl bg-white shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+                      {mentionResults.map((m) => (
+                        <button
+                          type="button"
+                          key={`${m.type}-${m.id}`}
+                          onClick={() => selectMention(m)}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 transition-colors"
+                        >
+                          <span>{m.type === "vendor" ? "🏢" : "👤"}</span>
+                          <span className="font-medium text-gray-800 truncate">{m.label}</span>
+                          <span className="ml-auto text-xs text-gray-400 shrink-0">{m.type === "vendor" ? "Business" : "Person"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                     {/* Type pills */}
                     <div className="flex gap-1.5 flex-wrap">
@@ -350,7 +467,7 @@ export default function CommunityBoardClient({
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.icon} {cfg.label}</span>
                           <span className="text-xs text-gray-400 ml-auto">{new Date(post.created_at).toLocaleDateString()}</span>
                         </div>
-                        <p className="text-sm text-gray-700 leading-relaxed">{post.body}</p>
+                        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{renderBody(post.body, post.mentions)}</p>
                       </div>
                     </div>
 

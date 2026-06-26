@@ -18,7 +18,7 @@ export default async function CommunityBoardPage({ params }: { params: Promise<{
 
     const { data: posts, error: postsError } = await supabase
       .from("community_posts")
-      .select("id, title, body, type, city, state, created_at, user_id, tagged_vendor_id")
+      .select("id, title, body, type, city, state, created_at, user_id, tagged_vendor_id, mentions")
       .eq("city_slug", citySlug)
       .eq("is_active", true)
       .order("created_at", { ascending: false });
