@@ -421,6 +421,21 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               🏘️ Ask Your Neighbors
             </Link>
           )}
+
+          {/* Personal profile — switch from this business view to your own Top 8 */}
+          <Link
+            href="/dashboard/buyer?tab=profile"
+            className="mt-2 w-full flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-amber-100 transition-colors"
+          >
+            ⭐ Edit My Top 8
+          </Link>
+          <Link
+            href={`/u/${vendor.user_id}`}
+            target="_blank"
+            className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-600 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            👤 View Personal Profile
+          </Link>
         </div>
 
         {/* Navigation */}
