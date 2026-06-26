@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
+import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPicksManager";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
@@ -91,6 +92,8 @@ interface Props {
   savedCity: string | null;
   savedState: string | null;
   vendorAccount: VendorAccount;
+  engagedVendors: PickVendor[];
+  businessPicks: PickVendor[];
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -119,8 +122,16 @@ const STATUS_ICONS: Record<string, string> = {
   cancelled: "✕",
 };
 
-export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount }: Props) {
-  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages">("overview");
+export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks }: Props) {
+  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile">(() => {
+    if (typeof window !== "undefined") {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      if (t && ["overview", "bookings", "bucks", "referrals", "messages", "profile"].includes(t)) {
+        return t as "overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile";
+      }
+    }
+    return "overview";
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tabStack, setTabStack] = useState<typeof tab[]>([]);
   const goToTab = (t: typeof tab) => {
@@ -213,6 +224,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
 
   const NAV = [
     { id: "overview", label: "Overview", icon: "🏠" },
+    { id: "profile", label: "Public Profile", icon: "⭐" },
     { id: "messages", label: "Messages", icon: "💬" },
     { id: "bookings", label: "Bookings", icon: "📅" },
     { id: "bucks", label: "Local Bucks", icon: "🪙" },
@@ -544,6 +556,51 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                 Search now →
               </Link>
             </div>
+          </div>
+        )}
+
+        {/* ── PUBLIC PROFILE ── */}
+        {tab === "profile" && (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">⭐ Your Top 8 Local Picks</h1>
+            <p className="text-gray-500 text-sm mb-6">
+              Your public stamp of approval — the 8 local businesses you stand behind. Share your profile to put your neighbors onto your favorites and help great local spots get recognized.
+            </p>
+
+            {/* Share / view bar */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 mb-1">Your profile link</p>
+                <p className="text-xs text-gray-500 truncate font-mono">{appUrl}/u/{profile.id}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${appUrl}/u/${profile.id}`);
+                    setCopied("profile");
+                    setTimeout(() => setCopied(null), 2000);
+                  }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                    copied === "profile" ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"
+                  }`}
+                >
+                  {copied === "profile" ? "Copied! ✓" : "Copy link"}
+                </button>
+                <Link
+                  href={`/u/${profile.id}`}
+                  target="_blank"
+                  className="px-4 py-2 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  View →
+                </Link>
+              </div>
+            </div>
+
+            <BusinessPicksManager
+              userId={profile.id}
+              engagedVendors={engagedVendors}
+              initialPicks={businessPicks}
+            />
           </div>
         )}
 
