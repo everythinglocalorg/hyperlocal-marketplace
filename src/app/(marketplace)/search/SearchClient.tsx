@@ -198,14 +198,12 @@ export default function SearchClient() {
     try {
       // Category pill / listing-type browse — show listings only (products first, no vendor section)
       if (listingMode) {
-        const urlType = searchParams.get("type") ?? "";
-        const urlCategory = searchParams.get("category") ?? "";
         let q = supabase
           .from("listings")
           .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
           .eq("is_active", true);
-        if (urlType) q = q.eq("type", urlType);
-        else if (urlCategory) q = q.eq("category", urlCategory);
+        if (listingType) q = q.eq("type", listingType);
+        else if (category) q = q.eq("category", category);
         q = q.order("is_featured", { ascending: false }).order("created_at", { ascending: false }).limit(40);
         const { data } = await q;
         setListingResults(data ?? []);
