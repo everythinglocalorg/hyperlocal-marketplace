@@ -34,7 +34,7 @@ type Vendor = {
   local_bucks_earned: number; service_radius_miles: number;
   page_blocks?: PageBlock[] | null;
   menu_pdf_url?: string | null;
-  cta_button?: { action?: "call" | "estimate" | "order" } | null;
+  cta_button?: { action?: "call" | "estimate" | "order"; url?: string } | null;
 };
 
 type Listing = {
@@ -82,8 +82,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [ctaFormSubmitting, setCtaFormSubmitting] = useState(false);
   const [ctaFormDone, setCtaFormDone] = useState(false);
 
-  const ctaBtn = vendor.cta_button as { action?: "call" | "estimate" | "order" } | null;
+  const ctaBtn = vendor.cta_button as { action?: "call" | "estimate" | "order"; url?: string } | null;
   const ctaAction = ctaBtn?.action ?? null;
+  const ctaOrderUrl = ctaBtn?.url ?? null;
   const CTA_LABELS: Record<string, string> = { call: "Call", estimate: "Request Free Estimate", order: "Order Now" };
 
   // Sidebar inquiry form state
@@ -353,6 +354,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             {ctaAction && (
               ctaAction === "call" && vendor.phone ? (
                 <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+                  {CTA_LABELS[ctaAction]} →
+                </a>
+              ) : ctaAction === "order" && ctaOrderUrl ? (
+                <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
                   {CTA_LABELS[ctaAction]} →
                 </a>
               ) : ctaAction !== "call" ? (

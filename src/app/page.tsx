@@ -170,16 +170,15 @@ export default function HomePage() {
             ) : user ? (
               <>
                 <span className="text-sm text-gray-600 hidden sm:block">
-                  Hi, <strong>{user.name?.split(" ")[0]}</strong>
+                  Hello, <strong>{user.name?.split(" ")[0]}</strong>
                 </span>
-                {localCity && (
-                  <Link
-                    href={`/community/${localCity.toLowerCase().replace(/\s+/g, "-")}-mn`}
-                    className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
-                  >
-                    🏘️ Ask Your Neighbors
-                  </Link>
-                )}
+                <Link
+                  href={user.role === "vendor" ? "/dashboard/vendor?tab=messages" : "/dashboard/buyer?tab=messages"}
+                  title="Messages"
+                  className="relative text-xl leading-none"
+                >
+                  💬
+                </Link>
                 <Link href="/notifications" title="Notifications" className="relative text-xl leading-none">
                   🔔
                   {notifUnread > 0 && (
@@ -188,6 +187,14 @@ export default function HomePage() {
                     </span>
                   )}
                 </Link>
+                {localCity && (
+                  <Link
+                    href={`/community/${localCity.toLowerCase().replace(/\s+/g, "-")}-mn`}
+                    className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
+                  >
+                    🏘️ Ask Your Neighbors
+                  </Link>
+                )}
                 <Link
                   href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
                   className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors"

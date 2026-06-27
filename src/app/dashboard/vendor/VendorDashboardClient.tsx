@@ -2363,6 +2363,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
 
   const initCta = vendor.cta_button ?? {};
   const [ctaAction, setCtaAction] = useState<"none" | "call" | "estimate" | "order">(initCta.action ?? "none");
+  const [ctaOrderUrl, setCtaOrderUrl] = useState<string>(initCta.url ?? "");
   const [featurePhone, setFeaturePhone] = useState(vendor.phone ?? "");
   const [featureSaving, setFeatureSaving] = useState(false);
   const [featureSaved, setFeatureSaved] = useState(false);
@@ -2384,7 +2385,10 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
     setFeatureSaving(true);
     const updates: Record<string, unknown> = {
       menu_pdf_url: menuEnabled ? menuPdfUrl : null,
-      cta_button: ctaAction === "none" ? null : { action: ctaAction },
+      cta_button: ctaAction === "none" ? null : {
+        action: ctaAction,
+        ...(ctaAction === "order" && ctaOrderUrl.trim() ? { url: ctaOrderUrl.trim() } : {}),
+      },
     };
     if (ctaAction === "call") updates.phone = featurePhone.trim() || null;
     await supabase.from("vendors").update(updates).eq("id", vendor.id);
@@ -2593,8 +2597,27 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
               </button>
             ))}
           </div>
-          {ctaAction !== "none" && ctaAction !== "call" && (
+          {ctaAction === "estimate" && (
             <p className="text-xs text-gray-400 mt-3">A form will pop up collecting the customer's name, email, phone, and message. Responses go to your bookings inbox.</p>
+          )}
+          {ctaAction === "order" && (
+            <div className="mt-3 space-y-2">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Order link <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input
+                  type="url"
+                  value={ctaOrderUrl}
+                  onChange={(e) => setCtaOrderUrl(e.target.value)}
+                  placeholder="https://your-ordering-site.com"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              <p className="text-xs text-gray-400">
+                {ctaOrderUrl.trim()
+                  ? "Customers will be sent to this URL when they click Order Now."
+                  : "Leave blank to use the built-in order form instead."}
+              </p>
+            </div>
           )}
           {ctaAction === "call" && (
             <div className="mt-3">
