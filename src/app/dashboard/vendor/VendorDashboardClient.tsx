@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
@@ -47,6 +46,7 @@ interface Props {
   isAdmin: boolean;
   connectEnabled: boolean;
   connectAccountId: string | null;
+  initialTab?: string;
 }
 
 type Listing = {
@@ -115,11 +115,10 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
 ];
 
-export default function VendorDashboardClient({ vendor, profile, isPremium, features, isAdmin, connectEnabled, connectAccountId }: Props) {
+export default function VendorDashboardClient({ vendor, profile, isPremium, features, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
   const can = (f: FeatureKey) => hasFeature(features, f) || isPremium;
   const supabase = createClient();
-  const searchParams = useSearchParams();
-  const [tab, setTab] = useState<Tab>((searchParams.get("tab") as Tab) || "overview");
+  const [tab, setTab] = useState<Tab>((initialTab as Tab) || "overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [tabStack, setTabStack] = useState<Tab[]>([]);
   const goToTab = (t: Tab) => {
