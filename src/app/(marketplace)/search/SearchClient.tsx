@@ -206,7 +206,7 @@ export default function SearchClient() {
           .eq("is_active", true);
         if (urlType) q = q.eq("type", urlType);
         else if (urlCategory) q = q.eq("category", urlCategory);
-        q = q.order("created_at", { ascending: false }).limit(40);
+        q = q.order("is_featured", { ascending: false }).order("created_at", { ascending: false }).limit(40);
         const { data } = await q;
         setListingResults(data ?? []);
         setKwListings([]);
@@ -240,6 +240,7 @@ export default function SearchClient() {
             .from("listings")
             .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
             .eq("is_active", true)
+            .order("is_featured", { ascending: false })
             .order("created_at", { ascending: false })
             .limit(20),
           supabase.rpc("search_vendors_nearby", {
@@ -268,6 +269,7 @@ export default function SearchClient() {
             .from("listings")
             .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
             .eq("is_active", true)
+            .order("is_featured", { ascending: false })
             .order("created_at", { ascending: false })
             .limit(20),
           supabase

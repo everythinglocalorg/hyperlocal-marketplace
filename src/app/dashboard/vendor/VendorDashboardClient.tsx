@@ -2363,6 +2363,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
 
   const initCta = vendor.cta_button ?? {};
   const [ctaAction, setCtaAction] = useState<"none" | "call" | "estimate" | "order">(initCta.action ?? "none");
+  const [featurePhone, setFeaturePhone] = useState(vendor.phone ?? "");
   const [featureSaving, setFeatureSaving] = useState(false);
   const [featureSaved, setFeatureSaved] = useState(false);
 
@@ -2381,10 +2382,14 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
 
   async function saveFeatures() {
     setFeatureSaving(true);
-    await supabase.from("vendors").update({
+    const updates: Record<string, unknown> = {
       menu_pdf_url: menuEnabled ? menuPdfUrl : null,
       cta_button: ctaAction === "none" ? null : { action: ctaAction },
-    }).eq("id", vendor.id);
+    };
+    if (ctaAction === "call") updates.phone = featurePhone.trim() || null;
+    await supabase.from("vendors").update(updates).eq("id", vendor.id);
+    // Keep main phone field in sync
+    if (ctaAction === "call") setPhone(featurePhone);
     setFeatureSaving(false); setFeatureSaved(true); setTimeout(() => setFeatureSaved(false), 3000);
   }
   const [error, setError] = useState<string | null>(null);
@@ -2592,7 +2597,16 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
             <p className="text-xs text-gray-400 mt-3">A form will pop up collecting the customer's name, email, phone, and message. Responses go to your bookings inbox.</p>
           )}
           {ctaAction === "call" && (
-            <p className="text-xs text-gray-400 mt-3">Make sure your phone number is saved in Store Settings above.</p>
+            <div className="mt-3">
+              <label className="block text-xs font-semibold text-gray-700 mb-1">Phone number customers will call</label>
+              <input
+                type="tel"
+                value={featurePhone}
+                onChange={(e) => setFeaturePhone(e.target.value)}
+                placeholder="(715) 555-0000"
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
           )}
         </div>
 
