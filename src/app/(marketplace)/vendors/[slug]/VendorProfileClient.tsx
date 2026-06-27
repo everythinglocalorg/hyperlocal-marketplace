@@ -86,6 +86,42 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const ctaAction = ctaBtn?.action ?? null;
   const CTA_LABELS: Record<string, string> = { call: "Call", estimate: "Request Free Estimate", order: "Order Now" };
 
+  // Sidebar inquiry form state
+  const [sidebarName, setSidebarName] = useState("");
+  const [sidebarEmail, setSidebarEmail] = useState("");
+  const [sidebarPhone, setSidebarPhone] = useState("");
+  const [sidebarMessage, setSidebarMessage] = useState("");
+  const [sidebarSubmitting, setSidebarSubmitting] = useState(false);
+  const [sidebarDone, setSidebarDone] = useState(false);
+
+  async function submitSidebarInquiry(e: React.FormEvent) {
+    e.preventDefault();
+    setSidebarSubmitting(true);
+    await supabase.from("purchase_inquiries").insert({
+      vendor_id: vendor.id,
+      buyer_id: currentUser?.id ?? null,
+      buyer_name: sidebarName,
+      buyer_email: sidebarEmail,
+      buyer_phone: sidebarPhone || null,
+      message: sidebarMessage,
+      inquiry_type: "general",
+    });
+    fetch("/api/inquiry-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vendorId: vendor.id,
+        buyerName: sidebarName,
+        buyerEmail: sidebarEmail,
+        buyerPhone: sidebarPhone || null,
+        message: sidebarMessage,
+        inquiryType: "general",
+      }),
+    }).catch(() => {});
+    setSidebarSubmitting(false);
+    setSidebarDone(true);
+  }
+
   async function submitCtaForm(e: React.FormEvent) {
     e.preventDefault();
     setCtaFormSubmitting(true);
@@ -99,6 +135,18 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       message: ctaFormMessage,
       inquiry_type: ctaAction ?? "cta",
     });
+    fetch("/api/inquiry-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        vendorId: vendor.id,
+        buyerName: ctaFormName,
+        buyerEmail: ctaFormEmail,
+        buyerPhone: ctaFormPhone || null,
+        message: ctaFormMessage,
+        inquiryType: ctaAction ?? "cta",
+      }),
+    }).catch(() => {});
     setCtaFormSubmitting(false); setCtaFormDone(true);
   }
 
@@ -329,7 +377,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-10">
+      <div className="max-w-6xl mx-auto px-4 py-10 flex gap-8 items-start">
+        <div className="flex-1 min-w-0">
 
         {/* ── SERVICES & PRODUCTS ───────────────────────────────── */}
         {activeSection === "services" && (
@@ -528,6 +577,71 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             </div>
           </div>
         )}
+        </div>
+
+        {/* ── SIDEBAR INQUIRY FORM ──────────────────────────────── */}
+        <aside className="hidden lg:block w-80 shrink-0 sticky top-20">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-gray-900 px-6 py-5">
+              <h2 className="text-white font-black text-lg leading-tight">Get in Touch</h2>
+              <p className="text-gray-400 text-sm mt-1">We'll get back to you as soon as possible.</p>
+            </div>
+            {sidebarDone ? (
+              <div className="px-6 py-10 text-center">
+                <p className="text-4xl mb-3">✅</p>
+                <p className="font-bold text-gray-900 text-lg">Message Sent!</p>
+                <p className="text-gray-500 text-sm mt-1">{vendor.business_name} will be in touch soon.</p>
+                <button onClick={() => { setSidebarDone(false); setSidebarName(""); setSidebarEmail(""); setSidebarPhone(""); setSidebarMessage(""); }} className="mt-5 text-sm text-gray-400 hover:text-gray-600 underline">Send another</button>
+              </div>
+            ) : (
+              <form onSubmit={submitSidebarInquiry} className="px-6 py-5 space-y-3">
+                <input
+                  required value={sidebarName} onChange={(e) => setSidebarName(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <input
+                  required type="email" value={sidebarEmail} onChange={(e) => setSidebarEmail(e.target.value)}
+                  placeholder="Email address"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <input
+                  value={sidebarPhone} onChange={(e) => setSidebarPhone(e.target.value)}
+                  placeholder="Phone (optional)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                />
+                <textarea
+                  required value={sidebarMessage} onChange={(e) => setSidebarMessage(e.target.value)}
+                  rows={4} placeholder="How can we help you?"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none"
+                />
+                <button
+                  type="submit" disabled={sidebarSubmitting}
+                  className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors disabled:opacity-60"
+                >
+                  {sidebarSubmitting ? "Sending…" : "Send Message →"}
+                </button>
+                <p className="text-center text-xs text-gray-400">Your info goes directly to {vendor.business_name}</p>
+              </form>
+            )}
+          </div>
+
+          {/* Quick contact links below the form */}
+          {(vendor.phone || vendor.website) && (
+            <div className="mt-4 space-y-2">
+              {vendor.phone && (
+                <a href={`tel:${vendor.phone}`} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:border-gray-400 transition-colors">
+                  <span className="text-lg">📞</span> {vendor.phone}
+                </a>
+              )}
+              {vendor.website && (
+                <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:border-gray-400 transition-colors">
+                  <span className="text-lg">🌐</span> {vendor.website.replace(/^https?:\/\//, "").split("/")[0]}
+                </a>
+              )}
+            </div>
+          )}
+        </aside>
       </div>
 
       {/* ── FOOTER CTA ────────────────────────────────────────────── */}
