@@ -2374,6 +2374,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
     if (!error) {
       const url = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
       setMenuPdfUrl(url);
+      await supabase.from("vendors").update({ menu_pdf_url: url }).eq("id", vendor.id);
     }
     setMenuUploading(false);
   }
