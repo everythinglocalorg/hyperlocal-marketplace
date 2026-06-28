@@ -197,9 +197,10 @@ export default function HomePage() {
                 )}
                 <Link
                   href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
-                  className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors"
+                  className="text-sm bg-green-600 text-white px-3 sm:px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap"
                 >
-                  My Local Activity →
+                  <span className="hidden sm:inline">My Local Activity →</span>
+                  <span className="sm:hidden">Activity →</span>
                 </Link>
               </>
             ) : (

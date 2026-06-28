@@ -347,22 +347,26 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             )}
             <button
               onClick={() => setShowMessageModal(true)}
-              className="text-sm border border-gray-200 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:border-gray-400 transition-colors"
+              className="text-sm border border-gray-200 text-gray-700 px-3 py-2 rounded-lg font-semibold hover:border-gray-400 transition-colors"
             >
-              💬 Message
+              <span className="hidden sm:inline">💬 Message</span>
+              <span className="sm:hidden text-lg leading-none">💬</span>
             </button>
             {ctaAction && (
               ctaAction === "call" && vendor.phone ? (
-                <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
-                  {CTA_LABELS[ctaAction]} →
+                <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+                  <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
+                  <span className="sm:hidden">📞</span>
                 </a>
               ) : ctaAction === "order" && ctaOrderUrl ? (
-                <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
-                  {CTA_LABELS[ctaAction]} →
+                <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+                  <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
+                  <span className="sm:hidden">🛒</span>
                 </a>
               ) : ctaAction !== "call" ? (
-                <button onClick={() => setShowCtaForm(true)} className="bg-gray-900 text-white text-sm font-bold px-5 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
-                  {CTA_LABELS[ctaAction]} →
+                <button onClick={() => setShowCtaForm(true)} className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+                  <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
+                  <span className="sm:hidden">{ctaAction === "estimate" ? "📋" : "🛒"}</span>
                 </button>
               ) : null
             )}
@@ -582,6 +586,33 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             </div>
           </div>
         )}
+        </div>
+
+        {/* ── MOBILE INQUIRY FORM (shown below content on small screens) ── */}
+        <div className="lg:hidden mt-10 border-t border-gray-100 pt-8">
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-gray-900 px-6 py-5">
+              <h2 className="text-white font-black text-lg leading-tight">Get in Touch</h2>
+              <p className="text-gray-400 text-sm mt-1">We'll get back to you as soon as possible.</p>
+            </div>
+            {sidebarDone ? (
+              <div className="px-6 py-10 text-center">
+                <p className="text-4xl mb-3">✅</p>
+                <p className="font-bold text-gray-900 text-lg">Message Sent!</p>
+                <p className="text-gray-500 text-sm mt-1">{vendor.business_name} will be in touch soon.</p>
+              </div>
+            ) : (
+              <form onSubmit={submitSidebarInquiry} className="px-6 py-5 space-y-3">
+                <input required value={sidebarName} onChange={(e) => setSidebarName(e.target.value)} placeholder="Your name" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                <input required type="email" value={sidebarEmail} onChange={(e) => setSidebarEmail(e.target.value)} placeholder="Email address" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                <input value={sidebarPhone} onChange={(e) => setSidebarPhone(e.target.value)} placeholder="Phone (optional)" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                <textarea required value={sidebarMessage} onChange={(e) => setSidebarMessage(e.target.value)} rows={4} placeholder="How can we help you?" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
+                <button type="submit" disabled={sidebarSubmitting} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors disabled:opacity-60">
+                  {sidebarSubmitting ? "Sending…" : "Send Message →"}
+                </button>
+              </form>
+            )}
+          </div>
         </div>
 
         {/* ── SIDEBAR INQUIRY FORM ──────────────────────────────── */}
