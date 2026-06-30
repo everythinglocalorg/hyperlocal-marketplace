@@ -13,7 +13,7 @@ import CustomDomainPanel from "@/components/CustomDomainPanel";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey } from "@/lib/features";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses";
 
 interface Props {
   vendor: {
@@ -102,7 +102,7 @@ type Customer = {
   last_booking_at: string | null;
 };
 
-const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
+const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
   { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "pagecontent", label: "Page Content", icon: "🖼️" },
@@ -113,6 +113,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean }[] = [
   { id: "bookings", label: "Estimate & Apt Manager", icon: "📅", premiumOnly: true },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
   { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
+  { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
 ];
 
 export default function VendorDashboardClient({ vendor, profile, isPremium, features, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
@@ -446,7 +447,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
         {/* Navigation */}
         <nav className="flex-1 p-3">
-          {NAV.map((item) => (
+          {NAV.filter((item) => !item.adminOnly || isAdmin).map((item) => (
             <button
               key={item.id}
               onClick={() => goToTab(item.id)}
@@ -893,6 +894,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               <p className="text-sm text-gray-500 mb-6">Add photo and text sections to your public business page.</p>
               <PageBlocksEditor vendorId={vendor.id} initialBlocks={Array.isArray(vendor.page_blocks) ? vendor.page_blocks : []} supabase={supabase} />
             </div>
+          )}
+
+          {/* ── ALL BUSINESSES (admin only) ── */}
+          {tab === "businesses" && isAdmin && (
+            <AdminBusinessesTab />
           )}
 
           {tab === "messages" && !can("messages") && (
@@ -2824,3 +2830,111 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
     </div>
   );
 }
+
+/* ─── ADMIN: ALL BUSINESSES TAB ──────────────────────────────────────────── */
+function AdminBusinessesTab() {
+  const supabase = createClient();
+  const [vendors, setVendors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("vendors")
+      .select("id,business_name,slug,tier,city,state,category,is_verified,is_claimed,logo_url,phone")
+      .order("business_name")
+      .then(({ data }) => { setVendors(data ?? []); setLoading(false); });
+  }, []);
+
+  async function changeTier(vendorId: string, newTier: "free" | "premium") {
+    setSaving(vendorId);
+    await supabase.from("vendors").update({ tier: newTier }).eq("id", vendorId);
+    setVendors((prev) => prev.map((v) => v.id === vendorId ? { ...v, tier: newTier } : v));
+    setSaving(null);
+  }
+
+  const filtered = vendors.filter((v) =>
+    !search ||
+    v.business_name?.toLowerCase().includes(search.toLowerCase()) ||
+    v.city?.toLowerCase().includes(search.toLowerCase()) ||
+    v.category?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-black text-gray-900">All Businesses</h2>
+          <p className="text-sm text-gray-400">{vendors.length} total · {vendors.filter(v => v.tier === "premium").length} Local Pro · {vendors.filter(v => !v.is_claimed).length} unclaimed</p>
+        </div>
+        <a href="/admin" className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-50">Full Admin →</a>
+      </div>
+
+      <input
+        value={search} onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by name, city, or category..."
+        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 mb-4"
+      />
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40">
+          <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Business</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Location</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Membership</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((v) => (
+                <tr key={v.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl border border-gray-100 bg-gray-50 overflow-hidden shrink-0">
+                        {v.logo_url
+                          ? <img src={v.logo_url} alt="" className="w-full h-full object-contain" />
+                          : <div className="w-full h-full flex items-center justify-center text-sm font-bold text-gray-400">{v.business_name?.[0]}</div>}
+                      </div>
+                      <div className="min-w-0">
+                        <a href={`/vendors/${v.slug}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-gray-900 hover:text-green-600 truncate block max-w-[140px] md:max-w-[200px]">
+                          {v.business_name}
+                        </a>
+                        <p className="text-xs text-gray-400 truncate">{v.category}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500 hidden sm:table-cell">{v.city}, {v.state}</td>
+                  <td className="px-4 py-3 hidden md:table-cell">
+                    {v.is_claimed
+                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✓ Claimed</span>
+                      : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">⏳ Unclaimed</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <select
+                      value={v.tier === "premium" ? "premium" : "free"}
+                      onChange={(e) => changeTier(v.id, e.target.value as "free" | "premium")}
+                      disabled={saving === v.id}
+                      className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 cursor-pointer ${v.tier === "premium" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-gray-50 border-gray-200 text-gray-600"}`}
+                    >
+                      <option value="free">Free</option>
+                      <option value="premium">⭐ Local Pro</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <p className="text-center text-gray-400 py-10 text-sm">No businesses found</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
