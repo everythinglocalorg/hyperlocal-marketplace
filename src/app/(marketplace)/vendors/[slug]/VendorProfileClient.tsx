@@ -30,7 +30,7 @@ type Vendor = {
   category: string; city: string; state: string; zip_code: string;
   address: string | null; phone: string | null; website: string | null;
   logo_url: string | null; banner_url: string | null; tier: string;
-  is_verified: boolean; rating: number; review_count: number;
+  is_verified: boolean; is_claimed: boolean; rating: number; review_count: number;
   local_bucks_earned: number; service_radius_miles: number;
   page_blocks?: PageBlock[] | null;
   menu_pdf_url?: string | null;
@@ -309,6 +309,24 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
     <div className="min-h-screen bg-white">
 
+      {/* ── UNCLAIMED BUSINESS BANNER ─────────────────────────────── */}
+      {!vendor.is_claimed && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm text-amber-800">
+              <span className="text-base">🏪</span>
+              <span><strong>Is this your business?</strong> Claim this free profile to edit your info, add listings, and connect with customers.</span>
+            </div>
+            <a
+              href={`/claim/${vendor.slug}`}
+              className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors whitespace-nowrap"
+            >
+              Claim it free →
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* ── STICKY MAIN NAV ───────────────────────────────────────── */}
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
@@ -319,9 +337,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center font-bold text-gray-700 text-sm">{vendor.business_name[0]}</div>}
           </div>
-          <div className="hidden lg:block min-w-0">
-            <p className="font-bold text-gray-900 text-sm truncate max-w-[180px] leading-tight">{vendor.business_name}</p>
-            <p className="text-gray-400 text-xs truncate max-w-[180px]">{vendor.city}, {vendor.state}</p>
+          <div className="hidden sm:block min-w-0 flex-1">
+            <p className="font-bold text-gray-900 text-sm truncate max-w-[160px] md:max-w-[220px] leading-tight">{vendor.business_name}</p>
+            <p className="text-gray-400 text-xs truncate max-w-[160px] md:max-w-[220px]">{vendor.city}, {vendor.state}</p>
           </div>
 
           {/* Desktop tab nav */}
@@ -339,7 +357,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           </nav>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2 ml-auto shrink-0">
+          <div className="flex items-center gap-1.5 ml-auto shrink-0">
             {vendor.phone && (
               <a href={`tel:${vendor.phone}`} className="hidden lg:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors border border-gray-200 rounded-lg px-3 py-2 font-medium">
                 📞 {vendor.phone}
@@ -347,26 +365,26 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             )}
             <button
               onClick={() => setShowMessageModal(true)}
-              className="text-sm border border-gray-200 text-gray-700 px-3 py-2 rounded-lg font-semibold hover:border-gray-400 transition-colors"
+              className="text-sm border border-gray-200 text-gray-700 px-2.5 py-2 rounded-lg font-semibold hover:border-gray-400 transition-colors whitespace-nowrap"
             >
               <span className="hidden sm:inline">💬 Message</span>
               <span className="sm:hidden text-lg leading-none">💬</span>
             </button>
             {ctaAction && (
               ctaAction === "call" && vendor.phone ? (
-                <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+                <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
                   <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
-                  <span className="sm:hidden">📞</span>
+                  <span className="sm:hidden text-lg leading-none">📞</span>
                 </a>
               ) : ctaAction === "order" && ctaOrderUrl ? (
-                <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+                <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
                   <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
-                  <span className="sm:hidden">🛒</span>
+                  <span className="sm:hidden text-lg leading-none">🛒</span>
                 </a>
               ) : ctaAction !== "call" ? (
-                <button onClick={() => setShowCtaForm(true)} className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1.5">
+                <button onClick={() => setShowCtaForm(true)} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
                   <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
-                  <span className="sm:hidden">{ctaAction === "estimate" ? "📋" : "🛒"}</span>
+                  <span className="sm:hidden text-lg leading-none">{ctaAction === "estimate" ? "📋" : "🛒"}</span>
                 </button>
               ) : null
             )}
@@ -386,8 +404,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
       </header>
 
-      <div className="max-w-6xl mx-auto px-4 py-10 flex gap-8 items-start">
-        <div className="flex-1 min-w-0">
+      <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col lg:flex-row gap-8 items-start">
+        <div className="flex-1 min-w-0 w-full">
 
         {/* ── SERVICES & PRODUCTS ───────────────────────────────── */}
         {activeSection === "services" && (
@@ -586,32 +604,31 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             </div>
           </div>
         )}
-        </div>
-
-        {/* ── MOBILE INQUIRY FORM (shown below content on small screens) ── */}
-        <div className="lg:hidden mt-10 border-t border-gray-100 pt-8">
-          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="bg-gray-900 px-6 py-5">
-              <h2 className="text-white font-black text-lg leading-tight">Get in Touch</h2>
-              <p className="text-gray-400 text-sm mt-1">We'll get back to you as soon as possible.</p>
-            </div>
-            {sidebarDone ? (
-              <div className="px-6 py-10 text-center">
-                <p className="text-4xl mb-3">✅</p>
-                <p className="font-bold text-gray-900 text-lg">Message Sent!</p>
-                <p className="text-gray-500 text-sm mt-1">{vendor.business_name} will be in touch soon.</p>
+          {/* ── MOBILE INQUIRY FORM (shown below content on small screens) ── */}
+          <div className="lg:hidden mt-10 border-t border-gray-100 pt-8">
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+              <div className="bg-gray-900 px-5 py-4">
+                <h2 className="text-white font-black text-base leading-tight">Get in Touch</h2>
+                <p className="text-gray-400 text-xs mt-0.5">We'll get back to you as soon as possible.</p>
               </div>
-            ) : (
-              <form onSubmit={submitSidebarInquiry} className="px-6 py-5 space-y-3">
-                <input required value={sidebarName} onChange={(e) => setSidebarName(e.target.value)} placeholder="Your name" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-                <input required type="email" value={sidebarEmail} onChange={(e) => setSidebarEmail(e.target.value)} placeholder="Email address" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-                <input value={sidebarPhone} onChange={(e) => setSidebarPhone(e.target.value)} placeholder="Phone (optional)" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
-                <textarea required value={sidebarMessage} onChange={(e) => setSidebarMessage(e.target.value)} rows={4} placeholder="How can we help you?" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
-                <button type="submit" disabled={sidebarSubmitting} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors disabled:opacity-60">
-                  {sidebarSubmitting ? "Sending…" : "Send Message →"}
-                </button>
-              </form>
-            )}
+              {sidebarDone ? (
+                <div className="px-5 py-8 text-center">
+                  <p className="text-3xl mb-2">✅</p>
+                  <p className="font-bold text-gray-900">Message Sent!</p>
+                  <p className="text-gray-500 text-sm mt-1">{vendor.business_name} will be in touch soon.</p>
+                </div>
+              ) : (
+                <form onSubmit={submitSidebarInquiry} className="px-5 py-4 space-y-3">
+                  <input required value={sidebarName} onChange={(e) => setSidebarName(e.target.value)} placeholder="Your name" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <input required type="email" value={sidebarEmail} onChange={(e) => setSidebarEmail(e.target.value)} placeholder="Email address" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <input value={sidebarPhone} onChange={(e) => setSidebarPhone(e.target.value)} placeholder="Phone (optional)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
+                  <textarea required value={sidebarMessage} onChange={(e) => setSidebarMessage(e.target.value)} rows={3} placeholder="How can we help you?" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
+                  <button type="submit" disabled={sidebarSubmitting} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors disabled:opacity-60">
+                    {sidebarSubmitting ? "Sending…" : "Send Message →"}
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
         </div>
 
@@ -766,7 +783,7 @@ function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessag
 
       {/* Bottom overlay content */}
       <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-        <h3 className="text-white font-black text-xl leading-tight mb-1 drop-shadow">{listing.title}</h3>
+        <h3 className="text-white font-black text-base sm:text-xl leading-tight mb-1 drop-shadow line-clamp-2">{listing.title}</h3>
 
         {/* Housing quick stats */}
         {housingData && (

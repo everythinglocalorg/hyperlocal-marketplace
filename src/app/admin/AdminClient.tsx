@@ -97,23 +97,13 @@ function VendorsTab({ adminId }: { adminId: string }) {
     setSaving(false);
   }
 
-  async function grantLocalPro(vendor: Vendor) {
-    const features = allFeaturesOn();
+  async function changeTier(vendor: Vendor, newTier: "free" | "premium") {
+    const features = newTier === "premium" ? allFeaturesOn() : allFeaturesOff();
     setSaving(true);
-    await supabase.from("vendors").update({ tier: "premium", features }).eq("id", vendor.id);
-    await log("grant_local_pro", vendor.id, vendor.business_name);
-    setVendors((prev) => prev.map((v) => v.id === vendor.id ? { ...v, tier: "premium", features } : v));
-    if (selected?.id === vendor.id) setSelected({ ...vendor, tier: "premium", features });
-    setSaving(false);
-  }
-
-  async function revokeLocalPro(vendor: Vendor) {
-    const features = allFeaturesOff();
-    setSaving(true);
-    await supabase.from("vendors").update({ tier: "free", features }).eq("id", vendor.id);
-    await log("revoke_local_pro", vendor.id, vendor.business_name);
-    setVendors((prev) => prev.map((v) => v.id === vendor.id ? { ...v, tier: "free", features } : v));
-    if (selected?.id === vendor.id) setSelected({ ...vendor, tier: "free", features });
+    await supabase.from("vendors").update({ tier: newTier, features }).eq("id", vendor.id);
+    await log(newTier === "premium" ? "grant_local_pro" : "revoke_local_pro", vendor.id, vendor.business_name);
+    setVendors((prev) => prev.map((v) => v.id === vendor.id ? { ...v, tier: newTier, features } : v));
+    if (selected?.id === vendor.id) setSelected({ ...vendor, tier: newTier, features });
     setSaving(false);
   }
 
@@ -147,23 +137,29 @@ function VendorsTab({ adminId }: { adminId: string }) {
         ) : (
           <div className="space-y-2">
             {filtered.map((v) => (
-              <button
+              <div
                 key={v.id}
-                onClick={() => setSelected(v)}
-                className={`w-full text-left bg-white border rounded-xl px-4 py-3 hover:shadow-sm transition-all ${selected?.id === v.id ? "border-green-400 ring-1 ring-green-400" : "border-gray-100"}`}
+                className={`w-full bg-white border rounded-xl px-4 py-3 hover:shadow-sm transition-all ${selected?.id === v.id ? "border-green-400 ring-1 ring-green-400" : "border-gray-100"}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 min-w-0">
+                  <button className="flex-1 min-w-0 text-left" onClick={() => setSelected(v)}>
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-gray-900 truncate">{v.business_name}</p>
-                      {v.tier === "premium" && <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">⭐ Local Pro</span>}
                       {v.is_verified && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">✓ Verified</span>}
                     </div>
                     <p className="text-xs text-gray-400">{v.category} · {v.city}, {v.state}</p>
-                  </div>
-                  <span className="text-gray-300">›</span>
+                  </button>
+                  <select
+                    value={v.tier === "premium" ? "premium" : "free"}
+                    onChange={(e) => changeTier(v, e.target.value as "free" | "premium")}
+                    disabled={saving}
+                    className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 cursor-pointer ${v.tier === "premium" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-gray-50 border-gray-200 text-gray-600"}`}
+                  >
+                    <option value="free">Free</option>
+                    <option value="premium">⭐ Local Pro</option>
+                  </select>
                 </div>
-              </button>
+              </div>
             ))}
             {filtered.length === 0 && <p className="text-center text-gray-400 py-10">No vendors found</p>}
           </div>
@@ -184,18 +180,17 @@ function VendorsTab({ adminId }: { adminId: string }) {
 
             {/* Tier control */}
             <div className="mb-5">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Subscription</p>
-              {selected.tier === "premium" ? (
-                <button onClick={() => revokeLocalPro(selected)} disabled={saving}
-                  className="w-full text-sm border border-red-200 text-red-600 py-2 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-40">
-                  Revoke Local Pro
-                </button>
-              ) : (
-                <button onClick={() => grantLocalPro(selected)} disabled={saving}
-                  className="w-full text-sm bg-amber-500 text-white py-2 rounded-xl hover:bg-amber-600 transition-colors font-semibold disabled:opacity-40">
-                  ⭐ Grant Local Pro
-                </button>
-              )}
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Membership</p>
+              <select
+                value={selected.tier === "premium" ? "premium" : "free"}
+                onChange={(e) => changeTier(selected, e.target.value as "free" | "premium")}
+                disabled={saving}
+                className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 cursor-pointer bg-white"
+              >
+                <option value="free">Free</option>
+                <option value="premium">⭐ Local Pro</option>
+              </select>
+              {saving && <p className="text-xs text-gray-400 mt-1">Saving...</p>}
             </div>
 
             {/* Individual features */}
