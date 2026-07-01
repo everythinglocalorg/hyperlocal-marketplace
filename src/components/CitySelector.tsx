@@ -123,7 +123,7 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white rounded-2xl shadow-lg border border-gray-100 w-64 p-4 space-y-3">
+        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white rounded-2xl shadow-lg border border-gray-100 w-screen max-w-xs sm:w-64 p-4 space-y-3" style={{ maxWidth: "min(16rem, calc(100vw - 1rem))" }}>
           {/* State dropdown */}
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">State</label>

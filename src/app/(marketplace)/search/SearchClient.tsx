@@ -394,6 +394,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
       {/* Top bar */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          {/* Row 1: logo / search bar / filters */}
           <div className="flex items-center gap-3">
             <Link href="/" className="text-xl font-bold text-green-600 shrink-0 hidden sm:block">
               Everything Local
@@ -414,15 +415,18 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                 placeholder="Search products, services, businesses..."
               />
             </div>
-            <CitySelector
-              value={citySlug}
-              onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
-              radius={radius}
-              onRadiusChange={(r) => { setRadius(r); updateURL({ radius: String(r) }); }}
-            />
+            {/* City selector: hidden on mobile (shown in row 2), visible on sm+ */}
+            <div className="hidden sm:block">
+              <CitySelector
+                value={citySlug}
+                onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
+                radius={radius}
+                onRadiusChange={(r) => { setRadius(r); updateURL({ radius: String(r) }); }}
+              />
+            </div>
             <button
               onClick={() => setShowFilters(!showFilters)}
-              className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-colors ${
+              className={`shrink-0 flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl border text-sm font-medium transition-colors ${
                 showFilters || category
                   ? "border-green-500 bg-green-50 text-green-700"
                   : "border-gray-200 text-gray-600 hover:border-gray-300"
@@ -431,13 +435,23 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M6 8h12M10 12h4" />
               </svg>
-              Filters
+              <span className="hidden sm:inline">Filters</span>
               {category && (
                 <span className="bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                   1
                 </span>
               )}
             </button>
+          </div>
+
+          {/* Row 2 (mobile only): city selector */}
+          <div className="sm:hidden mt-2">
+            <CitySelector
+              value={citySlug}
+              onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
+              radius={radius}
+              onRadiusChange={(r) => { setRadius(r); updateURL({ radius: String(r) }); }}
+            />
           </div>
 
           {/* Filter panel */}
