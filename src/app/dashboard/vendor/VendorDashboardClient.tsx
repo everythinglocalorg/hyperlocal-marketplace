@@ -2838,6 +2838,10 @@ function AdminBusinessesTab() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
+  // Staged tier changes not yet written to the database — keyed by vendor id
+  const [pendingTiers, setPendingTiers] = useState<Record<string, "free" | "premium">>({});
+  const [savingAll, setSavingAll] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   useEffect(() => {
     supabase
@@ -2847,12 +2851,32 @@ function AdminBusinessesTab() {
       .then(({ data }) => { setVendors(data ?? []); setLoading(false); });
   }, []);
 
-  async function changeTier(vendorId: string, newTier: "free" | "premium") {
-    setSaving(vendorId);
-    await supabase.from("vendors").update({ tier: newTier }).eq("id", vendorId);
-    setVendors((prev) => prev.map((v) => v.id === vendorId ? { ...v, tier: newTier } : v));
-    setSaving(null);
+  // Stage a tier change locally; committed when Save is clicked
+  function stageTier(vendorId: string, newTier: "free" | "premium", savedTier: string) {
+    setSavedAt(null);
+    setPendingTiers((prev) => {
+      const next = { ...prev };
+      // If the choice matches what's already in the DB, drop it from pending
+      if (newTier === (savedTier === "premium" ? "premium" : "free")) delete next[vendorId];
+      else next[vendorId] = newTier;
+      return next;
+    });
   }
+
+  async function saveChanges() {
+    const entries = Object.entries(pendingTiers);
+    if (entries.length === 0) return;
+    setSavingAll(true);
+    await Promise.all(
+      entries.map(([id, tier]) => supabase.from("vendors").update({ tier }).eq("id", id))
+    );
+    setVendors((prev) => prev.map((v) => pendingTiers[v.id] ? { ...v, tier: pendingTiers[v.id] } : v));
+    setPendingTiers({});
+    setSavingAll(false);
+    setSavedAt(Date.now());
+  }
+
+  const pendingCount = Object.keys(pendingTiers).length;
 
   async function togglePause(vendorId: string, nextActive: boolean) {
     setSaving(vendorId);
@@ -2949,10 +2973,14 @@ function AdminBusinessesTab() {
                   </td>
                   <td className="px-4 py-3">
                     <select
-                      value={v.tier === "premium" ? "premium" : "free"}
-                      onChange={(e) => changeTier(v.id, e.target.value as "free" | "premium")}
-                      disabled={saving === v.id}
-                      className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 cursor-pointer ${v.tier === "premium" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-gray-50 border-gray-200 text-gray-600"}`}
+                      value={pendingTiers[v.id] ?? (v.tier === "premium" ? "premium" : "free")}
+                      onChange={(e) => stageTier(v.id, e.target.value as "free" | "premium", v.tier)}
+                      disabled={saving === v.id || savingAll}
+                      className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 cursor-pointer ${
+                        pendingTiers[v.id]
+                          ? "bg-blue-50 border-blue-300 text-blue-700 ring-1 ring-blue-200"
+                          : (v.tier === "premium" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-gray-50 border-gray-200 text-gray-600")
+                      }`}
                     >
                       <option value="free">Free</option>
                       <option value="premium">⭐ Local Pro</option>
@@ -2987,6 +3015,27 @@ function AdminBusinessesTab() {
             </tbody>
           </table>
           {filtered.length === 0 && <p className="text-center text-gray-400 py-10 text-sm">No businesses found</p>}
+        </div>
+      )}
+
+      {/* Save bar — commits staged membership changes */}
+      {!loading && (
+        <div className="flex items-center justify-end gap-3 mt-4">
+          {pendingCount > 0 && (
+            <span className="text-xs text-blue-600 font-medium">
+              {pendingCount} unsaved {pendingCount === 1 ? "change" : "changes"}
+            </span>
+          )}
+          {savedAt && pendingCount === 0 && (
+            <span className="text-xs text-green-600 font-medium">✓ Saved</span>
+          )}
+          <button
+            onClick={saveChanges}
+            disabled={pendingCount === 0 || savingAll}
+            className="text-sm font-semibold bg-green-600 text-white rounded-xl px-5 py-2.5 hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {savingAll ? "Saving…" : "Save Changes"}
+          </button>
         </div>
       )}
     </div>
