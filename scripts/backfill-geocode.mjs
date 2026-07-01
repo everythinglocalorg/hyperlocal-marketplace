@@ -22,8 +22,10 @@ function loadEnv() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function geocode(query) {
-  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1&countrycodes=us`;
+// Structured city-level geocode — forces a municipality match so "Faribault, MN"
+// resolves to the city (Rice County), not Faribault County ~55mi south.
+async function geocodeCity(city, state) {
+  const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}&country=us&format=json&limit=1`;
   const res = await fetch(url, {
     headers: { "Accept-Language": "en-US", "User-Agent": "EverythingLocalMarketplace/1.0" },
   });
@@ -53,15 +55,10 @@ async function main() {
   let ok = 0, skip = 0, fail = 0;
 
   for (const v of rows) {
-    const parts = [v.address, v.city, v.state].filter(Boolean);
-    if (parts.length === 0) { console.log(`— ${v.business_name}: no location data, skipping`); skip++; continue; }
-    const query = parts.join(", ");
+    if (!v.city || !v.state) { console.log(`— ${v.business_name}: no city/state, skipping`); skip++; continue; }
 
-    let geo = await geocode(query);
-    // Fall back to city + state if the full address didn't resolve
-    if (!geo && v.address) geo = await geocode([v.city, v.state].filter(Boolean).join(", "));
-
-    if (!geo) { console.log(`✗ ${v.business_name} (${query}): not found`); fail++; await sleep(1100); continue; }
+    const geo = await geocodeCity(v.city, v.state);
+    if (!geo) { console.log(`✗ ${v.business_name} (${v.city}, ${v.state}): not found`); fail++; await sleep(1100); continue; }
 
     await client.query(
       `update public.vendors

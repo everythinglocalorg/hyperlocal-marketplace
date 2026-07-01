@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
-import { geocodeQuery } from "@/lib/geocode";
+import { geocodeCity } from "@/lib/geocode";
 
 function getAdmin() {
   return createAdmin(
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // 2. Geocode once, then cache.
-  const geo = await geocodeQuery(`${city}, ${state}`);
+  // 2. Geocode once (structured city match), then cache.
+  const geo = await geocodeCity(city, state);
   if (!geo) {
     return NextResponse.json({ error: "Could not geocode city" }, { status: 404 });
   }

@@ -33,6 +33,32 @@ export async function geocodeQuery(query: string): Promise<GeoResult | null> {
   }
 }
 
+// Structured city-level geocode. Using the city= and state= params forces a
+// municipality match, avoiding the county/city ambiguity that a free-text
+// query hits (e.g. "Faribault, MN" resolving to Faribault County, not the city).
+export async function geocodeCity(city: string, state: string): Promise<GeoResult | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}&country=us&format=json&addressdetails=1&limit=1`;
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "en-US", "User-Agent": "Everything LocalMarketplace/1.0" },
+    });
+    const data = await res.json();
+    if (!data?.length) return null;
+    const r = data[0];
+    const addr = r.address ?? {};
+    return {
+      city: addr.city ?? addr.town ?? addr.village ?? city,
+      state: addr.state ?? state,
+      country: addr.country_code?.toUpperCase() ?? "US",
+      latitude: parseFloat(r.lat),
+      longitude: parseFloat(r.lon),
+      displayName: `${city}, ${state}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function reverseGeocode(lat: number, lon: number): Promise<GeoResult | null> {
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`;
