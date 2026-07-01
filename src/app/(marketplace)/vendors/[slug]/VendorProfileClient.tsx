@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatPrice } from "@/lib/utils";
@@ -58,6 +58,36 @@ interface Props {
 export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode }: Props) {
   const supabase = createClient();
   const [activeSection, setActiveSection] = useState<"services" | "reviews" | "about">("services");
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+
+  const scrollToSection = useCallback((s: "services" | "reviews" | "about") => {
+    setActiveSection(s);
+    const el = sectionRefs.current[s];
+    if (el) {
+      const offset = 120; // sticky nav height
+      const top = el.getBoundingClientRect().top + window.scrollY - offset;
+      window.scrollTo({ top, behavior: "smooth" });
+    }
+  }, []);
+
+  // Update active tab highlight as user scrolls
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id as "services" | "reviews" | "about");
+          }
+        });
+      },
+      { rootMargin: "-30% 0px -60% 0px", threshold: 0 }
+    );
+    (["services", "reviews", "about"] as const).forEach((s) => {
+      const el = sectionRefs.current[s];
+      if (el) observer.observe(el);
+    });
+    return () => observer.disconnect();
+  }, []);
   const [copied, setCopied] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -345,7 +375,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           {/* Desktop tab nav */}
           <nav className="hidden md:flex items-center gap-0 ml-2 h-16">
             {(["services", "reviews", "about"] as const).map((s) => (
-              <button key={s} onClick={() => setActiveSection(s)}
+              <button key={s} onClick={() => scrollToSection(s)}
                 className={`px-4 h-full text-sm font-semibold border-b-2 transition-colors ${
                   activeSection === s ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"
                 }`}>
@@ -394,7 +424,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         {/* Mobile tab row */}
         <div className="md:hidden border-t border-gray-100 flex">
           {(["services", "reviews", "about"] as const).map((s) => (
-            <button key={s} onClick={() => setActiveSection(s)}
+            <button key={s} onClick={() => scrollToSection(s)}
               className={`flex-1 py-3 text-xs font-semibold border-b-2 transition-colors ${
                 activeSection === s ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400"
               }`}>
@@ -408,8 +438,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         <div className="flex-1 min-w-0 w-full">
 
         {/* ── SERVICES & PRODUCTS ───────────────────────────────── */}
-        {activeSection === "services" && (
-          <div>
+        <div id="services" ref={(el) => { sectionRefs.current.services = el; }}>
             {vendor.description && (
               <p className="text-gray-500 text-base leading-relaxed mb-8 max-w-2xl">{vendor.description}</p>
             )}
@@ -463,12 +492,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                 )}
               </>
             )}
-          </div>
-        )}
+        </div>
 
         {/* ── REVIEWS ───────────────────────────────────────────── */}
-        {activeSection === "reviews" && (
-          <div className="max-w-2xl">
+        <div id="reviews" ref={(el) => { sectionRefs.current.reviews = el; }} className="max-w-2xl mt-16 pt-8 border-t border-gray-100">
             {localReviews.length > 0 && (
               <div className="bg-gray-50 rounded-2xl p-6 mb-8 flex items-center gap-8">
                 <div className="text-center">
@@ -555,12 +582,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                 </div>
               )}
             </div>
-          </div>
-        )}
+        </div>
 
         {/* ── ABOUT ─────────────────────────────────────────────── */}
-        {activeSection === "about" && (
-          <div className="max-w-2xl space-y-6">
+        <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className="max-w-2xl space-y-6 mt-16 pt-8 border-t border-gray-100">
             <div>
               <h2 className="text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
               {vendor.description
@@ -602,8 +627,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               </button>
               {!currentUserId && <p className="text-green-200 text-xs text-center mt-2"><Link href="/signup" className="underline">Sign up</Link> to get your referral link</p>}
             </div>
-          </div>
-        )}
+        </div>
+
           {/* ── MOBILE INQUIRY FORM (shown below content on small screens) ── */}
           <div className="lg:hidden mt-10 border-t border-gray-100 pt-8">
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
