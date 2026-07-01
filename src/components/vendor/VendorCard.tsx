@@ -27,15 +27,15 @@ export default function VendorCard({ vendor }: VendorCardProps) {
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100 group"
     >
       {/* Banner */}
-      <div className="h-36 bg-gradient-to-br from-green-100 to-emerald-200 relative overflow-hidden">
+      <div className="h-36 bg-white relative overflow-hidden flex items-center justify-center">
         {vendor.banner_url ? (
           <img
             src={vendor.banner_url}
             alt={vendor.business_name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-5xl opacity-30">
+          <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">
             🏪
           </div>
         )}
