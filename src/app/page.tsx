@@ -31,8 +31,6 @@ const CATEGORY_ICONS: Record<string, string> = {
 export default function HomePage() {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [location, setLocation] = useState("");
-  const [locating, setLocating] = useState(false);
   const [user, setUser] = useState<{ id: string; name: string | null; role: string | null } | null>(null);
   const [notifUnread, setNotifUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
@@ -48,16 +46,6 @@ export default function HomePage() {
     // Resolve active city: localStorage el_city > fallback
     const savedCitySlug = localStorage.getItem(LS_CITY_KEY);
 
-    // Pre-fill location from saved neighborhood
-    const saved = localStorage.getItem("hl_neighborhood");
-    let savedCity: string | null = null;
-    if (saved) {
-      try {
-        const { city, state } = JSON.parse(saved);
-        if (city) { setLocation(state ? `${city}, ${state}` : city); savedCity = city; setLocalCity(city); }
-      } catch {}
-    }
-
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       let resolvedCitySlug = savedCitySlug ?? DEFAULT_CITY_SLUG;
 
@@ -70,13 +58,7 @@ export default function HomePage() {
         setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", u.id).eq("is_read", false)
           .then(({ count }) => setNotifUnread(count ?? 0));
-        if (profile?.city && !savedCity) {
-          localStorage.setItem("hl_neighborhood", JSON.stringify({ city: profile.city, state: profile.state ?? "" }));
-          savedCity = profile.city;
-          setLocalCity(profile.city);
-          setLocation(profile.state ? `${profile.city}, ${profile.state}` : profile.city);
-        }
-        // Profile default_city takes precedence over localStorage if user is logged in
+        if (profile?.city) setLocalCity(profile.city);
         if (profile?.default_city) resolvedCitySlug = profile.default_city;
       }
       setAuthChecked(true);
@@ -85,13 +67,12 @@ export default function HomePage() {
       const cityObj = cityFromSlug(resolvedCitySlug);
 
       // Fetch recent listings filtered by active city
-      const listingsQ = supabase
+      const { data: listings } = await supabase
         .from("listings")
         .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state)")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(cityObj ? 20 : 8);
-      const { data: listings } = await listingsQ;
+        .limit(20);
       const filteredListings = cityObj
         ? (listings ?? []).filter((l: any) => {
             const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
@@ -113,8 +94,6 @@ export default function HomePage() {
         .limit(6);
       if (cityObj) {
         vendorsQuery = vendorsQuery.eq("city", cityObj.city).eq("state", cityObj.state);
-      } else if (savedCity) {
-        vendorsQuery = vendorsQuery.ilike("city", `%${savedCity}%`);
       }
       const { data: vendors } = await vendorsQuery;
       setNewVendors(vendors ?? []);
@@ -161,28 +140,10 @@ export default function HomePage() {
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    if (location.trim()) {
-      localStorage.setItem("hl_neighborhood", JSON.stringify({ city: location.trim(), state: "" }));
-    }
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
-    // Pass the selected city slug so SearchClient picks it up from URL
     if (activeCity) params.set("city", activeCity);
-    else if (location.trim()) params.set("city", location.trim());
     router.push(`/search?${params.toString()}`);
-  }
-
-  function detectLocation() {
-    if (!navigator.geolocation) return;
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        router.push(`/search?lat=${latitude}&lng=${longitude}&q=${encodeURIComponent(query)}`);
-        setLocating(false);
-      },
-      () => setLocating(false)
-    );
   }
 
   function searchCategory(category: string) {
@@ -323,7 +284,7 @@ export default function HomePage() {
             </div>
 
             {/* Search bar */}
-            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 flex flex-col sm:flex-row gap-2 mb-6">
+            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 flex gap-2 mb-6">
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -334,32 +295,12 @@ export default function HomePage() {
                 />
                 <AtMentionDropdown query={query} />
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="City or ZIP"
-                  className="w-36 px-4 py-3 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-100"
-                />
-                <button
-                  type="button"
-                  onClick={detectLocation}
-                  disabled={locating}
-                  title="Use my location"
-                  className="px-3 py-3 rounded-xl border border-gray-100 text-gray-400 hover:text-green-600 hover:border-green-300 transition-colors disabled:opacity-40"
-                >
-                  {locating
-                    ? <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                    : "📍"}
-                </button>
-                <button
-                  type="submit"
-                  className="bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
-                >
-                  Search
-                </button>
-              </div>
+              <button
+                type="submit"
+                className="bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
+              >
+                Search
+              </button>
             </form>
 
             {/* Popular searches */}
@@ -368,8 +309,7 @@ export default function HomePage() {
                 <button
                   key={term}
                   onClick={() => {
-                    if (location.trim()) localStorage.setItem("hl_neighborhood", JSON.stringify({ city: location.trim(), state: "" }));
-                    router.push(`/search?q=${encodeURIComponent(term)}${location.trim() ? `&city=${encodeURIComponent(location.trim())}` : ""}`);
+                    router.push(`/search?q=${encodeURIComponent(term)}${activeCity ? `&city=${activeCity}` : ""}`);
                   }}
                   className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full hover:border-green-400 hover:text-green-700 transition-colors"
                 >
@@ -386,7 +326,7 @@ export default function HomePage() {
                 <h2 className="text-lg font-bold text-gray-900">
                   {activeCity ? `Recent Gems in ${cityFromSlug(activeCity)?.label ?? activeCity}` : "Recent Gems"}
                 </h2>
-                <Link href={`/search${localCity ? `?city=${encodeURIComponent(localCity)}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
+                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {recentListings.map((l) => {
@@ -422,7 +362,7 @@ export default function HomePage() {
                 <h2 className="text-lg font-bold text-gray-900">
                   {activeCity ? `New businesses in ${cityFromSlug(activeCity)?.label ?? activeCity}` : "New businesses"}
                 </h2>
-                <Link href={`/search${localCity ? `?city=${encodeURIComponent(localCity)}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
+                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {newVendors.map((v) => (
