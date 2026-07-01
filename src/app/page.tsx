@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
+import { CITIES as LIB_CITIES, cityFromSlug, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
+import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 
@@ -31,15 +33,20 @@ export default function HomePage() {
   const [query, setQuery] = useState("");
   const [location, setLocation] = useState("");
   const [locating, setLocating] = useState(false);
-  const [user, setUser] = useState<{ name: string | null; role: string | null } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string | null; role: string | null } | null>(null);
   const [notifUnread, setNotifUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [recentListings, setRecentListings] = useState<any[]>([]);
   const [newVendors, setNewVendors] = useState<any[]>([]);
   const [localCity, setLocalCity] = useState<string | null>(null);
+  const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
+  const [radius, setRadius] = useState(50);
 
   useEffect(() => {
     const supabase = createClient();
+
+    // Resolve active city: localStorage el_city > fallback
+    const savedCitySlug = localStorage.getItem(LS_CITY_KEY);
 
     // Pre-fill location from saved neighborhood
     const saved = localStorage.getItem("hl_neighborhood");
@@ -52,13 +59,15 @@ export default function HomePage() {
     }
 
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
+      let resolvedCitySlug = savedCitySlug ?? DEFAULT_CITY_SLUG;
+
       if (u) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, role, city, state")
+          .select("full_name, role, city, state, default_city")
           .eq("id", u.id)
           .single();
-        setUser({ name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
+        setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", u.id).eq("is_read", false)
           .then(({ count }) => setNotifUnread(count ?? 0));
         if (profile?.city && !savedCity) {
@@ -67,44 +76,100 @@ export default function HomePage() {
           setLocalCity(profile.city);
           setLocation(profile.state ? `${profile.city}, ${profile.state}` : profile.city);
         }
+        // Profile default_city takes precedence over localStorage if user is logged in
+        if (profile?.default_city) resolvedCitySlug = profile.default_city;
       }
       setAuthChecked(true);
+      setActiveCity(resolvedCitySlug);
 
-      // Fetch recent listings — always show latest regardless of city filter
-      const { data: listings } = await supabase
+      const cityObj = cityFromSlug(resolvedCitySlug);
+
+      // Fetch recent listings filtered by active city
+      const listingsQ = supabase
         .from("listings")
-        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city)")
+        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state)")
         .eq("is_active", true)
         .order("created_at", { ascending: false })
-        .limit(8);
-      setRecentListings((listings ?? []).filter((l: any) => {
-        const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-        return v?.slug;
-      }));
+        .limit(cityObj ? 20 : 8);
+      const { data: listings } = await listingsQ;
+      const filteredListings = cityObj
+        ? (listings ?? []).filter((l: any) => {
+            const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+            return v?.slug && v?.city === cityObj.city && v?.state === cityObj.state;
+          })
+        : (listings ?? []).filter((l: any) => {
+            const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+            return v?.slug;
+          });
+      setRecentListings(filteredListings.slice(0, 8));
 
-      // Fetch new vendors — filter by city if known, otherwise show all recent
+      // Fetch new vendors filtered by active city
       let vendorsQuery = supabase
         .from("vendors")
-        .select("id, business_name, slug, logo_url, category, city, rating")
+        .select("id, business_name, slug, logo_url, category, city, state, rating")
         .eq("is_active", true)
         .not("slug", "is", null)
         .order("created_at", { ascending: false })
         .limit(6);
-      if (savedCity) vendorsQuery = vendorsQuery.ilike("city", `%${savedCity}%`);
+      if (cityObj) {
+        vendorsQuery = vendorsQuery.eq("city", cityObj.city).eq("state", cityObj.state);
+      } else if (savedCity) {
+        vendorsQuery = vendorsQuery.ilike("city", `%${savedCity}%`);
+      }
       const { data: vendors } = await vendorsQuery;
       setNewVendors(vendors ?? []);
     });
   }, []);
 
+  function handleCityChange(slug: string) {
+    setActiveCity(slug);
+    if (typeof window !== "undefined") localStorage.setItem(LS_CITY_KEY, slug);
+    if (user) {
+      const supabase = createClient();
+      supabase.from("profiles").update({ default_city: slug }).eq("id", user.id);
+    }
+    // Re-fetch listings and vendors for the new city
+    const cityObj = cityFromSlug(slug);
+    const supabase = createClient();
+    supabase
+      .from("listings")
+      .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state)")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        const filtered = cityObj
+          ? (data ?? []).filter((l: any) => {
+              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+              return v?.slug && v?.city === cityObj.city && v?.state === cityObj.state;
+            })
+          : (data ?? []).filter((l: any) => {
+              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+              return v?.slug;
+            });
+        setRecentListings(filtered.slice(0, 8));
+      });
+    let vQ = supabase
+      .from("vendors")
+      .select("id, business_name, slug, logo_url, category, city, state, rating")
+      .eq("is_active", true)
+      .not("slug", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(6);
+    if (cityObj) vQ = vQ.eq("city", cityObj.city).eq("state", cityObj.state);
+    vQ.then(({ data }) => setNewVendors(data ?? []));
+  }
+
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    // Save whatever city they typed to localStorage
     if (location.trim()) {
       localStorage.setItem("hl_neighborhood", JSON.stringify({ city: location.trim(), state: "" }));
     }
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
-    if (location.trim()) params.set("city", location.trim());
+    // Pass the selected city slug so SearchClient picks it up from URL
+    if (activeCity) params.set("city", activeCity);
+    else if (location.trim()) params.set("city", location.trim());
     router.push(`/search?${params.toString()}`);
   }
 
@@ -138,13 +203,7 @@ export default function HomePage() {
       "Thrift Sales": "thrift",
     };
     const params = new URLSearchParams();
-    const saved = localStorage.getItem("hl_neighborhood");
-    if (saved) {
-      try {
-        const { city, state } = JSON.parse(saved);
-        if (city) params.set("city", state ? `${city}, ${state}` : city);
-      } catch {}
-    }
+    if (activeCity) params.set("city", activeCity);
     if (TYPE_MAP[category]) {
       params.set("type", TYPE_MAP[category]);
       params.set("mode", "listings");
@@ -254,6 +313,16 @@ export default function HomePage() {
               Plumbers, restaurants, fresh produce, handmade goods — search your community.
             </p>
 
+            {/* City selector */}
+            <div className="flex justify-center mb-4">
+              <CitySelector
+                value={activeCity}
+                onChange={handleCityChange}
+                radius={radius}
+                onRadiusChange={setRadius}
+              />
+            </div>
+
             {/* Search bar */}
             <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 flex flex-col sm:flex-row gap-2 mb-6">
               <div className="relative flex-1">
@@ -316,7 +385,7 @@ export default function HomePage() {
             <div className="max-w-5xl mx-auto mt-14 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">
-                  {localCity ? `Recent Gems near ${localCity}` : "Recent Gems"}
+                  {activeCity ? `Recent Gems in ${cityFromSlug(activeCity)?.label ?? activeCity}` : "Recent Gems"}
                 </h2>
                 <Link href={`/search${localCity ? `?city=${encodeURIComponent(localCity)}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
@@ -352,7 +421,7 @@ export default function HomePage() {
             <div className="max-w-5xl mx-auto mt-10 px-4 pb-14">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">
-                  {localCity ? `New businesses in ${localCity}` : "New businesses"}
+                  {activeCity ? `New businesses in ${cityFromSlug(activeCity)?.label ?? activeCity}` : "New businesses"}
                 </h2>
                 <Link href={`/search${localCity ? `?city=${encodeURIComponent(localCity)}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>

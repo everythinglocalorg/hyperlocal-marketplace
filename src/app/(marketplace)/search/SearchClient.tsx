@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CITIES, CATEGORIES } from "@/types";
+import { cityFromSlug, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
+import CitySelector from "@/components/CitySelector";
 import Link from "next/link";
 
 type Vendor = {
@@ -145,16 +147,26 @@ function KeywordVendorCard({ r }: { r: SearchResult }) {
   );
 }
 
-export default function SearchClient() {
+export default function SearchClient({ initialCity }: { initialCity?: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
 
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
-  const [citySlug, setCitySlug] = useState(searchParams.get("city") ?? "");
+  // Eagerly resolve city on first render: URL param > profile (initialCity) > localStorage > default
+  const [citySlug, setCitySlug] = useState<string>(() => {
+    const urlCity = searchParams.get("city");
+    if (urlCity) return urlCity;
+    if (typeof window !== "undefined") {
+      const fromStorage = localStorage.getItem(LS_CITY_KEY);
+      if (fromStorage) return fromStorage;
+    }
+    return initialCity ?? DEFAULT_CITY_SLUG;
+  });
   const [category, setCategory] = useState(searchParams.get("category") ?? "");
-  const [radius, setRadius] = useState(Number(searchParams.get("radius") ?? 25));
+  const [radius, setRadius] = useState(Number(searchParams.get("radius") ?? 50));
   const [sort, setSort] = useState(searchParams.get("sort") ?? "rating");
+  const [userId, setUserId] = useState<string | null>(null);
 
   // Products/listings section
   const [listingResults, setListingResults] = useState<any[]>([]);
@@ -175,13 +187,24 @@ export default function SearchClient() {
   const paramCity = searchParams.get("city_name") ?? searchParams.get("city") ?? "";
   const paramState = searchParams.get("state") ?? "";
 
-  const selectedCity = CITIES.find((c) => c.slug === citySlug);
+  const selectedCity = useMemo(() => CITIES.find((c) => c.slug === citySlug), [citySlug]);
 
-  const resolvedCoords = selectedCity
-    ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude, label: `${selectedCity.name}, ${selectedCity.state}` }
-    : (paramLat && paramLng)
-    ? { latitude: Number(paramLat), longitude: Number(paramLng), label: [paramCity, paramState].filter(Boolean).join(", ") }
-    : null;
+  const resolvedCoords = useMemo(() => {
+    if (selectedCity) {
+      return { latitude: selectedCity.latitude, longitude: selectedCity.longitude, label: `${selectedCity.name}, ${selectedCity.state}` };
+    }
+    if (paramLat && paramLng) {
+      return { latitude: Number(paramLat), longitude: Number(paramLng), label: [paramCity, paramState].filter(Boolean).join(", ") };
+    }
+    return null;
+  }, [selectedCity, paramLat, paramLng, paramCity, paramState]);
+
+  // On mount: get user id for profile saves
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateURL = useCallback((params: Record<string, string>) => {
     const current = new URLSearchParams(searchParams.toString());
@@ -191,6 +214,17 @@ export default function SearchClient() {
     });
     router.push(`/search?${current.toString()}`, { scroll: false });
   }, [searchParams, router]);
+
+  function handleCityChange(slug: string) {
+    setCitySlug(slug);
+    updateURL({ city: slug });
+    if (typeof window !== "undefined") localStorage.setItem(LS_CITY_KEY, slug);
+    if (userId) {
+      supabase.from("profiles").update({ default_city: slug }).eq("id", userId);
+    }
+  }
+
+  const activeCityObj = useMemo(() => cityFromSlug(citySlug), [citySlug]);
 
   const runSearch = useCallback(async () => {
     setLoading(true);
@@ -206,7 +240,13 @@ export default function SearchClient() {
         else if (category) q = q.eq("category", category);
         q = q.order("is_featured", { ascending: false }).order("created_at", { ascending: false }).limit(40);
         const { data } = await q;
-        setListingResults(data ?? []);
+        const cityFiltered = activeCityObj
+          ? (data ?? []).filter((l: any) => {
+              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+              return v?.city === activeCityObj.city && v?.state === activeCityObj.state;
+            })
+          : (data ?? []);
+        setListingResults(cityFiltered);
         setKwListings([]);
         setKwVendors([]);
         setVendors([]);
@@ -251,17 +291,38 @@ export default function SearchClient() {
           }),
         ]);
 
-        let nearbyVendors: Vendor[] = vendorRes.data ?? [];
+        // Filter listings by city through joined vendor
+        const filteredListings = activeCityObj
+          ? (listingRes.data ?? []).filter((l: any) => {
+              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+              return v?.city === activeCityObj.city && v?.state === activeCityObj.state;
+            })
+          : (listingRes.data ?? []);
+
+        let nearbyVendors: Vendor[] = (vendorRes.data ?? []).filter((v: Vendor) =>
+          !activeCityObj || (v.city === activeCityObj.city && v.state === activeCityObj.state)
+        );
         if (sort === "rating") nearbyVendors.sort((a, b) => b.rating - a.rating);
         else if (sort === "distance") nearbyVendors.sort((a, b) => (a.distance_miles ?? 0) - (b.distance_miles ?? 0));
         else if (sort === "local_bucks") nearbyVendors.sort((a, b) => b.local_bucks_earned - a.local_bucks_earned);
 
-        setListingResults(listingRes.data ?? []);
+        setListingResults(filteredListings);
         setVendors(nearbyVendors);
         setKwListings([]);
         setKwVendors([]);
       } else {
-        // No query, no city — show newest listings + featured-then-newest vendors
+        // No query, no geo — browse by active city
+        let vendorQ = supabase
+          .from("vendors")
+          .select("*")
+          .eq("is_active", true)
+          .order("tier", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(12);
+        if (activeCityObj) {
+          vendorQ = vendorQ.eq("city", activeCityObj.city).eq("state", activeCityObj.state);
+        }
+
         const [listingRes, vendorRes] = await Promise.all([
           supabase
             .from("listings")
@@ -269,18 +330,20 @@ export default function SearchClient() {
             .eq("is_active", true)
             .order("is_featured", { ascending: false })
             .order("created_at", { ascending: false })
-            .limit(20),
-          supabase
-            .from("vendors")
-            .select("*")
-            .eq("is_active", true)
-            .order("tier", { ascending: false })
-            .order("created_at", { ascending: false })
-            .limit(12),
+            .limit(40),
+          vendorQ,
         ]);
+
+        const filteredListings = activeCityObj
+          ? (listingRes.data ?? []).filter((l: any) => {
+              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+              return v?.city === activeCityObj.city && v?.state === activeCityObj.state;
+            })
+          : (listingRes.data ?? []);
+
         let browseVendors: Vendor[] = vendorRes.data ?? [];
         if (category) browseVendors = browseVendors.filter((v) => v.category === category);
-        setListingResults(listingRes.data ?? []);
+        setListingResults(filteredListings);
         setVendors(browseVendors);
         setKwListings([]);
         setKwVendors([]);
@@ -288,7 +351,7 @@ export default function SearchClient() {
     } finally {
       setLoading(false);
     }
-  }, [query, citySlug, category, radius, sort, selectedCity, supabase, listingMode, listingType, resolvedCoords]);
+  }, [query, citySlug, category, radius, sort, selectedCity, supabase, listingMode, listingType, resolvedCoords, activeCityObj]);
 
   useEffect(() => {
     runSearch();
@@ -328,10 +391,16 @@ export default function SearchClient() {
                 placeholder="Search products, services, businesses..."
               />
             </div>
+            <CitySelector
+              value={citySlug}
+              onChange={handleCityChange}
+              radius={radius}
+              onRadiusChange={(r) => { setRadius(r); updateURL({ radius: String(r) }); }}
+            />
             <button
               onClick={() => setShowFilters(!showFilters)}
               className={`shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-colors ${
-                showFilters || category || citySlug
+                showFilters || category
                   ? "border-green-500 bg-green-50 text-green-700"
                   : "border-gray-200 text-gray-600 hover:border-gray-300"
               }`}
@@ -340,9 +409,9 @@ export default function SearchClient() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h18M6 8h12M10 12h4" />
               </svg>
               Filters
-              {(category || citySlug) && (
+              {category && (
                 <span className="bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                  {[category, citySlug].filter(Boolean).length}
+                  1
                 </span>
               )}
             </button>
@@ -350,21 +419,7 @@ export default function SearchClient() {
 
           {/* Filter panel */}
           {showFilters && (
-            <div className="mt-3 pb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 border-t border-gray-100 pt-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
-                <select
-                  value={citySlug}
-                  onChange={(e) => { setCitySlug(e.target.value); updateURL({ city: e.target.value }); }}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">All cities</option>
-                  {CITIES.map((c) => (
-                    <option key={c.slug} value={c.slug}>{c.name}, {c.state}</option>
-                  ))}
-                </select>
-              </div>
-
+            <div className="mt-3 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-gray-100 pt-3">
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1">Category</label>
                 <select
@@ -377,20 +432,6 @@ export default function SearchClient() {
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">
-                  Radius: <span className="text-green-600 font-semibold">{radius} miles</span>
-                </label>
-                <input
-                  type="range" min={1} max={50} value={radius}
-                  onChange={(e) => { setRadius(Number(e.target.value)); updateURL({ radius: e.target.value }); }}
-                  className="w-full accent-green-600"
-                />
-                <div className="flex justify-between text-xs text-gray-400 mt-0.5">
-                  <span>1 mi</span><span>50 mi</span>
-                </div>
               </div>
 
               <div>
@@ -472,7 +513,7 @@ export default function SearchClient() {
                     </h2>
                     <p className="text-sm text-gray-400 mt-0.5">
                       {productCount} {productCount === 1 ? "result" : "results"}
-                      {resolvedCoords && !listingMode && ` near ${resolvedCoords.label}`}
+                      {activeCityObj && !isKeyword ? ` in ${activeCityObj.label}` : resolvedCoords && !listingMode && !activeCityObj ? ` near ${resolvedCoords.label}` : ""}
                     </p>
                   </div>
                   {!listingMode && !isKeyword && !showFilters && (
@@ -511,7 +552,7 @@ export default function SearchClient() {
                     <h2 className="text-lg font-bold text-gray-900">Local Businesses</h2>
                     <p className="text-sm text-gray-400 mt-0.5">
                       {bizCount} {bizCount === 1 ? "business" : "businesses"}
-                      {resolvedCoords ? ` near ${resolvedCoords.label}` : ""} · Featured first
+                      {activeCityObj ? ` in ${activeCityObj.label}` : resolvedCoords ? ` near ${resolvedCoords.label}` : ""} · Featured first
                     </p>
                   </div>
                 </div>
