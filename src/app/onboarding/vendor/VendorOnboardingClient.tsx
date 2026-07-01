@@ -140,7 +140,8 @@ export default function VendorOnboardingClient() {
       description: form.description,
       logo_url: form.logo_url || null,
       banner_url: form.banner_url || null,
-      tier: "free",
+      tier: "premium",
+      features: { messages: true, analytics: true, bookings: true, crm: true, estimates: true },
     });
 
     if (vendorError) {
@@ -510,14 +511,34 @@ export default function VendorOnboardingClient() {
                 ))}
               </div>
 
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-4">
                 <p className="text-sm text-green-800 font-semibold">What happens next:</p>
                 <ul className="mt-2 space-y-1 text-sm text-green-700">
                   <li>✓ Your storefront goes live immediately</li>
                   <li>✓ You earn 25 Local Bucks for completing your profile</li>
-                  <li>✓ Add listings from your dashboard</li>
-                  <li>✓ Upgrade to Premium anytime for analytics + CRM tools</li>
+                  <li>✓ Add unlimited listings from your dashboard</li>
+                  <li>✓ Full Local Pro access starts today — free for 30 days</li>
                 </ul>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <span>🏅</span>
+                  <p className="text-sm font-bold text-amber-800">Your 30-Day Local Pro Trial</p>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { icon: "📊", label: "Analytics" },
+                    { icon: "📋", label: "Estimate Manager" },
+                    { icon: "👥", label: "Customer CRM" },
+                    { icon: "💬", label: "Messaging" },
+                    { icon: "⭐", label: "Verified Badge" },
+                    { icon: "🔝", label: "Priority Search" },
+                  ].map(({ icon, label }) => (
+                    <div key={label} className="flex items-center gap-1.5 text-xs text-amber-800">
+                      <span>{icon}</span><span>{label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {error && (

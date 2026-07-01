@@ -198,8 +198,33 @@ function SignupForm() {
       </form>
 
       {role === "vendor" && (
-        <div className="mt-4 bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800">
-          🏪 After signup you'll set up your business storefront — takes about 3 minutes.
+        <div className="mt-4 space-y-3">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg">🏅</span>
+              <p className="text-sm font-bold text-green-800">30-Day Local Pro Trial — Included Free</p>
+            </div>
+            <p className="text-xs text-green-700 mb-3">Every new vendor starts with full Local Pro access. No credit card required.</p>
+            <ul className="space-y-1.5">
+              {[
+                { icon: "📊", label: "Store & listing analytics" },
+                { icon: "📋", label: "Estimate creator & manager" },
+                { icon: "👥", label: "Customer CRM" },
+                { icon: "💬", label: "Direct customer messaging" },
+                { icon: "⭐", label: "Local Verified badge" },
+                { icon: "🔝", label: "Priority placement in search" },
+                { icon: "∞", label: "Unlimited listings" },
+              ].map(({ icon, label }) => (
+                <li key={label} className="flex items-center gap-2 text-xs text-green-800">
+                  <span>{icon}</span>
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800">
+            🏪 After signup you'll set up your business storefront — takes about 3 minutes.
+          </div>
         </div>
       )}
 
