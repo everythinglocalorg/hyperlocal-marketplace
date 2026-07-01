@@ -47,22 +47,10 @@ export default function VendorCard({ vendor }: VendorCardProps) {
           </span>
         )}
 
-        {/* Logo */}
-        <div className="absolute -bottom-5 left-4">
-          <div className="w-10 h-10 rounded-xl border-2 border-white shadow bg-white overflow-hidden">
-            {vendor.logo_url ? (
-              <img src={vendor.logo_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-green-100 flex items-center justify-center text-lg">
-                {vendor.business_name[0]}
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Content */}
-      <div className="pt-7 pb-4 px-4">
+      <div className="pt-4 pb-4 px-4">
         <div className="flex items-start justify-between gap-1">
           <h3 className="font-semibold text-gray-900 text-sm leading-snug line-clamp-1">
             {vendor.business_name}
