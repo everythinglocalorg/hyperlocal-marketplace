@@ -6,6 +6,25 @@ import { SEED_CITIES, makeSlug, type CityOption } from "@/lib/cities";
 
 const RADIUS_OPTIONS = [10, 25, 50, 100];
 
+const STATE_ABBR: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
+  colorado: "CO", connecticut: "CT", delaware: "DE", florida: "FL", georgia: "GA",
+  hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
+  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
+  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
+  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV", "new hampshire": "NH",
+  "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC",
+  "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA",
+  "rhode island": "RI", "south carolina": "SC", "south dakota": "SD", tennessee: "TN",
+  texas: "TX", utah: "UT", vermont: "VT", virginia: "VA", washington: "WA",
+  "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
+};
+
+function normalizeState(s: string): string {
+  if (s.length === 2) return s.toUpperCase();
+  return STATE_ABBR[s.toLowerCase()] ?? s.toUpperCase();
+}
+
 interface Props {
   value: string;
   onChange: (slug: string, city: CityOption) => void;
@@ -42,14 +61,15 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
         const merged: CityOption[] = [...SEED_CITIES];
         for (const row of (data ?? [])) {
           if (!row.city?.trim() || !row.state?.trim()) continue;
-          const slug = makeSlug(row.city.trim(), row.state.trim());
+          const stateAbbr = normalizeState(row.state.trim());
+          const slug = makeSlug(row.city.trim(), stateAbbr);
           if (!seen.has(slug)) {
             seen.add(slug);
             merged.push({
               slug,
-              label: `${row.city.trim()}, ${row.state.trim().toUpperCase()}`,
+              label: `${row.city.trim()}, ${stateAbbr}`,
               city: row.city.trim(),
-              state: row.state.trim().toUpperCase(),
+              state: stateAbbr,
             });
           }
         }
