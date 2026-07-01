@@ -2842,7 +2842,7 @@ function AdminBusinessesTab() {
   useEffect(() => {
     supabase
       .from("vendors")
-      .select("id,business_name,slug,tier,city,state,category,is_verified,is_claimed,logo_url,phone")
+      .select("id,business_name,slug,tier,city,state,category,is_verified,is_claimed,is_active,logo_url,phone")
       .order("business_name")
       .then(({ data }) => { setVendors(data ?? []); setLoading(false); });
   }, []);
@@ -2851,6 +2851,31 @@ function AdminBusinessesTab() {
     setSaving(vendorId);
     await supabase.from("vendors").update({ tier: newTier }).eq("id", vendorId);
     setVendors((prev) => prev.map((v) => v.id === vendorId ? { ...v, tier: newTier } : v));
+    setSaving(null);
+  }
+
+  async function togglePause(vendorId: string, nextActive: boolean) {
+    setSaving(vendorId);
+    await supabase.from("vendors").update({ is_active: nextActive }).eq("id", vendorId);
+    setVendors((prev) => prev.map((v) => v.id === vendorId ? { ...v, is_active: nextActive } : v));
+    setSaving(null);
+  }
+
+  async function deleteVendor(vendor: any) {
+    const confirmed = window.confirm(
+      `Permanently delete "${vendor.business_name}"?\n\nThis removes the business and all its listings. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    setSaving(vendor.id);
+    // Remove dependent listings first (in case no cascade is set)
+    await supabase.from("listings").delete().eq("vendor_id", vendor.id);
+    const { error } = await supabase.from("vendors").delete().eq("id", vendor.id);
+    if (error) {
+      window.alert(`Could not delete: ${error.message}`);
+      setSaving(null);
+      return;
+    }
+    setVendors((prev) => prev.filter((v) => v.id !== vendor.id));
     setSaving(null);
   }
 
@@ -2890,6 +2915,7 @@ function AdminBusinessesTab() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Location</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Membership</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2912,9 +2938,14 @@ function AdminBusinessesTab() {
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-500 hidden sm:table-cell">{v.city}, {v.state}</td>
                   <td className="px-4 py-3 hidden md:table-cell">
-                    {v.is_claimed
-                      ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✓ Claimed</span>
-                      : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">⏳ Unclaimed</span>}
+                    <div className="flex flex-col gap-1 items-start">
+                      {v.is_claimed
+                        ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✓ Claimed</span>
+                        : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">⏳ Unclaimed</span>}
+                      {v.is_active === false && (
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full font-medium">⏸ Paused</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <select
@@ -2926,6 +2957,30 @@ function AdminBusinessesTab() {
                       <option value="free">Free</option>
                       <option value="premium">⭐ Local Pro</option>
                     </select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        onClick={() => togglePause(v.id, v.is_active === false)}
+                        disabled={saving === v.id}
+                        title={v.is_active === false ? "Make this business live again" : "Hide this business from the site"}
+                        className={`text-xs font-semibold border rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-40 ${
+                          v.is_active === false
+                            ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100"
+                            : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                        }`}
+                      >
+                        {v.is_active === false ? "▶ Activate" : "⏸ Pause"}
+                      </button>
+                      <button
+                        onClick={() => deleteVendor(v)}
+                        disabled={saving === v.id}
+                        title="Permanently delete this business"
+                        className="text-xs font-semibold border border-red-200 bg-red-50 text-red-600 rounded-lg px-2.5 py-1.5 hover:bg-red-100 transition-colors disabled:opacity-40"
+                      >
+                        🗑 Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -536,7 +536,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                           <p className="text-xs font-medium text-gray-700">★ {v.rating.toFixed(1)}</p>
                         )}
                         {v.tier === "premium" && (
-                          <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">⭐ Premium</span>
+                          <span className="text-xs bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full">⭐ Local Pro</span>
                         )}
                       </div>
                     </Link>

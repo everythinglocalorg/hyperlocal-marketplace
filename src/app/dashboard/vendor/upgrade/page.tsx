@@ -138,7 +138,7 @@ function UpgradePageInner() {
 
                 <div className="mt-5 pt-4 border-t border-gray-100">
                   <p className="text-xs text-gray-500 text-center">
-                    Already premium?{" "}
+                    Already on Local Pro?{" "}
                     <Link href="/dashboard/vendor" className="text-green-600 hover:underline">
                       Back to dashboard →
                     </Link>
@@ -170,7 +170,7 @@ function UpgradePageInner() {
             {[
               {
                 q: "Can I cancel anytime?",
-                a: "Yes. Cancel from your dashboard and you'll keep premium access until the end of your billing period.",
+                a: "Yes. Cancel from your dashboard and you'll keep Local Pro access until the end of your billing period.",
               },
               {
                 q: "What payment methods are accepted?",
