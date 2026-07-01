@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CITIES, CATEGORIES } from "@/types";
-import { cityFromSlug, makeSlug, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption } from "@/lib/cities";
+import { cityFromSlug, resolveCity, makeSlug, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
 import CitySelector from "@/components/CitySelector";
@@ -187,21 +187,31 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
   const paramCity = searchParams.get("city_name") ?? searchParams.get("city") ?? "";
   const paramState = searchParams.get("state") ?? "";
 
-  // activeCityObj as state so it resolves even for non-seed cities fetched dynamically
-  const [activeCityObj, setActiveCityObj] = useState<CityOption | undefined>(() => cityFromSlug(citySlug));
+  // activeCityObj: resolved synchronously from the slug (seed or parsed), so
+  // filtering works immediately. The DB effect below refines it with exact
+  // city casing/punctuation when available.
+  const [activeCityObj, setActiveCityObj] = useState<CityOption | undefined>(() => resolveCity(citySlug));
 
-  // If initial citySlug isn't in the seed list, resolve it from DB once
+  // Refine the parsed city with the exact DB values (correct casing/punctuation).
   useEffect(() => {
-    if (activeCityObj) return;
+    if (activeCityObj?.city && cityFromSlug(citySlug)) return; // seed city — already exact
     supabase
       .from("vendors")
       .select("city, state")
       .eq("is_active", true)
       .not("city", "is", null)
+      .not("state", "is", null)
       .then(({ data }) => {
         for (const row of (data ?? [])) {
-          if (makeSlug(row.city, row.state) === citySlug) {
-            setActiveCityObj({ slug: citySlug, label: `${row.city}, ${row.state}`, city: row.city, state: row.state });
+          if (!row.city?.trim() || !row.state?.trim()) continue;
+          const stateAbbr = normalizeState(row.state.trim());
+          if (makeSlug(row.city.trim(), stateAbbr) === citySlug) {
+            setActiveCityObj({
+              slug: citySlug,
+              label: `${row.city.trim()}, ${stateAbbr}`,
+              city: row.city.trim(),
+              state: stateAbbr,
+            });
             return;
           }
         }

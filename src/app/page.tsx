@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { cityFromSlug, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
+import { resolveCity, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
@@ -64,7 +64,7 @@ export default function HomePage() {
       setAuthChecked(true);
       setActiveCity(resolvedCitySlug);
 
-      const cityObj = cityFromSlug(resolvedCitySlug);
+      const cityObj = resolveCity(resolvedCitySlug);
 
       // Fetch recent listings filtered by active city
       const { data: listings } = await supabase
@@ -324,7 +324,7 @@ export default function HomePage() {
             <div className="max-w-5xl mx-auto mt-14 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">
-                  {activeCity ? `Recent Gems in ${cityFromSlug(activeCity)?.label ?? activeCity}` : "Recent Gems"}
+                  {activeCity ? `Recent Gems in ${resolveCity(activeCity)?.label ?? activeCity}` : "Recent Gems"}
                 </h2>
                 <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
@@ -360,7 +360,7 @@ export default function HomePage() {
             <div className="max-w-5xl mx-auto mt-10 px-4 pb-14">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">
-                  {activeCity ? `New businesses in ${cityFromSlug(activeCity)?.label ?? activeCity}` : "New businesses"}
+                  {activeCity ? `New businesses in ${resolveCity(activeCity)?.label ?? activeCity}` : "New businesses"}
                 </h2>
                 <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>

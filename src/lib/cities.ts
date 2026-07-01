@@ -24,6 +24,28 @@ export function cityFromSlug(slug: string): CityOption | undefined {
   return SEED_CITIES.find(c => c.slug === slug);
 }
 
+// Resolve a slug to a CityOption. Falls back to parsing the slug itself
+// (e.g. 'northfield-mn' -> city 'Northfield', state 'MN') for non-seed cities,
+// so filtering works without a DB round-trip.
+export function resolveCity(slug: string): CityOption | undefined {
+  if (!slug) return undefined;
+  const seed = cityFromSlug(slug);
+  if (seed) return seed;
+
+  const lastDash = slug.lastIndexOf('-');
+  if (lastDash === -1) return undefined;
+  const stateSlug = slug.slice(lastDash + 1);
+  const citySlugPart = slug.slice(0, lastDash);
+  if (!stateSlug || !citySlugPart) return undefined;
+
+  const state = stateSlug.toUpperCase();
+  const city = citySlugPart
+    .split('-')
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  return { slug, label: `${city}, ${state}`, city, state };
+}
+
 export const DEFAULT_CITY_SLUG = 'eau-claire-wi';
 export const LS_CITY_KEY = 'el_city';
 
