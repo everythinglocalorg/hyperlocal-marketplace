@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CITIES, CATEGORIES } from "@/types";
-import { cityFromSlug, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
+import { cityFromSlug, makeSlug, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
 import CitySelector from "@/components/CitySelector";
@@ -187,17 +187,41 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
   const paramCity = searchParams.get("city_name") ?? searchParams.get("city") ?? "";
   const paramState = searchParams.get("state") ?? "";
 
+  // activeCityObj as state so it resolves even for non-seed cities fetched dynamically
+  const [activeCityObj, setActiveCityObj] = useState<CityOption | undefined>(() => cityFromSlug(citySlug));
+
+  // If initial citySlug isn't in the seed list, resolve it from DB once
+  useEffect(() => {
+    if (activeCityObj) return;
+    supabase
+      .from("vendors")
+      .select("city, state")
+      .eq("is_active", true)
+      .not("city", "is", null)
+      .then(({ data }) => {
+        for (const row of (data ?? [])) {
+          if (makeSlug(row.city, row.state) === citySlug) {
+            setActiveCityObj({ slug: citySlug, label: `${row.city}, ${row.state}`, city: row.city, state: row.state });
+            return;
+          }
+        }
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedCity = useMemo(() => CITIES.find((c) => c.slug === citySlug), [citySlug]);
 
   const resolvedCoords = useMemo(() => {
-    if (selectedCity) {
-      return { latitude: selectedCity.latitude, longitude: selectedCity.longitude, label: `${selectedCity.name}, ${selectedCity.state}` };
-    }
+    const coords = activeCityObj?.latitude != null
+      ? { latitude: activeCityObj.latitude!, longitude: activeCityObj.longitude!, label: activeCityObj.label }
+      : selectedCity
+      ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude, label: `${selectedCity.name}, ${selectedCity.state}` }
+      : null;
+    if (coords) return coords;
     if (paramLat && paramLng) {
       return { latitude: Number(paramLat), longitude: Number(paramLng), label: [paramCity, paramState].filter(Boolean).join(", ") };
     }
     return null;
-  }, [selectedCity, paramLat, paramLng, paramCity, paramState]);
+  }, [activeCityObj, selectedCity, paramLat, paramLng, paramCity, paramState]);
 
   // On mount: get user id for profile saves
   useEffect(() => {
@@ -215,16 +239,15 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     router.push(`/search?${current.toString()}`, { scroll: false });
   }, [searchParams, router]);
 
-  function handleCityChange(slug: string) {
+  function handleCityChange(slug: string, cityObj: CityOption) {
     setCitySlug(slug);
+    setActiveCityObj(cityObj);
     updateURL({ city: slug });
     if (typeof window !== "undefined") localStorage.setItem(LS_CITY_KEY, slug);
     if (userId) {
       supabase.from("profiles").update({ default_city: slug }).eq("id", userId);
     }
   }
-
-  const activeCityObj = useMemo(() => cityFromSlug(citySlug), [citySlug]);
 
   const runSearch = useCallback(async () => {
     setLoading(true);
@@ -393,7 +416,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
             </div>
             <CitySelector
               value={citySlug}
-              onChange={handleCityChange}
+              onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
               radius={radius}
               onRadiusChange={(r) => { setRadius(r); updateURL({ radius: String(r) }); }}
             />

@@ -121,7 +121,7 @@ export default function HomePage() {
     });
   }, []);
 
-  function handleCityChange(slug: string) {
+  function handleCityChange(slug: string, cityObj: any) {
     setActiveCity(slug);
     if (typeof window !== "undefined") localStorage.setItem(LS_CITY_KEY, slug);
     if (user) {
@@ -129,7 +129,6 @@ export default function HomePage() {
       supabase.from("profiles").update({ default_city: slug }).eq("id", user.id);
     }
     // Re-fetch listings and vendors for the new city
-    const cityObj = cityFromSlug(slug);
     const supabase = createClient();
     supabase
       .from("listings")
@@ -317,7 +316,7 @@ export default function HomePage() {
             <div className="flex justify-center mb-4">
               <CitySelector
                 value={activeCity}
-                onChange={handleCityChange}
+                onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
                 radius={radius}
                 onRadiusChange={setRadius}
               />
