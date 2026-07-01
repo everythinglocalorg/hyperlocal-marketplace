@@ -2893,9 +2893,22 @@ function AdminBusinessesTab() {
     setSaving(vendor.id);
     // Remove dependent listings first (in case no cascade is set)
     await supabase.from("listings").delete().eq("vendor_id", vendor.id);
-    const { error } = await supabase.from("vendors").delete().eq("id", vendor.id);
+    // Select the deleted rows back so we can tell a real delete apart from a
+    // no-op that RLS silently blocked (0 rows, no error).
+    const { data, error } = await supabase
+      .from("vendors")
+      .delete()
+      .eq("id", vendor.id)
+      .select("id");
     if (error) {
       window.alert(`Could not delete: ${error.message}`);
+      setSaving(null);
+      return;
+    }
+    if (!data || data.length === 0) {
+      window.alert(
+        `"${vendor.business_name}" was not deleted. You may not have permission to remove businesses.`
+      );
       setSaving(null);
       return;
     }
