@@ -67,3 +67,36 @@ export function normalizeState(s: string): string {
   if (s.length === 2) return s.toUpperCase();
   return STATE_ABBR[s.toLowerCase()] ?? s.toUpperCase();
 }
+
+export type CityCenter = { latitude: number; longitude: number };
+
+// Resolve a city's center coordinates for radius search.
+// Seed cities return instantly; others hit the cached /api/cities/resolve route.
+export async function fetchCityCenter(city: CityOption): Promise<CityCenter | null> {
+  const seed = cityFromSlug(city.slug);
+  if (seed?.latitude != null && seed?.longitude != null) {
+    return { latitude: seed.latitude, longitude: seed.longitude };
+  }
+  try {
+    const params = new URLSearchParams({ slug: city.slug, city: city.city, state: city.state });
+    const res = await fetch(`/api/cities/resolve?${params.toString()}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.latitude != null && data?.longitude != null) {
+      return { latitude: data.latitude, longitude: data.longitude };
+    }
+  } catch { /* fall through */ }
+  return null;
+}
+
+// Great-circle distance in miles between two lat/lng points.
+export function distanceMiles(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 3958.8; // Earth radius in miles
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}

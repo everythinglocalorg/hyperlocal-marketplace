@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CITIES, CATEGORIES } from "@/types";
-import { cityFromSlug, resolveCity, makeSlug, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption } from "@/lib/cities";
+import { cityFromSlug, resolveCity, makeSlug, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption, type CityCenter } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
 import CitySelector from "@/components/CitySelector";
@@ -220,18 +220,27 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
 
   const selectedCity = useMemo(() => CITIES.find((c) => c.slug === citySlug), [citySlug]);
 
+  // Center coords for the active city, resolved (and cached) via /api/cities/resolve.
+  const [cityCenter, setCityCenter] = useState<CityCenter | null>(null);
+  useEffect(() => {
+    if (!activeCityObj) { setCityCenter(null); return; }
+    let cancelled = false;
+    fetchCityCenter(activeCityObj).then((c) => { if (!cancelled) setCityCenter(c); });
+    return () => { cancelled = true; };
+  }, [activeCityObj?.slug]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const resolvedCoords = useMemo(() => {
-    const coords = activeCityObj?.latitude != null
-      ? { latitude: activeCityObj.latitude!, longitude: activeCityObj.longitude!, label: activeCityObj.label }
-      : selectedCity
-      ? { latitude: selectedCity.latitude, longitude: selectedCity.longitude, label: `${selectedCity.name}, ${selectedCity.state}` }
-      : null;
-    if (coords) return coords;
+    if (cityCenter && activeCityObj) {
+      return { latitude: cityCenter.latitude, longitude: cityCenter.longitude, label: activeCityObj.label };
+    }
+    if (selectedCity) {
+      return { latitude: selectedCity.latitude, longitude: selectedCity.longitude, label: `${selectedCity.name}, ${selectedCity.state}` };
+    }
     if (paramLat && paramLng) {
       return { latitude: Number(paramLat), longitude: Number(paramLng), label: [paramCity, paramState].filter(Boolean).join(", ") };
     }
     return null;
-  }, [activeCityObj, selectedCity, paramLat, paramLng, paramCity, paramState]);
+  }, [cityCenter, activeCityObj, selectedCity, paramLat, paramLng, paramCity, paramState]);
 
   // On mount: get user id for profile saves
   useEffect(() => {
@@ -259,6 +268,21 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     }
   }
 
+  // A listing is in-range if its vendor is within `radius` miles of the city
+  // center. Vendors without coordinates (not yet geocoded) fall back to an
+  // exact city/state match so they still surface in their own town.
+  const listingInRange = useCallback((l: any) => {
+    const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+    if (resolvedCoords && v?.latitude != null && v?.longitude != null) {
+      return distanceMiles(resolvedCoords.latitude, resolvedCoords.longitude, v.latitude, v.longitude) <= radius;
+    }
+    if (activeCityObj) {
+      return v?.city?.toLowerCase() === activeCityObj.city.toLowerCase()
+        && normalizeState(v?.state ?? "") === activeCityObj.state;
+    }
+    return true;
+  }, [resolvedCoords, radius, activeCityObj]);
+
   const runSearch = useCallback(async () => {
     setLoading(true);
 
@@ -267,20 +291,13 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
       if (listingMode) {
         let q = supabase
           .from("listings")
-          .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
+          .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
           .eq("is_active", true);
         if (listingType) q = q.eq("type", listingType);
         else if (category) q = q.eq("category", category);
-        q = q.order("is_featured", { ascending: false }).order("created_at", { ascending: false }).limit(40);
+        q = q.order("is_featured", { ascending: false }).order("created_at", { ascending: false }).limit(80);
         const { data } = await q;
-        const cityFiltered = activeCityObj
-          ? (data ?? []).filter((l: any) => {
-              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.city?.toLowerCase() === activeCityObj.city.toLowerCase()
-                && normalizeState(v?.state ?? "") === activeCityObj.state;
-            })
-          : (data ?? []);
-        setListingResults(cityFiltered);
+        setListingResults((data ?? []).filter(listingInRange));
         setKwListings([]);
         setKwVendors([]);
         setVendors([]);
@@ -306,15 +323,16 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         setListingResults([]);
         setVendors([]);
       } else if (resolvedCoords) {
-        // Geo/nearby mode — listings section (newest) above vendors section (nearest)
+        // Geo/nearby mode — vendors within `radius` miles (via RPC), and
+        // listings whose vendor falls within the same radius.
         const [listingRes, vendorRes] = await Promise.all([
           supabase
             .from("listings")
-            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
+            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
             .eq("is_active", true)
             .order("is_featured", { ascending: false })
             .order("created_at", { ascending: false })
-            .limit(20),
+            .limit(80),
           supabase.rpc("search_vendors_nearby", {
             p_latitude: resolvedCoords.latitude,
             p_longitude: resolvedCoords.longitude,
@@ -325,21 +343,10 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           }),
         ]);
 
-        // Filter listings by city through joined vendor
-        const filteredListings = activeCityObj
-          ? (listingRes.data ?? []).filter((l: any) => {
-              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.city?.toLowerCase() === activeCityObj.city.toLowerCase()
-                && normalizeState(v?.state ?? "") === activeCityObj.state;
-            })
-          : (listingRes.data ?? []);
+        const filteredListings = (listingRes.data ?? []).filter(listingInRange);
 
-        let nearbyVendors: Vendor[] = (vendorRes.data ?? []).filter((v: Vendor) =>
-          !activeCityObj || (
-            v.city?.toLowerCase() === activeCityObj.city.toLowerCase()
-            && normalizeState(v.state ?? "") === activeCityObj.state
-          )
-        );
+        // RPC already returns only vendors within radius, sorted by distance.
+        let nearbyVendors: Vendor[] = vendorRes.data ?? [];
         if (sort === "rating") nearbyVendors.sort((a, b) => b.rating - a.rating);
         else if (sort === "distance") nearbyVendors.sort((a, b) => (a.distance_miles ?? 0) - (b.distance_miles ?? 0));
         else if (sort === "local_bucks") nearbyVendors.sort((a, b) => b.local_bucks_earned - a.local_bucks_earned);
@@ -349,7 +356,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         setKwListings([]);
         setKwVendors([]);
       } else {
-        // No query, no geo — browse by active city
+        // Fallback: no resolvable center (geocoding pending/failed) — exact-city browse.
         let vendorQ = supabase
           .from("vendors")
           .select("*")
@@ -357,7 +364,6 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           .order("tier", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(12);
-        // Filter by city in DB; normalize state client-side to handle 'MINNESOTA' vs 'MN'
         if (activeCityObj) {
           vendorQ = vendorQ.ilike("city", activeCityObj.city);
         }
@@ -365,21 +371,15 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         const [listingRes, vendorRes] = await Promise.all([
           supabase
             .from("listings")
-            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, rating)")
+            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
             .eq("is_active", true)
             .order("is_featured", { ascending: false })
             .order("created_at", { ascending: false })
-            .limit(40),
+            .limit(80),
           vendorQ,
         ]);
 
-        const filteredListings = activeCityObj
-          ? (listingRes.data ?? []).filter((l: any) => {
-              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.city?.toLowerCase() === activeCityObj.city.toLowerCase()
-                && normalizeState(v?.state ?? "") === activeCityObj.state;
-            })
-          : (listingRes.data ?? []);
+        const filteredListings = (listingRes.data ?? []).filter(listingInRange);
 
         let browseVendors: Vendor[] = (vendorRes.data ?? []).filter((v: Vendor) =>
           !activeCityObj || normalizeState(v.state ?? "") === activeCityObj.state
@@ -393,7 +393,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     } finally {
       setLoading(false);
     }
-  }, [query, citySlug, category, radius, sort, selectedCity, supabase, listingMode, listingType, resolvedCoords, activeCityObj]);
+  }, [query, citySlug, category, radius, sort, selectedCity, supabase, listingMode, listingType, resolvedCoords, activeCityObj, listingInRange]);
 
   useEffect(() => {
     runSearch();
@@ -569,7 +569,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                     </h2>
                     <p className="text-sm text-gray-400 mt-0.5">
                       {productCount} {productCount === 1 ? "result" : "results"}
-                      {activeCityObj && !isKeyword ? ` in ${activeCityObj.label}` : resolvedCoords && !listingMode && !activeCityObj ? ` near ${resolvedCoords.label}` : ""}
+                      {activeCityObj && !isKeyword ? ` within ${radius} mi of ${activeCityObj.label}` : resolvedCoords && !listingMode && !activeCityObj ? ` near ${resolvedCoords.label}` : ""}
                     </p>
                   </div>
                   {!listingMode && !isKeyword && !showFilters && (
@@ -608,7 +608,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                     <h2 className="text-lg font-bold text-gray-900">Local Businesses</h2>
                     <p className="text-sm text-gray-400 mt-0.5">
                       {bizCount} {bizCount === 1 ? "business" : "businesses"}
-                      {activeCityObj ? ` in ${activeCityObj.label}` : resolvedCoords ? ` near ${resolvedCoords.label}` : ""} · Featured first
+                      {activeCityObj ? ` within ${radius} mi of ${activeCityObj.label}` : resolvedCoords ? ` near ${resolvedCoords.label}` : ""} · Featured first
                     </p>
                   </div>
                 </div>

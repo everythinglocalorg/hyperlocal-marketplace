@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { resolveCity, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
+import { resolveCity, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
@@ -63,79 +63,72 @@ export default function HomePage() {
       }
       setAuthChecked(true);
       setActiveCity(resolvedCitySlug);
+      loadCityData(resolvedCitySlug);
+    });
+  }, []);
 
-      const cityObj = resolveCity(resolvedCitySlug);
+  // Load recent listings + new vendors within `radius` miles of a city's center.
+  // Vendors without coordinates fall back to an exact city/state match.
+  async function loadCityData(slug: string) {
+    const supabase = createClient();
+    const cityObj = resolveCity(slug);
+    const center = cityObj ? await fetchCityCenter(cityObj) : null;
 
-      // Fetch recent listings filtered by active city
-      const { data: listings } = await supabase
-        .from("listings")
-        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state)")
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(20);
-      const filteredListings = cityObj
-        ? (listings ?? []).filter((l: any) => {
-            const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-            return v?.slug && v?.city?.toLowerCase() === cityObj.city.toLowerCase() && normalizeState(v?.state ?? "") === cityObj.state;
-          })
-        : (listings ?? []).filter((l: any) => {
-            const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-            return v?.slug;
-          });
-      setRecentListings(filteredListings.slice(0, 8));
+    const inRange = (v: any) => {
+      if (center && v?.latitude != null && v?.longitude != null) {
+        return distanceMiles(center.latitude, center.longitude, v.latitude, v.longitude) <= radius;
+      }
+      if (cityObj) {
+        return v?.city?.toLowerCase() === cityObj.city.toLowerCase() && normalizeState(v?.state ?? "") === cityObj.state;
+      }
+      return true;
+    };
 
-      // Fetch new vendors filtered by active city
-      let vendorsQuery = supabase
+    // Recent listings — filter by the vendor's distance from the city center
+    const { data: listings } = await supabase
+      .from("listings")
+      .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state, latitude, longitude)")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(60);
+    const filteredListings = (listings ?? []).filter((l: any) => {
+      const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+      return v?.slug && inRange(v);
+    });
+    setRecentListings(filteredListings.slice(0, 8));
+
+    // New vendors — use the radius RPC when we have a center, else exact-city
+    if (center) {
+      const { data } = await supabase.rpc("search_vendors_nearby", {
+        p_latitude: center.latitude,
+        p_longitude: center.longitude,
+        p_radius_miles: radius,
+        p_limit: 6,
+        p_offset: 0,
+      });
+      setNewVendors((data ?? []).filter((v: any) => v.slug));
+    } else {
+      let vQ = supabase
         .from("vendors")
         .select("id, business_name, slug, logo_url, category, city, state, rating")
         .eq("is_active", true)
         .not("slug", "is", null)
         .order("created_at", { ascending: false })
         .limit(6);
-      if (cityObj) {
-        vendorsQuery = vendorsQuery.ilike("city", cityObj.city);
-      }
-      const { data: vendors } = await vendorsQuery;
-      setNewVendors(vendors ?? []);
-    });
-  }, []);
+      if (cityObj) vQ = vQ.ilike("city", cityObj.city);
+      const { data } = await vQ;
+      setNewVendors(data ?? []);
+    }
+  }
 
-  function handleCityChange(slug: string, cityObj: any) {
+  function handleCityChange(slug: string, _cityObj: any) {
     setActiveCity(slug);
     if (typeof window !== "undefined") localStorage.setItem(LS_CITY_KEY, slug);
     if (user) {
       const supabase = createClient();
       supabase.from("profiles").update({ default_city: slug }).eq("id", user.id);
     }
-    // Re-fetch listings and vendors for the new city
-    const supabase = createClient();
-    supabase
-      .from("listings")
-      .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state)")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
-        const filtered = cityObj
-          ? (data ?? []).filter((l: any) => {
-              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.slug && v?.city?.toLowerCase() === cityObj.city.toLowerCase() && normalizeState(v?.state ?? "") === cityObj.state;
-            })
-          : (data ?? []).filter((l: any) => {
-              const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.slug;
-            });
-        setRecentListings(filtered.slice(0, 8));
-      });
-    let vQ = supabase
-      .from("vendors")
-      .select("id, business_name, slug, logo_url, category, city, state, rating")
-      .eq("is_active", true)
-      .not("slug", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(6);
-    if (cityObj) vQ = vQ.ilike("city", cityObj.city);
-    vQ.then(({ data }) => setNewVendors(data ?? []));
+    loadCityData(slug);
   }
 
   function handleSearch(e: React.FormEvent) {
