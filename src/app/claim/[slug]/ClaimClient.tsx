@@ -34,9 +34,9 @@ export default function ClaimClient({ vendor, slug }: Props) {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="bg-white rounded-3xl shadow-xl max-w-md w-full overflow-hidden">
         <div className="bg-gray-900 px-8 py-6 text-center">
-          <div className="w-16 h-16 rounded-2xl border-2 border-white/20 bg-white/10 flex items-center justify-center mx-auto mb-4 overflow-hidden">
+          <div className={`w-16 h-16 rounded-2xl border-2 border-white/20 flex items-center justify-center mx-auto mb-4 overflow-hidden ${vendor.logo_url ? "bg-white" : "bg-white/10"}`}>
             {vendor.logo_url
-              ? <img src={vendor.logo_url} alt="" className="w-full h-full object-cover" />
+              ? <img src={vendor.logo_url} alt="" className="w-full h-full object-contain" />
               : <span className="text-white font-black text-2xl">{vendor.business_name[0]}</span>}
           </div>
           <h1 className="text-white font-black text-xl">{vendor.business_name}</h1>

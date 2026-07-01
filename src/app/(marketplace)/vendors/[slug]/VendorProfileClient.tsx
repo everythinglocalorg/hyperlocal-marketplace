@@ -362,9 +362,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
           {/* Back + Logo */}
           <Link href="/search" className="text-gray-400 hover:text-gray-700 transition-colors text-xl shrink-0 leading-none">←</Link>
-          <div className="w-10 h-10 rounded-xl border border-gray-200 bg-gray-50 overflow-hidden shrink-0">
+          <div className="w-10 h-10 rounded-xl border border-gray-200 bg-white overflow-hidden shrink-0 flex items-center justify-center">
             {vendor.logo_url
-              ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-cover" />
+              ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
               : <div className="w-full h-full flex items-center justify-center font-bold text-gray-700 text-sm">{vendor.business_name[0]}</div>}
           </div>
           <div className="hidden sm:block min-w-0 flex-1">

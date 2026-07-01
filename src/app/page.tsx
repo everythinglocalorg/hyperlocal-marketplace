@@ -9,6 +9,7 @@ import { resolveCity, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CI
 import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
+import VendorLogo from "@/components/vendor/VendorLogo";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -361,9 +362,7 @@ export default function HomePage() {
                 {newVendors.map((v) => (
                   <Link key={v.id} href={`/vendors/${v.slug}`}
                     className="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col items-center text-center hover:shadow-md hover:border-green-200 transition-all">
-                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 overflow-hidden mb-2">
-                      {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" /> : v.business_name[0]}
-                    </div>
+                    <VendorLogo src={v.logo_url} name={v.business_name} className="w-12 h-12 mb-2" fallbackTextClass="text-base" />
                     <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">{v.business_name}</p>
                     <p className="text-xs text-gray-400 mt-0.5 truncate w-full">{v.category}</p>
                     {v.rating > 0 && <p className="text-xs text-amber-500 font-medium mt-1">★ {Number(v.rating).toFixed(1)}</p>}

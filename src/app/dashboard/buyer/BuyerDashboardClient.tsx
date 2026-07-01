@@ -5,6 +5,7 @@ import Link from "next/link";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPicksManager";
 import ProfileDetailsEditor, { normalizeDetails } from "@/components/ProfileDetailsEditor";
+import VendorLogo from "@/components/vendor/VendorLogo";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
@@ -450,7 +451,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                     <div key={b.id} className="flex items-center gap-4 px-6 py-4">
                       <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                         {b.vendor?.logo_url
-                          ? <img src={b.vendor.logo_url} alt="" className="w-full h-full object-cover" />
+                          ? <img src={b.vendor.logo_url} alt="" className="w-full h-full object-contain" />
                           : <span className="text-lg">{STATUS_ICONS[b.status]}</span>}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -522,11 +523,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                   {newVendors.map((v) => (
                     <Link key={v.id} href={`/vendors/${v.slug}`}
                       className="flex items-center gap-4 px-6 py-4 hover:bg-green-50 transition-colors">
-                      <div className="w-11 h-11 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
-                        {v.logo_url
-                          ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" />
-                          : v.business_name[0]}
-                      </div>
+                      <VendorLogo src={v.logo_url} name={v.business_name} className="w-11 h-11" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate">{v.business_name}</p>
                         <p className="text-xs text-gray-400">{v.category}</p>
@@ -736,7 +733,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                           <div key={b.id} className="flex items-start gap-4 px-6 py-5">
                             <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center overflow-hidden shrink-0">
                               {b.vendor?.logo_url
-                                ? <img src={b.vendor.logo_url} alt="" className="w-full h-full object-cover" />
+                                ? <img src={b.vendor.logo_url} alt="" className="w-full h-full object-contain" />
                                 : <span className="text-2xl">{STATUS_ICONS[b.status]}</span>}
                             </div>
                             <div className="flex-1 min-w-0">

@@ -89,6 +89,10 @@ type Booking = {
   amount: number | null;
   notes: string | null;
   created_at: string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  title: string | null;
+  source?: string | null;
   buyer: { full_name: string | null; email: string } | null;
   listing: { title: string } | null;
 };
@@ -112,7 +116,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
   { id: "bookings", label: "Estimate & Apt Manager", icon: "📅", premiumOnly: true },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
-  { id: "crm", label: "Customers", icon: "👥", premiumOnly: true },
+  { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
 ];
 
@@ -367,6 +371,26 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     setBookings((prev) => prev.map((b) => b.id === id ? { ...b, status } : b));
   }
 
+  async function createAppointment(input: {
+    title: string; customer_name: string; customer_phone: string;
+    scheduled_at: string; notes: string;
+  }): Promise<{ ok: boolean; error?: string }> {
+    const { error } = await supabase.from("bookings").insert({
+      vendor_id: vendor.id,
+      buyer_id: null,
+      status: "confirmed",
+      source: "manual",
+      title: input.title || null,
+      customer_name: input.customer_name || null,
+      customer_phone: input.customer_phone || null,
+      scheduled_at: input.scheduled_at || null,
+      notes: input.notes || null,
+    });
+    if (error) return { ok: false, error: error.message };
+    await loadBookings();
+    return { ok: true };
+  }
+
   const statusColor: Record<string, string> = {
     pending: "bg-amber-100 text-amber-700",
     confirmed: "bg-blue-100 text-blue-700",
@@ -392,9 +416,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
         <div className="p-4 border-b border-gray-100">
           {/* Business row */}
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0 ${vendor.logo_url ? "bg-white border border-gray-100" : "bg-green-100"}`}>
               {vendor.logo_url
-                ? <img src={vendor.logo_url} alt="" className="w-full h-full object-cover" />
+                ? <img src={vendor.logo_url} alt="" className="w-full h-full object-contain" />
                 : vendor.business_name[0]}
             </div>
             <div className="min-w-0">
@@ -831,6 +855,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 bookings={bookings}
                 loading={loadingBookings}
                 onUpdateStatus={updateBookingStatus}
+                onCreate={createAppointment}
+                vendorName={vendor.business_name}
               />
             ) : <PremiumGate feature="Booking Management" />
           )}
@@ -1933,10 +1959,35 @@ function AnalyticsTab({ listings, stats, vendorId }: { listings: Listing[]; stat
 }
 
 // ── BOOKINGS TAB ──────────────────────────────────────────────
-function BookingsTab({ bookings, loading, onUpdateStatus }: {
+// Build a "prefill a new event" Google Calendar link (opens Google Calendar in a
+// new tab with the appointment details filled in — no OAuth/setup required).
+function googleCalendarUrl(b: Booking, vendorName: string): string {
+  const start = b.scheduled_at ? new Date(b.scheduled_at) : new Date();
+  const end = new Date(start.getTime() + 60 * 60 * 1000); // default 1 hour
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const who = b.customer_name ?? b.buyer?.full_name ?? b.buyer?.email ?? "Customer";
+  const title = b.title ? `${b.title} — ${who}` : `Appointment — ${who}`;
+  const details = [
+    b.customer_phone ? `Phone: ${b.customer_phone}` : "",
+    b.notes ? `Notes: ${b.notes}` : "",
+    `Booked via Everything Local (${vendorName})`,
+  ].filter(Boolean).join("\n");
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: title,
+    dates: `${fmt(start)}/${fmt(end)}`,
+    details,
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function BookingsTab({ bookings, loading, onUpdateStatus, onCreate, vendorName }: {
   bookings: Booking[]; loading: boolean; onUpdateStatus: (id: string, status: string) => void;
+  onCreate: (input: { title: string; customer_name: string; customer_phone: string; scheduled_at: string; notes: string }) => Promise<{ ok: boolean; error?: string }>;
+  vendorName: string;
 }) {
   const [filter, setFilter] = useState<string>("all");
+  const [showNew, setShowNew] = useState(false);
   const filtered = filter === "all" ? bookings : bookings.filter((b) => b.status === filter);
 
   const statusColor: Record<string, string> = {
@@ -1948,9 +1999,9 @@ function BookingsTab({ bookings, loading, onUpdateStatus }: {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Bookings</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {["all", "pending", "confirmed", "completed", "cancelled"].map((s) => (
             <button
               key={s}
@@ -1962,8 +2013,18 @@ function BookingsTab({ bookings, loading, onUpdateStatus }: {
               {s}
             </button>
           ))}
+          <button
+            onClick={() => setShowNew(true)}
+            className="ml-1 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-900 text-white hover:bg-gray-800 transition-colors"
+          >
+            + New Appointment
+          </button>
         </div>
       </div>
+
+      {showNew && (
+        <NewAppointmentModal onClose={() => setShowNew(false)} onCreate={onCreate} />
+      )}
 
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-20 bg-white rounded-xl animate-pulse" />)}</div>
@@ -1980,19 +2041,36 @@ function BookingsTab({ bookings, loading, onUpdateStatus }: {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-semibold text-gray-900 text-sm">
-                      {b.buyer?.full_name ?? b.buyer?.email ?? "Unknown buyer"}
+                      {b.customer_name ?? b.buyer?.full_name ?? b.buyer?.email ?? "Unknown buyer"}
                     </p>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColor[b.status] ?? "bg-gray-100 text-gray-500"}`}>
                       {b.status}
                     </span>
+                    {b.source === "manual" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-gray-100 text-gray-500">Manual</span>
+                    )}
                   </div>
+                  {b.title && <p className="text-xs text-gray-700 font-medium mb-0.5">{b.title}</p>}
                   {b.listing && <p className="text-xs text-gray-500 mb-0.5">📦 {b.listing.title}</p>}
+                  {b.customer_phone && (
+                    <p className="text-xs text-gray-500">📞 <a href={`tel:${b.customer_phone}`} className="hover:text-green-600">{b.customer_phone}</a></p>
+                  )}
                   {b.scheduled_at && (
                     <p className="text-xs text-gray-500">
                       📅 {new Date(b.scheduled_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                     </p>
                   )}
                   {b.notes && <p className="text-xs text-gray-400 mt-1 italic">"{b.notes}"</p>}
+                  {b.scheduled_at && (
+                    <a
+                      href={googleCalendarUrl(b, vendorName)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 mt-2 text-xs font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      📆 Add to Google Calendar
+                    </a>
+                  )}
                 </div>
                 <div className="text-right shrink-0">
                   {b.amount && <p className="font-bold text-gray-900">{formatPrice(b.amount)}</p>}
@@ -2030,6 +2108,122 @@ function BookingsTab({ bookings, loading, onUpdateStatus }: {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── NEW APPOINTMENT MODAL ─────────────────────────────────────
+function NewAppointmentModal({ onClose, onCreate }: {
+  onClose: () => void;
+  onCreate: (input: { title: string; customer_name: string; customer_phone: string; scheduled_at: string; notes: string }) => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [title, setTitle] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    setError(null);
+    if (!name.trim()) { setError("Customer name is required."); return; }
+    if (!date) { setError("Please pick a date."); return; }
+    // Combine local date + time into an ISO timestamp
+    const scheduled_at = new Date(`${date}T${time || "09:00"}`).toISOString();
+    setSaving(true);
+    const res = await onCreate({
+      title: title.trim(),
+      customer_name: name.trim(),
+      customer_phone: phone.trim(),
+      scheduled_at,
+      notes: notes.trim(),
+    });
+    setSaving(false);
+    if (!res.ok) { setError(res.error ?? "Could not create the appointment."); return; }
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-gray-900">New Appointment</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Service / title</label>
+            <input
+              value={title} onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Roof estimate, Consultation"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Customer name <span className="text-red-500">*</span></label>
+            <input
+              value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Phone number</label>
+            <input
+              value={phone} onChange={(e) => setPhone(e.target.value)}
+              type="tel" placeholder="(715) 555-0123"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Date <span className="text-red-500">*</span></label>
+              <input
+                value={date} onChange={(e) => setDate(e.target.value)}
+                type="date"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Time</label>
+              <input
+                value={time} onChange={(e) => setTime(e.target.value)}
+                type="time"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 mb-1">Notes</label>
+            <textarea
+              value={notes} onChange={(e) => setNotes(e.target.value)}
+              rows={3} placeholder="Address, job details, anything to remember…"
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+            />
+          </div>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </div>
+
+        <div className="flex gap-2 mt-5">
+          <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-600 text-sm py-2.5 rounded-xl font-medium hover:bg-gray-50 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={submit} disabled={saving}
+            className="flex-1 bg-green-600 text-white text-sm py-2.5 rounded-xl font-semibold hover:bg-green-700 transition-colors disabled:opacity-40"
+          >
+            {saving ? "Saving…" : "Create Appointment"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

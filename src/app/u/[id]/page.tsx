@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import ShareProfileButton from "./ShareProfileButton";
+import VendorLogo from "@/components/vendor/VendorLogo";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -142,9 +143,7 @@ export default async function PublicProfilePage({ params }: Props) {
                 <div className="space-y-2">
                   {ownedBusinesses.map((b: any) => (
                     <Link key={b.id} href={`/vendors/${b.slug}`} className="flex items-center gap-3 group">
-                      <div className="w-9 h-9 rounded-lg bg-green-100 flex items-center justify-center font-bold text-green-700 text-sm overflow-hidden shrink-0">
-                        {b.logo_url ? <img src={b.logo_url} alt="" className="w-full h-full object-cover" /> : b.business_name[0]?.toUpperCase()}
-                      </div>
+                      <VendorLogo src={b.logo_url} name={b.business_name} className="w-9 h-9" rounded="rounded-lg" />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-green-700 transition-colors">
                           {b.business_name}{b.is_verified && <span className="ml-1 text-blue-500">✓</span>}
@@ -237,9 +236,7 @@ export default async function PublicProfilePage({ params }: Props) {
                 }`}
               >
                 <span className="absolute top-2 left-2.5 text-xs font-bold text-gray-300">{isTop ? "👑" : `#${i + 1}`}</span>
-                <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center font-bold text-xl text-green-700 overflow-hidden mb-2 mt-1">
-                  {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" /> : v.business_name[0]?.toUpperCase()}
-                </div>
+                <VendorLogo src={v.logo_url} name={v.business_name} className="w-14 h-14 mb-2 mt-1" rounded="rounded-2xl" fallbackTextClass="text-xl" />
                 <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2 group-hover:text-green-700 transition-colors">
                   {v.business_name}
                   {v.is_verified && <span className="ml-1 text-blue-500" title="Verified">✓</span>}

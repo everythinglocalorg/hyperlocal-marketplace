@@ -605,8 +605,8 @@ export default function CommunityBoardClient({
                               <p className="text-sm text-gray-700 whitespace-pre-wrap">{renderBody(r.body, r.mentions)}</p>
                               {rv && (
                                 <Link href={`/vendors/${rv.slug}`} className="inline-flex items-center gap-1.5 mt-1 bg-green-50 border border-green-200 rounded-lg px-2 py-1 hover:bg-green-100 transition-colors">
-                                  <div className="w-4 h-4 rounded bg-green-200 flex items-center justify-center text-xs font-bold text-green-800 overflow-hidden">
-                                    {rv.logo_url ? <img src={rv.logo_url} alt="" className="w-full h-full object-cover" /> : rv.business_name[0]}
+                                  <div className={`w-4 h-4 rounded flex items-center justify-center text-xs font-bold text-green-800 overflow-hidden ${rv.logo_url ? "bg-white" : "bg-green-200"}`}>
+                                    {rv.logo_url ? <img src={rv.logo_url} alt="" className="w-full h-full object-contain" /> : rv.business_name[0]}
                                   </div>
                                   <span className="text-xs font-semibold text-green-800">@ {rv.business_name}</span>
                                 </Link>
@@ -664,8 +664,8 @@ export default function CommunityBoardClient({
                                           setResponseVendorSearch((prev) => ({ ...prev, [post.id]: v.business_name }));
                                         }}
                                         className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left hover:bg-green-50 transition-colors">
-                                        <div className="w-5 h-5 rounded bg-green-100 flex items-center justify-center font-bold text-green-700 text-xs shrink-0 overflow-hidden">
-                                          {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" /> : v.business_name[0]}
+                                        <div className={`w-5 h-5 rounded flex items-center justify-center font-bold text-green-700 text-xs shrink-0 overflow-hidden ${v.logo_url ? "bg-white border border-gray-100" : "bg-green-100"}`}>
+                                          {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-contain" /> : v.business_name[0]}
                                         </div>
                                         <span className="font-medium">{v.business_name}</span>
                                         <span className="text-gray-400 ml-auto">{v.city}</span>

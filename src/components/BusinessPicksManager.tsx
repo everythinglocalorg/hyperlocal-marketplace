@@ -27,8 +27,8 @@ const MAX_PICKS = 8;
 
 function VendorAvatar({ v, size = "w-11 h-11" }: { v: PickVendor; size?: string }) {
   return (
-    <div className={`${size} rounded-xl bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden`}>
-      {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-cover" /> : v.business_name[0]?.toUpperCase()}
+    <div className={`${size} rounded-xl flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden ${v.logo_url ? "bg-white border border-gray-100" : "bg-green-100"}`}>
+      {v.logo_url ? <img src={v.logo_url} alt="" className="w-full h-full object-contain" /> : v.business_name[0]?.toUpperCase()}
     </div>
   );
 }
