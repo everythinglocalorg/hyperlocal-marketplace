@@ -19,6 +19,14 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
   const ref = useRef<HTMLDivElement>(null);
 
   const current = cities.find(c => c.slug === value);
+  const states = [...new Set(cities.map(c => c.state))].sort();
+
+  // Derive selected state from current city; default to first state
+  const [selectedState, setSelectedState] = useState<string>(() =>
+    current?.state ?? states[0] ?? ""
+  );
+
+  const citiesInState = cities.filter(c => c.state === selectedState);
 
   // Fetch distinct cities from active vendors and merge with seed cities
   useEffect(() => {
@@ -32,7 +40,6 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
       .then(({ data }) => {
         const seen = new Set(SEED_CITIES.map(c => c.slug));
         const merged: CityOption[] = [...SEED_CITIES];
-
         for (const row of (data ?? [])) {
           if (!row.city?.trim() || !row.state?.trim()) continue;
           const slug = makeSlug(row.city.trim(), row.state.trim());
@@ -46,11 +53,17 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
             });
           }
         }
-
         merged.sort((a, b) => a.state.localeCompare(b.state) || a.city.localeCompare(b.city));
         setCities(merged);
       });
   }, []);
+
+  // Keep selectedState in sync if value changes externally
+  useEffect(() => {
+    if (current?.state && current.state !== selectedState) {
+      setSelectedState(current.state);
+    }
+  }, [current?.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close on outside click
   useEffect(() => {
@@ -61,8 +74,17 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Group cities by state
-  const states = [...new Set(cities.map(c => c.state))].sort();
+  function handleStateChange(state: string) {
+    setSelectedState(state);
+    // Auto-select first city in new state
+    const first = cities.find(c => c.state === state);
+    if (first) onChange(first.slug, first);
+  }
+
+  function handleCityChange(slug: string) {
+    const cityObj = cities.find(c => c.slug === slug);
+    if (cityObj) onChange(slug, cityObj);
+  }
 
   return (
     <div ref={ref} className="relative inline-block">
@@ -81,40 +103,46 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white rounded-2xl shadow-lg border border-gray-100 w-56 overflow-hidden max-h-80 overflow-y-auto">
-          <div className="p-1">
-            {states.map(state => (
-              <div key={state}>
-                <p className="px-3 pt-2 pb-1 text-xs font-bold text-gray-400 uppercase tracking-wider">{state}</p>
-                {cities.filter(c => c.state === state).map(c => (
-                  <button
-                    key={c.slug}
-                    onClick={() => { onChange(c.slug, c); setOpen(false); }}
-                    className={`w-full text-left px-3 py-2 text-sm rounded-xl transition-colors ${
-                      value === c.slug
-                        ? "bg-green-50 text-green-700 font-medium"
-                        : "text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {c.city}
-                  </button>
-                ))}
-              </div>
-            ))}
+        <div className="absolute left-0 top-full mt-1.5 z-50 bg-white rounded-2xl shadow-lg border border-gray-100 w-64 p-4 space-y-3">
+          {/* State dropdown */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">State</label>
+            <select
+              value={selectedState}
+              onChange={(e) => handleStateChange(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {states.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
 
+          {/* City dropdown */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">City</label>
+            <select
+              value={value}
+              onChange={(e) => { handleCityChange(e.target.value); setOpen(false); }}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              {citiesInState.map(c => (
+                <option key={c.slug} value={c.slug}>{c.city}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Radius */}
           {onRadiusChange && radius !== undefined && (
-            <div className="border-t border-gray-100 p-3 sticky bottom-0 bg-white">
+            <div>
               <p className="text-xs font-medium text-gray-500 mb-2">Search radius</p>
               <div className="flex gap-1">
                 {RADIUS_OPTIONS.map(r => (
                   <button
                     key={r}
                     onClick={() => onRadiusChange(r)}
-                    className={`flex-1 py-1 text-xs rounded-lg font-medium transition-colors ${
-                      radius === r
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    className={`flex-1 py-1.5 text-xs rounded-lg font-medium transition-colors ${
+                      radius === r ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >
                     {r}mi
