@@ -70,8 +70,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     }
   }, []);
 
-  // Update active tab highlight as user scrolls
+  // Update active tab highlight as user scrolls (mobile only)
   useEffect(() => {
+    if (window.innerWidth >= 768) return;
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -375,7 +376,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           {/* Desktop tab nav */}
           <nav className="hidden md:flex items-center gap-0 ml-2 h-16">
             {(["services", "reviews", "about"] as const).map((s) => (
-              <button key={s} onClick={() => scrollToSection(s)}
+              <button key={s} onClick={() => window.innerWidth >= 768 ? setActiveSection(s) : scrollToSection(s)}
                 className={`px-4 h-full text-sm font-semibold border-b-2 transition-colors ${
                   activeSection === s ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"
                 }`}>
@@ -438,7 +439,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         <div className="flex-1 min-w-0 w-full">
 
         {/* ── SERVICES & PRODUCTS ───────────────────────────────── */}
-        <div id="services" ref={(el) => { sectionRefs.current.services = el; }}>
+        <div id="services" ref={(el) => { sectionRefs.current.services = el; }} className={`md:${activeSection === "services" ? "block" : "hidden"}`}>
             {vendor.description && (
               <p className="text-gray-500 text-base leading-relaxed mb-8 max-w-2xl">{vendor.description}</p>
             )}
@@ -495,7 +496,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
 
         {/* ── REVIEWS ───────────────────────────────────────────── */}
-        <div id="reviews" ref={(el) => { sectionRefs.current.reviews = el; }} className="max-w-2xl mt-16 pt-8 border-t border-gray-100">
+        <div id="reviews" ref={(el) => { sectionRefs.current.reviews = el; }} className={`max-w-2xl mt-16 pt-8 border-t border-gray-100 md:mt-0 md:pt-0 md:border-t-0 md:${activeSection === "reviews" ? "block" : "hidden"}`}>
             {localReviews.length > 0 && (
               <div className="bg-gray-50 rounded-2xl p-6 mb-8 flex items-center gap-8">
                 <div className="text-center">
@@ -585,7 +586,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
 
         {/* ── ABOUT ─────────────────────────────────────────────── */}
-        <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className="max-w-2xl space-y-6 mt-16 pt-8 border-t border-gray-100">
+        <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className={`max-w-2xl space-y-6 mt-16 pt-8 border-t border-gray-100 md:mt-0 md:pt-0 md:border-t-0 md:${activeSection === "about" ? "block" : "hidden"}`}>
             <div>
               <h2 className="text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
               {vendor.description
