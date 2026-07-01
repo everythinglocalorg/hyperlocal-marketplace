@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { CITIES as LIB_CITIES, cityFromSlug, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
+import { cityFromSlug, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
@@ -76,7 +76,7 @@ export default function HomePage() {
       const filteredListings = cityObj
         ? (listings ?? []).filter((l: any) => {
             const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-            return v?.slug && v?.city === cityObj.city && v?.state === cityObj.state;
+            return v?.slug && v?.city?.toLowerCase() === cityObj.city.toLowerCase() && normalizeState(v?.state ?? "") === cityObj.state;
           })
         : (listings ?? []).filter((l: any) => {
             const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
@@ -93,7 +93,7 @@ export default function HomePage() {
         .order("created_at", { ascending: false })
         .limit(6);
       if (cityObj) {
-        vendorsQuery = vendorsQuery.eq("city", cityObj.city).eq("state", cityObj.state);
+        vendorsQuery = vendorsQuery.ilike("city", cityObj.city);
       }
       const { data: vendors } = await vendorsQuery;
       setNewVendors(vendors ?? []);
@@ -119,7 +119,7 @@ export default function HomePage() {
         const filtered = cityObj
           ? (data ?? []).filter((l: any) => {
               const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.slug && v?.city === cityObj.city && v?.state === cityObj.state;
+              return v?.slug && v?.city?.toLowerCase() === cityObj.city.toLowerCase() && normalizeState(v?.state ?? "") === cityObj.state;
             })
           : (data ?? []).filter((l: any) => {
               const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
@@ -134,7 +134,7 @@ export default function HomePage() {
       .not("slug", "is", null)
       .order("created_at", { ascending: false })
       .limit(6);
-    if (cityObj) vQ = vQ.eq("city", cityObj.city).eq("state", cityObj.state);
+    if (cityObj) vQ = vQ.ilike("city", cityObj.city);
     vQ.then(({ data }) => setNewVendors(data ?? []));
   }
 

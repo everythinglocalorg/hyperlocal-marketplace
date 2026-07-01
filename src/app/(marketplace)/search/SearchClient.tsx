@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CITIES, CATEGORIES } from "@/types";
-import { cityFromSlug, makeSlug, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption } from "@/lib/cities";
+import { cityFromSlug, makeSlug, normalizeState, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
 import CitySelector from "@/components/CitySelector";
@@ -266,7 +266,8 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         const cityFiltered = activeCityObj
           ? (data ?? []).filter((l: any) => {
               const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.city === activeCityObj.city && v?.state === activeCityObj.state;
+              return v?.city?.toLowerCase() === activeCityObj.city.toLowerCase()
+                && normalizeState(v?.state ?? "") === activeCityObj.state;
             })
           : (data ?? []);
         setListingResults(cityFiltered);
@@ -318,12 +319,16 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         const filteredListings = activeCityObj
           ? (listingRes.data ?? []).filter((l: any) => {
               const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.city === activeCityObj.city && v?.state === activeCityObj.state;
+              return v?.city?.toLowerCase() === activeCityObj.city.toLowerCase()
+                && normalizeState(v?.state ?? "") === activeCityObj.state;
             })
           : (listingRes.data ?? []);
 
         let nearbyVendors: Vendor[] = (vendorRes.data ?? []).filter((v: Vendor) =>
-          !activeCityObj || (v.city === activeCityObj.city && v.state === activeCityObj.state)
+          !activeCityObj || (
+            v.city?.toLowerCase() === activeCityObj.city.toLowerCase()
+            && normalizeState(v.state ?? "") === activeCityObj.state
+          )
         );
         if (sort === "rating") nearbyVendors.sort((a, b) => b.rating - a.rating);
         else if (sort === "distance") nearbyVendors.sort((a, b) => (a.distance_miles ?? 0) - (b.distance_miles ?? 0));
@@ -342,8 +347,9 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           .order("tier", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(12);
+        // Filter by city in DB; normalize state client-side to handle 'MINNESOTA' vs 'MN'
         if (activeCityObj) {
-          vendorQ = vendorQ.eq("city", activeCityObj.city).eq("state", activeCityObj.state);
+          vendorQ = vendorQ.ilike("city", activeCityObj.city);
         }
 
         const [listingRes, vendorRes] = await Promise.all([
@@ -360,11 +366,14 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         const filteredListings = activeCityObj
           ? (listingRes.data ?? []).filter((l: any) => {
               const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
-              return v?.city === activeCityObj.city && v?.state === activeCityObj.state;
+              return v?.city?.toLowerCase() === activeCityObj.city.toLowerCase()
+                && normalizeState(v?.state ?? "") === activeCityObj.state;
             })
           : (listingRes.data ?? []);
 
-        let browseVendors: Vendor[] = vendorRes.data ?? [];
+        let browseVendors: Vendor[] = (vendorRes.data ?? []).filter((v: Vendor) =>
+          !activeCityObj || normalizeState(v.state ?? "") === activeCityObj.state
+        );
         if (category) browseVendors = browseVendors.filter((v) => v.category === category);
         setListingResults(filteredListings);
         setVendors(browseVendors);

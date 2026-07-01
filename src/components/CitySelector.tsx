@@ -2,28 +2,9 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { SEED_CITIES, makeSlug, type CityOption } from "@/lib/cities";
+import { SEED_CITIES, makeSlug, normalizeState, type CityOption } from "@/lib/cities";
 
 const RADIUS_OPTIONS = [10, 25, 50, 100];
-
-const STATE_ABBR: Record<string, string> = {
-  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA",
-  colorado: "CO", connecticut: "CT", delaware: "DE", florida: "FL", georgia: "GA",
-  hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
-  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD",
-  massachusetts: "MA", michigan: "MI", minnesota: "MN", mississippi: "MS",
-  missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV", "new hampshire": "NH",
-  "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC",
-  "north dakota": "ND", ohio: "OH", oklahoma: "OK", oregon: "OR", pennsylvania: "PA",
-  "rhode island": "RI", "south carolina": "SC", "south dakota": "SD", tennessee: "TN",
-  texas: "TX", utah: "UT", vermont: "VT", virginia: "VA", washington: "WA",
-  "west virginia": "WV", wisconsin: "WI", wyoming: "WY",
-};
-
-function normalizeState(s: string): string {
-  if (s.length === 2) return s.toUpperCase();
-  return STATE_ABBR[s.toLowerCase()] ?? s.toUpperCase();
-}
 
 interface Props {
   value: string;
