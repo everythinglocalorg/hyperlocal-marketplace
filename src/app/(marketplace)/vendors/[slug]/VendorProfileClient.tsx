@@ -374,7 +374,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
           {/* Desktop tab nav */}
           <nav className="hidden md:flex items-center gap-0 ml-2 h-16">
-            {(["services", "about", "reviews"] as const).map((s) => (
+            {(["about", "services", "reviews"] as const).map((s) => (
               <button key={s} onClick={() => scrollToSection(s)}
                 className={`px-4 h-full text-sm font-semibold border-b-2 transition-colors ${
                   activeSection === s ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"
@@ -423,7 +423,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
         {/* Mobile tab row */}
         <div className="md:hidden border-t border-gray-100 flex">
-          {(["services", "about", "reviews"] as const).map((s) => (
+          {(["about", "services", "reviews"] as const).map((s) => (
             <button key={s} onClick={() => scrollToSection(s)}
               className={`flex-1 py-3 text-xs font-semibold border-b-2 transition-colors ${
                 activeSection === s ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400"
@@ -437,11 +437,16 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col lg:flex-row gap-8 items-start">
         <div className="flex-1 min-w-0 w-full">
 
+        {/* ── ABOUT ─────────────────────────────────────────────── */}
+        <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className="max-w-2xl mb-12">
+          <h2 className="text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
+          {vendor.description
+            ? <p className="text-gray-600 leading-relaxed whitespace-pre-line">{vendor.description}</p>
+            : <p className="text-gray-400">No description provided yet.</p>}
+        </div>
+
         {/* ── SERVICES & PRODUCTS ───────────────────────────────── */}
         <div id="services" ref={(el) => { sectionRefs.current.services = el; }}>
-            {vendor.description && (
-              <p className="text-gray-500 text-base leading-relaxed mb-8 max-w-2xl">{vendor.description}</p>
-            )}
             {orderedListings.length === 0 ? (
               <>
                 {pageBlocks.length > 0 && renderPhotoBlocks()}
@@ -469,7 +474,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                   ))}
                 </div>
 
-                {/* Photo content blocks, shown under the top 3 products */}
+                {/* Photo content blocks */}
                 {pageBlocks.length > 0 && (
                   <div className="my-10 border-y border-gray-100">{renderPhotoBlocks()}</div>
                 )}
@@ -494,49 +499,39 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             )}
         </div>
 
-        {/* ── ABOUT ─────────────────────────────────────────────── */}
-        <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className="max-w-2xl space-y-6 mt-16 pt-8 border-t border-gray-100">
-            <div>
-              <h2 className="text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
-              {vendor.description
-                ? <p className="text-gray-600 leading-relaxed whitespace-pre-line">{vendor.description}</p>
-                : <p className="text-gray-400">No description provided yet.</p>}
+        {/* ── CONTACT & LOCATION ────────────────────────────────── */}
+        <div className="max-w-2xl mt-16 pt-8 border-t border-gray-100 space-y-4">
+          <h2 className="text-xl font-black text-gray-900">Contact & Location</h2>
+          {vendor.address && (
+            <div className="flex items-start gap-3 text-sm">
+              <span className="text-xl">📍</span>
+              <div><p className="font-semibold text-gray-700">Address</p><p className="text-gray-500">{vendor.address}, {vendor.city}, {vendor.state} {vendor.zip_code}</p></div>
             </div>
-
-            <div className="border-t border-gray-100 pt-6 space-y-4">
-              <h2 className="text-xl font-black text-gray-900">Contact & Location</h2>
-              {vendor.address && (
-                <div className="flex items-start gap-3 text-sm">
-                  <span className="text-xl">📍</span>
-                  <div><p className="font-semibold text-gray-700">Address</p><p className="text-gray-500">{vendor.address}, {vendor.city}, {vendor.state} {vendor.zip_code}</p></div>
-                </div>
-              )}
-              {vendor.phone && (
-                <div className="flex items-start gap-3 text-sm">
-                  <span className="text-xl">📞</span>
-                  <div><p className="font-semibold text-gray-700">Phone</p><a href={`tel:${vendor.phone}`} className="text-green-600 hover:underline">{vendor.phone}</a></div>
-                </div>
-              )}
-              {vendor.website && (
-                <div className="flex items-start gap-3 text-sm">
-                  <span className="text-xl">🌐</span>
-                  <div><p className="font-semibold text-gray-700">Website</p><a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline break-all">{vendor.website}</a></div>
-                </div>
-              )}
-              <div className="flex items-start gap-3 text-sm">
-                <span className="text-xl">🗺️</span>
-                <div><p className="font-semibold text-gray-700">Service Area</p><p className="text-gray-500">Within {vendor.service_radius_miles} miles of {vendor.city}, {vendor.state}</p></div>
-              </div>
+          )}
+          {vendor.phone && (
+            <div className="flex items-start gap-3 text-sm">
+              <span className="text-xl">📞</span>
+              <div><p className="font-semibold text-gray-700">Phone</p><a href={`tel:${vendor.phone}`} className="text-green-600 hover:underline">{vendor.phone}</a></div>
             </div>
-
-            <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white">
-              <h3 className="font-bold mb-1">Know someone who'd love this business?</h3>
-              <p className="text-green-100 text-sm mb-4">Share your link and earn <strong>50 Local Bucks</strong> when they sign up.</p>
-              <button onClick={copyShareLink} className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${copied ? "bg-white text-green-700" : "bg-white/20 text-white hover:bg-white/30"}`}>
-                {copied ? "✓ Copied!" : currentUserReferralCode ? "Copy your referral link" : "Copy link"}
-              </button>
-              {!currentUserId && <p className="text-green-200 text-xs text-center mt-2"><Link href="/signup" className="underline">Sign up</Link> to get your referral link</p>}
+          )}
+          {vendor.website && (
+            <div className="flex items-start gap-3 text-sm">
+              <span className="text-xl">🌐</span>
+              <div><p className="font-semibold text-gray-700">Website</p><a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline break-all">{vendor.website}</a></div>
             </div>
+          )}
+          <div className="flex items-start gap-3 text-sm">
+            <span className="text-xl">🗺️</span>
+            <div><p className="font-semibold text-gray-700">Service Area</p><p className="text-gray-500">Within {vendor.service_radius_miles} miles of {vendor.city}, {vendor.state}</p></div>
+          </div>
+          <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white mt-4">
+            <h3 className="font-bold mb-1">Know someone who'd love this business?</h3>
+            <p className="text-green-100 text-sm mb-4">Share your link and earn <strong>50 Local Bucks</strong> when they sign up.</p>
+            <button onClick={copyShareLink} className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${copied ? "bg-white text-green-700" : "bg-white/20 text-white hover:bg-white/30"}`}>
+              {copied ? "✓ Copied!" : currentUserReferralCode ? "Copy your referral link" : "Copy link"}
+            </button>
+            {!currentUserId && <p className="text-green-200 text-xs text-center mt-2"><Link href="/signup" className="underline">Sign up</Link> to get your referral link</p>}
+          </div>
         </div>
 
         {/* ── REVIEWS ───────────────────────────────────────────── */}
