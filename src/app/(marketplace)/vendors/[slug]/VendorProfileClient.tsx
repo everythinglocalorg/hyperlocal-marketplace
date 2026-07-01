@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { track } from "@/lib/analytics";
 import { formatPrice } from "@/lib/utils";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
@@ -198,6 +199,24 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     supabase.rpc("increment_vendor_profile_views", { vendor_id_in: vendor.id }).then(() => {});
   }, [supabase, vendor.id]);
 
+  // First-party analytics: full event with context (every view, not session-deduped)
+  useEffect(() => {
+    track("vendor_profile_view", {
+      vendor_id: vendor.id,
+      vendor_slug: vendor.slug,
+      category: vendor.category,
+      city: `${vendor.city}, ${vendor.state}`,
+      tier: vendor.tier,
+      is_claimed: vendor.is_claimed,
+      logged_in: !!currentUserId,
+      via_referral: !!inboundRefCode,
+    });
+    if (!vendor.is_claimed) {
+      track("claim_banner_view", { vendor_id: vendor.id, vendor_slug: vendor.slug });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendor.id]);
+
   // Bump a listing's click count when a visitor acts on it (buy/book/message).
   function trackClick(listingId: string) {
     supabase.rpc("increment_listing_clicks", { listing_id_in: listingId }).then(() => {});
@@ -349,6 +368,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             </div>
             <a
               href={`/claim/${vendor.slug}`}
+              onClick={() => track("claim_banner_click", { vendor_id: vendor.id, vendor_slug: vendor.slug })}
               className="shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors whitespace-nowrap"
             >
               Claim it free →

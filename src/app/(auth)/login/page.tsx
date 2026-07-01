@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { track } from "@/lib/analytics";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,6 +35,8 @@ export default function LoginPage() {
       .select("role")
       .eq("id", data.user.id)
       .single();
+
+    track("login", { role: profile?.role ?? "buyer", method: "password" });
 
     // Sync neighborhood from localStorage to profile
     const savedNeighborhood = localStorage.getItem("hl_neighborhood");

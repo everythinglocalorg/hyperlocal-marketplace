@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { track, trackSearch } from "@/lib/analytics";
 import { CITIES, CATEGORIES } from "@/types";
 import { cityFromSlug, resolveCity, makeSlug, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption, type CityCenter } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
@@ -50,11 +51,12 @@ const SORT_OPTIONS = [
   { value: "local_bucks", label: "Most Local Bucks" },
 ];
 
-function ListingCard({ l }: { l: any }) {
+function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
   return (
     <Link
       href={vendor?.slug ? `/vendors/${vendor.slug}` : `/listings/${l.id}`}
+      onClick={onClick}
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
     >
       <div className="h-36 bg-gray-100 relative">
@@ -87,10 +89,11 @@ function ListingCard({ l }: { l: any }) {
   );
 }
 
-function KeywordListingCard({ r }: { r: SearchResult }) {
+function KeywordListingCard({ r, onClick }: { r: SearchResult; onClick?: () => void }) {
   return (
     <Link
       href={`/listings/${r.id}`}
+      onClick={onClick}
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
     >
       <div className="h-36 bg-gray-100 relative">
@@ -112,10 +115,11 @@ function KeywordListingCard({ r }: { r: SearchResult }) {
   );
 }
 
-function KeywordVendorCard({ r }: { r: SearchResult }) {
+function KeywordVendorCard({ r, onClick }: { r: SearchResult; onClick?: () => void }) {
   return (
     <Link
       href={r.slug ? `/vendors/${r.slug}` : "#"}
+      onClick={onClick}
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
     >
       <div className="h-36 bg-gray-100 relative">
@@ -297,10 +301,20 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         else if (category) q = q.eq("category", category);
         q = q.order("is_featured", { ascending: false }).order("created_at", { ascending: false }).limit(80);
         const { data } = await q;
-        setListingResults((data ?? []).filter(listingInRange));
+        const inRange = (data ?? []).filter(listingInRange);
+        setListingResults(inRange);
         setKwListings([]);
         setKwVendors([]);
         setVendors([]);
+        trackSearch({
+          query: "",
+          mode: "listings",
+          type: listingType || undefined,
+          category: category || undefined,
+          city: activeCityObj?.label,
+          radius,
+          result_count: inRange.length,
+        });
         return;
       }
 
@@ -322,6 +336,13 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         setKwVendors(vendorResults);
         setListingResults([]);
         setVendors([]);
+        trackSearch({
+          query: query.trim(),
+          category: category || undefined,
+          city: activeCityObj?.label ?? citySlug,
+          radius,
+          result_count: results.length,
+        });
       } else if (resolvedCoords) {
         // Geo/nearby mode — vendors within `radius` miles (via RPC), and
         // listings whose vendor falls within the same radius.
@@ -355,6 +376,14 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         setVendors(nearbyVendors);
         setKwListings([]);
         setKwVendors([]);
+        trackSearch({
+          query: "",
+          mode: "geo",
+          category: category || undefined,
+          city: resolvedCoords.label,
+          radius,
+          result_count: filteredListings.length + nearbyVendors.length,
+        });
       } else {
         // Fallback: no resolvable center (geocoding pending/failed) — exact-city browse.
         let vendorQ = supabase
@@ -389,6 +418,14 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         setVendors(browseVendors);
         setKwListings([]);
         setKwVendors([]);
+        trackSearch({
+          query: "",
+          mode: "browse",
+          category: category || undefined,
+          city: activeCityObj?.label,
+          radius,
+          result_count: filteredListings.length + browseVendors.length,
+        });
       }
     } finally {
       setLoading(false);
@@ -512,7 +549,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
             <button
-              onClick={() => { setCategory(""); updateURL({ category: "", type: "", mode: "" }); }}
+              onClick={() => { track("category_pill_click", { category: "All", source: "search" }); setCategory(""); updateURL({ category: "", type: "", mode: "" }); }}
               className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                 !category && !listingMode ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
@@ -522,7 +559,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
             {CATEGORIES.map((c) => (
               <button
                 key={c}
-                onClick={() => { setCategory(c); updateURL({ category: c, mode: "listings", type: "" }); }}
+                onClick={() => { track("category_pill_click", { category: c, source: "search" }); setCategory(c); updateURL({ category: c, mode: "listings", type: "" }); }}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   category === c ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
@@ -586,10 +623,37 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {listingMode
-                    ? listingResults.map((l: any) => <ListingCard key={l.id} l={l} />)
+                    ? listingResults.map((l: any, i: number) => (
+                        <ListingCard key={l.id} l={l} onClick={() => track("search_result_click", {
+                          query: "",
+                          mode: "listings",
+                          result_type: "listing",
+                          result_id: l.id,
+                          position: i + 1,
+                          total_results: listingResults.length,
+                        })} />
+                      ))
                     : isKeyword
-                    ? kwListings.map((r) => <KeywordListingCard key={r.id} r={r} />)
-                    : listingResults.map((l: any) => <ListingCard key={l.id} l={l} />)}
+                    ? kwListings.map((r, i) => (
+                        <KeywordListingCard key={r.id} r={r} onClick={() => track("search_result_click", {
+                          query: query.trim(),
+                          result_type: "listing",
+                          result_id: r.id,
+                          slug: r.slug ?? null,
+                          position: i + 1,
+                          total_results: kwListings.length,
+                        })} />
+                      ))
+                    : listingResults.map((l: any, i: number) => (
+                        <ListingCard key={l.id} l={l} onClick={() => track("search_result_click", {
+                          query: "",
+                          mode: "browse",
+                          result_type: "listing",
+                          result_id: l.id,
+                          position: i + 1,
+                          total_results: listingResults.length,
+                        })} />
+                      ))}
                 </div>
               </section>
             ) : !listingMode ? null : (
@@ -614,8 +678,32 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {isKeyword
-                    ? kwVendors.map((r) => <KeywordVendorCard key={r.id} r={r} />)
-                    : vendors.map((v) => <VendorCard key={v.id} vendor={v} />)}
+                    ? kwVendors.map((r, i) => (
+                        <KeywordVendorCard key={r.id} r={r} onClick={() => track("search_result_click", {
+                          query: query.trim(),
+                          result_type: "vendor",
+                          result_id: r.id,
+                          slug: r.slug ?? null,
+                          position: i + 1,
+                          total_results: kwVendors.length,
+                        })} />
+                      ))
+                    : vendors.map((v, i) => (
+                        <div
+                          key={v.id}
+                          onClickCapture={() => track("search_result_click", {
+                            query: "",
+                            mode: resolvedCoords ? "geo" : "browse",
+                            result_type: "vendor",
+                            result_id: v.id,
+                            slug: v.slug,
+                            position: i + 1,
+                            total_results: vendors.length,
+                          })}
+                        >
+                          <VendorCard vendor={v} />
+                        </div>
+                      ))}
                 </div>
               </section>
             )}
