@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { SEED_CITIES, makeSlug, normalizeState, type CityOption } from "@/lib/cities";
+import { SEED_CITIES, makeSlug, normalizeState, resolveCity, type CityOption } from "@/lib/cities";
 
 const RADIUS_OPTIONS = [10, 25, 50, 100];
 
@@ -18,7 +18,8 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
   const [cities, setCities] = useState<CityOption[]>(SEED_CITIES);
   const ref = useRef<HTMLDivElement>(null);
 
-  const current = cities.find(c => c.slug === value);
+  // Fall back to parsing the slug so towns without vendors still show their name
+  const current = cities.find(c => c.slug === value) ?? resolveCity(value);
   const states = [...new Set(cities.map(c => c.state))].sort();
 
   // Derive selected state from current city; default to first state

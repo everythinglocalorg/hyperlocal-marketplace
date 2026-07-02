@@ -455,12 +455,20 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             🏪 Manage My Store
           </button>
           {vendor.city && (
-            <Link
-              href={`/community/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
-              className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-green-300 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-50 transition-colors"
-            >
-              🏘️ Ask Your Neighbors
-            </Link>
+            <>
+              <Link
+                href={`/community/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-green-300 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-50 transition-colors"
+              >
+                🏘️ Ask Your Neighbors
+              </Link>
+              <Link
+                href={`/jobs/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
+                className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-green-300 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-50 transition-colors"
+              >
+                💼 Post a Job
+              </Link>
+            </>
           )}
 
           {/* Local Profile — switch from this business view to your own Top 8 */}

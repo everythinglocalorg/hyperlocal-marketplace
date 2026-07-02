@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { LS_CITY_KEY } from "@/lib/cities";
+import CitySelector from "@/components/CitySelector";
 
 const TYPE_CONFIG = {
   general:  { label: "General",         icon: "💬", color: "bg-gray-100 text-gray-600" },
@@ -52,6 +54,16 @@ export default function CommunityBoardClient({
   const supabase = createClient();
   const router = useRouter();
   const isAdmin = currentUser?.role === "admin";
+
+  // Switch towns — browse any town's board (travelers, nearby areas)
+  function switchCity(slug: string) {
+    if (slug === citySlug) return;
+    localStorage.setItem(LS_CITY_KEY, slug);
+    if (currentUser) {
+      supabase.from("profiles").update({ default_city: slug }).eq("id", currentUser.id).then(() => {});
+    }
+    router.push(`/community/${slug}`);
+  }
 
   const [posts, setPosts] = useState(initialPosts);
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
@@ -418,13 +430,24 @@ export default function CommunityBoardClient({
           <div className="flex items-center gap-3">
             <Link href="/" className="text-green-600 font-bold text-lg">Everything Local</Link>
             <span className="text-gray-300">/</span>
-            <span className="text-sm font-semibold text-gray-700">📍 {cityName}, {stateCode}</span>
+            <CitySelector value={citySlug} onChange={(slug) => switchCity(slug)} />
           </div>
           {isAdmin && <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-1 rounded-full">Admin</span>}
         </div>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6">
+
+        {/* Board tabs — the Jobs Board is a sibling of the Neighborhood Chat */}
+        <div className="flex gap-2 mb-4">
+          <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
+            💬 Neighborhood Chat
+          </span>
+          <Link href={`/jobs/${citySlug}`}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
+            💼 Jobs Board
+          </Link>
+        </div>
 
         <h1 className="text-2xl font-bold text-gray-900 mb-5">
           What's Happening in {cityName}

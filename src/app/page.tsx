@@ -38,7 +38,6 @@ export default function HomePage() {
   const [authChecked, setAuthChecked] = useState(false);
   const [recentListings, setRecentListings] = useState<any[]>([]);
   const [newVendors, setNewVendors] = useState<any[]>([]);
-  const [localCity, setLocalCity] = useState<string | null>(null);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [radius, setRadius] = useState(50);
 
@@ -60,7 +59,6 @@ export default function HomePage() {
         setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", u.id).eq("is_read", false)
           .then(({ count }) => setNotifUnread(count ?? 0));
-        if (profile?.city) setLocalCity(profile.city);
         if (profile?.default_city) resolvedCitySlug = profile.default_city;
       }
       setAuthChecked(true);
@@ -202,14 +200,18 @@ export default function HomePage() {
                     </span>
                   )}
                 </Link>
-                {localCity && (
-                  <Link
-                    href={`/community/${localCity.toLowerCase().replace(/\s+/g, "-")}-mn`}
-                    className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
-                  >
-                    🏘️ Ask Your Neighbors
-                  </Link>
-                )}
+                <Link
+                  href={`/community/${activeCity}`}
+                  className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
+                >
+                  🏘️ Ask Your Neighbors
+                </Link>
+                <Link
+                  href={`/jobs/${activeCity}`}
+                  className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
+                >
+                  💼 Local Jobs
+                </Link>
                 <Link
                   href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
                   className="text-sm bg-green-600 text-white px-3 sm:px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap"
@@ -367,21 +369,23 @@ export default function HomePage() {
             <p className="text-3xl mb-3">🏘️</p>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Have a question?</h2>
             <p className="text-gray-500 text-base mb-6">
-              {localCity
-                ? `Post to the ${localCity} neighbor board — ask for help, find a product, or request a local service.`
-                : "Find your local neighbor board — ask for help, find a product, or request a local service."}
+              Post to the {resolveCity(activeCity)?.label ?? activeCity} neighbor board — ask for help, find a product, or request a local service.
             </p>
-            <Link
-              href={localCity
-                ? `/community/${localCity.toLowerCase().replace(/\s+/g, "-")}-mn`
-                : "/community/wells-township-mn"}
-              className="inline-block bg-green-600 text-white font-bold px-8 py-3.5 rounded-full hover:bg-green-700 transition-colors"
-            >
-              Ask Your Neighbors →
-            </Link>
-            {!localCity && (
-              <p className="text-xs text-gray-400 mt-3">Enter your city in the search bar above to see your local board</p>
-            )}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link
+                href={`/community/${activeCity}`}
+                className="inline-block bg-green-600 text-white font-bold px-8 py-3.5 rounded-full hover:bg-green-700 transition-colors"
+              >
+                Ask Your Neighbors →
+              </Link>
+              <Link
+                href={`/jobs/${activeCity}`}
+                className="inline-block bg-white border border-green-300 text-green-700 font-bold px-8 py-3.5 rounded-full hover:bg-green-50 transition-colors"
+              >
+                💼 Browse Local Jobs
+              </Link>
+            </div>
+            <p className="text-xs text-gray-400 mt-3">Switch towns with the city selector above to browse other boards</p>
           </div>
         </section>
 
@@ -455,7 +459,8 @@ export default function HomePage() {
           <div>
             <p className="font-bold text-gray-900 mb-3">Community</p>
             <ul className="space-y-2">
-              <li><Link href="/community/wells-township-mn" className="hover:text-green-600">Neighbor Board</Link></li>
+              <li><Link href={`/community/${activeCity}`} className="hover:text-green-600">Neighbor Board</Link></li>
+              <li><Link href={`/jobs/${activeCity}`} className="hover:text-green-600">Jobs Board</Link></li>
               <li><Link href="/signup" className="hover:text-green-600">Join Free</Link></li>
             </ul>
           </div>
