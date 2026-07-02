@@ -130,6 +130,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const ctaOrderUrl = ctaBtn?.url ?? null;
   const CTA_LABELS: Record<string, string> = { call: "Call", estimate: "Request Free Estimate", order: "Order Now" };
 
+  // Hide the "website" link when it just points back to Everything Local itself
+  // (imported vendors default their website to every1local.com/vendors/…).
+  const externalWebsite = vendor.website && !/every1local\.com/i.test(vendor.website) ? vendor.website : null;
+
   // Service-based businesses request estimates; product/food/retail businesses "get in touch".
   const isServiceBased = SERVICE_CATEGORIES.has(vendor.category);
   const inquiryHeading = isServiceBased ? "Request A Free Estimate" : "Get in Touch";
@@ -551,10 +555,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               <div><p className="font-semibold text-gray-700">Phone</p><a href={`tel:${vendor.phone}`} className="text-green-600 hover:underline">{vendor.phone}</a></div>
             </div>
           )}
-          {vendor.website && (
+          {externalWebsite && (
             <div className="flex items-start gap-3 text-sm">
               <span className="text-xl">🌐</span>
-              <div><p className="font-semibold text-gray-700">Website</p><a href={vendor.website} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline break-all">{vendor.website}</a></div>
+              <div><p className="font-semibold text-gray-700">Website</p><a href={externalWebsite} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline break-all">{externalWebsite}</a></div>
             </div>
           )}
           <div className="flex items-start gap-3 text-sm">
@@ -747,16 +751,16 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           </div>
 
           {/* Quick contact links below the form */}
-          {(vendor.phone || vendor.website) && (
+          {(vendor.phone || externalWebsite) && (
             <div className="mt-4 space-y-2">
               {vendor.phone && (
                 <a href={`tel:${vendor.phone}`} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:border-gray-400 transition-colors">
                   <span className="text-lg">📞</span> {vendor.phone}
                 </a>
               )}
-              {vendor.website && (
-                <a href={vendor.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:border-gray-400 transition-colors">
-                  <span className="text-lg">🌐</span> {vendor.website.replace(/^https?:\/\//, "").split("/")[0]}
+              {externalWebsite && (
+                <a href={externalWebsite} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:border-gray-400 transition-colors">
+                  <span className="text-lg">🌐</span> {externalWebsite.replace(/^https?:\/\//, "").split("/")[0]}
                 </a>
               )}
             </div>
