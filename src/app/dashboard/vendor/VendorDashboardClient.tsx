@@ -765,9 +765,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   </div>
                 </div>
                 <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-                  <p className="text-sm font-medium text-gray-500 mb-1">Local Bucks Earned</p>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Local Bucks</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-amber-600">{vendor.local_bucks_earned.toLocaleString()}</span>
+                    {/* Same wallet balance as your personal page — one balance per account */}
+                    <span className="text-3xl font-bold text-amber-600">{(profile?.local_bucks ?? 0).toLocaleString()}</span>
                     <span className="text-amber-400 text-sm">🪙</span>
                   </div>
                 </div>
