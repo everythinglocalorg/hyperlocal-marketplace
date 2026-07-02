@@ -74,7 +74,8 @@ export default function GlobalHeader() {
                   </span>
                 )}
               </Link>
-              <Link href={`/community/${activeCity}`} title="Neighborhood Chat" className="relative text-xl leading-none">
+              {/* Neighborhood icon: mobile only (desktop uses the pill) */}
+              <Link href={`/community/${activeCity}`} title="Neighborhood Chat" className="relative text-xl leading-none lg:hidden">
                 🏘️
               </Link>
               <Link
