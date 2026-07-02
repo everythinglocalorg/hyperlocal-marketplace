@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
+import { friendlyAuthError } from "@/lib/auth-errors";
 
 function SignupForm() {
   const router = useRouter();
@@ -18,6 +19,7 @@ function SignupForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   const supabase = createClient();
 
@@ -28,7 +30,7 @@ function SignupForm() {
 
     const referralCode = searchParams.get("ref") ?? undefined;
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -42,12 +44,33 @@ function SignupForm() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error));
+    } else if (data.user && data.user.identities?.length === 0) {
+      // Supabase returns a stub user (no identities) when the email is already
+      // registered and email confirmation is enabled.
+      setError(
+        "An account with this email already exists. Log in instead — or use “Forgot password?” on the login page."
+      );
+    } else if (data.session) {
+      // Email confirmation is disabled — the user is already logged in.
+      track("sign_up", { role, method: "email", referred: !!referralCode });
+      router.push(role === "vendor" ? "/onboarding/vendor" : "/onboarding/buyer");
+      return;
     } else {
       track("sign_up", { role, method: "email", referred: !!referralCode });
       setSuccess(true);
     }
     setLoading(false);
+  }
+
+  async function handleResendConfirmation() {
+    setResendState("sending");
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/callback` },
+    });
+    setResendState(error ? "error" : "sent");
   }
 
   async function handleGoogleSignup() {
@@ -75,6 +98,26 @@ function SignupForm() {
           <p className="text-amber-800 font-semibold text-sm">
             🪙 You'll earn 10 Local Bucks the moment you confirm!
           </p>
+        </div>
+        <div className="mt-4 text-sm text-gray-500">
+          Didn't get it? Check your spam folder, or{" "}
+          <button
+            type="button"
+            onClick={handleResendConfirmation}
+            disabled={resendState === "sending" || resendState === "sent"}
+            className="text-green-600 font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+          >
+            {resendState === "sending"
+              ? "resending..."
+              : resendState === "sent"
+                ? "email resent ✓"
+                : "resend the email"}
+          </button>
+          {resendState === "error" && (
+            <p className="text-red-600 mt-2">
+              Couldn't resend right now — wait a minute and try again.
+            </p>
+          )}
         </div>
       </div>
     );

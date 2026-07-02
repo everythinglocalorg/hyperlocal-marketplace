@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
+import { friendlyAuthError } from "@/lib/auth-errors";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -14,6 +15,8 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   const supabase = createClient();
 
@@ -21,11 +24,16 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNeedsConfirmation(false);
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      setError(error.message);
+      if (error.code === "email_not_confirmed") {
+        setNeedsConfirmation(true);
+        setResendState("idle");
+      }
+      setError(friendlyAuthError(error));
       setLoading(false);
       return;
     }
@@ -73,6 +81,16 @@ export default function LoginPage() {
     setLoading(false);
   }
 
+  async function handleResendConfirmation() {
+    setResendState("sending");
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/callback` },
+    });
+    setResendState(error ? "error" : "sent");
+  }
+
   async function handlePasswordReset(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -80,7 +98,7 @@ export default function LoginPage() {
       redirectTo: `${window.location.origin}/callback?next=/reset-password`,
     });
     if (error) {
-      setError(error.message);
+      setError(friendlyAuthError(error));
     } else {
       setResetSent(true);
     }
@@ -205,6 +223,25 @@ export default function LoginPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
             {error}
+            {needsConfirmation && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={handleResendConfirmation}
+                  disabled={resendState === "sending" || resendState === "sent"}
+                  className="text-green-700 font-semibold hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  {resendState === "sending"
+                    ? "Resending..."
+                    : resendState === "sent"
+                      ? "Confirmation email resent ✓"
+                      : "Resend confirmation email"}
+                </button>
+                {resendState === "error" && (
+                  <p className="mt-1">Couldn't resend right now — wait a minute and try again.</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 
