@@ -12,6 +12,7 @@ import EstimateCreator from "@/components/vendor/EstimateCreator";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey } from "@/lib/features";
+import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses";
 
@@ -39,6 +40,7 @@ interface Props {
     profile_views?: number | null;
     custom_domain?: string | null;
     domain_verified?: boolean | null;
+    menu_pdf_url?: string | null;
   };
   profile: { local_bucks: number; full_name: string | null; referral_code: string; email?: string | null; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
   isPremium: boolean;
@@ -67,6 +69,7 @@ type Listing = {
   categories: string[];
   waiver_url?: string | null;
   waiver_filename?: string | null;
+  cta_type?: string | null;
   created_at: string;
 };
 
@@ -831,6 +834,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               listings={listings}
               loading={loadingListings}
               vendorId={vendor.id}
+              menuPdfUrl={vendor.menu_pdf_url ?? null}
+              onGoToStore={() => goToTab("store")}
               showNew={showNewListing}
               onShowNew={setShowNewListing}
               onToggle={toggleListingActive}
@@ -1099,10 +1104,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
 // ── LISTINGS TAB ──────────────────────────────────────────────
 function ListingsTab({
-  listings, loading, vendorId, showNew, onShowNew,
+  listings, loading, vendorId, menuPdfUrl, onGoToStore, showNew, onShowNew,
   onToggle, onDelete, onRefresh, editingListing, onEdit,
 }: {
   listings: Listing[]; loading: boolean; vendorId: string;
+  menuPdfUrl: string | null; onGoToStore: () => void;
   showNew: boolean; onShowNew: (v: boolean) => void;
   onToggle: (id: string, active: boolean) => void;
   onDelete: (id: string) => void; onRefresh: () => void;
@@ -1114,6 +1120,7 @@ function ListingsTab({
     category: "Products", quantity: "", condition: "new", tags: "",
   });
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["Products"]);
+  const [ctaType, setCtaType] = useState<ListingCtaType>(defaultCtaForListingType("product"));
   const [images, setImages] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1154,6 +1161,7 @@ function ListingsTab({
           ? editingListing.categories
           : [editingListing.category]
       );
+      setCtaType(isListingCtaType(editingListing.cta_type) ? editingListing.cta_type : defaultCtaForListingType(editingListing.type));
       setImages(editingListing.images ?? []);
       if (editingListing.type === "thrift") {
         setThriftAddress(editingListing.price_label ?? "");
@@ -1259,11 +1267,14 @@ function ListingsTab({
       is_active: true,
     };
 
-    // Try with waiver columns first; fall back without them if columns don't exist yet
+    // Try with waiver/CTA columns first; fall back without them if columns don't exist yet
+    // (cta_type requires supabase/product_cta.sql, waiver_* requires rentals.sql)
     let savedListingId: string | null = null;
-    const waiverPayload = form.type === "rental"
-      ? { ...basePayload, waiver_url: rentalWaiverUrl, waiver_filename: rentalWaiverFilename }
-      : basePayload;
+    const waiverPayload = {
+      ...basePayload,
+      cta_type: ctaType,
+      ...(form.type === "rental" ? { waiver_url: rentalWaiverUrl, waiver_filename: rentalWaiverFilename } : {}),
+    };
 
     if (editingListing) {
       const { error } = await supabase.from("listings").update(waiverPayload).eq("id", editingListing.id);
@@ -1300,6 +1311,7 @@ function ListingsTab({
 
     setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "" });
     setSelectedCategories(["Products"]);
+    setCtaType(defaultCtaForListingType("product"));
     setImages([]);
     setRentalDurations([]);
     setRentalWaiverUrl(null);
@@ -1366,11 +1378,34 @@ function ListingsTab({
               <label className="block text-xs font-medium text-gray-500 mb-1">Type</label>
               <select
                 value={form.type}
-                onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))}
+                onChange={(e) => { setForm((f) => ({ ...f, type: e.target.value })); setCtaType(defaultCtaForListingType(e.target.value)); }}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 {LISTING_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Button <span className="font-normal text-gray-400">(shown on your listing)</span></label>
+              <select
+                value={ctaType}
+                onChange={(e) => setCtaType(e.target.value as ListingCtaType)}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                {LISTING_CTA_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+              {ctaType === "menu" && (
+                menuPdfUrl ? (
+                  <p className="text-xs text-green-600 mt-1">✓ Links to your saved menu PDF automatically.</p>
+                ) : (
+                  <p className="text-xs text-amber-600 mt-1">
+                    No menu saved yet —{" "}
+                    <button type="button" onClick={onGoToStore} className="underline font-semibold hover:text-amber-700">
+                      add one in Store Settings
+                    </button>{" "}
+                    so this button works.
+                  </p>
+                )
+              )}
             </div>
             <div className="sm:col-span-2">
               <label className="block text-xs font-medium text-gray-500 mb-2">

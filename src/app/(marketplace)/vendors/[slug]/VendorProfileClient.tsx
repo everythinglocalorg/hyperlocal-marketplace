@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/utils";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
 import MessageModal from "@/components/MessageModal";
+import { LISTING_CTAS, ListingCtaAction, isListingCtaType } from "@/lib/cta";
 
 const BUY_NOW_CATEGORIES = [
   "Products", "Clothing & Accessories", "Auto & Transportation",
@@ -56,12 +57,16 @@ type Listing = {
   quantity: number | null; images: string[]; category: string;
   tags: string[] | null; is_featured: boolean; view_count: number;
   waiver_url: string | null; waiver_filename: string | null;
+  cta_type?: string | null;
 };
 
 type Review = {
   id: string; rating: number; comment: string | null; created_at: string;
   reviewer: { full_name: string | null; avatar_url: string | null } | null;
 };
+
+// Scroll-nav sections; "menu" is only rendered when vendor.menu_pdf_url exists.
+type Section = "about" | "services" | "menu" | "reviews";
 
 interface Props {
   vendor: Vendor; listings: Listing[]; reviews: Review[];
@@ -70,10 +75,15 @@ interface Props {
 
 export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode }: Props) {
   const supabase = createClient();
-  const [activeSection, setActiveSection] = useState<"services" | "reviews" | "about">("services");
+  const [activeSection, setActiveSection] = useState<Section>("services");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const scrollToSection = useCallback((s: "services" | "reviews" | "about") => {
+  // "menu" only appears when the vendor has a saved menu PDF.
+  const navSections: Section[] = vendor.menu_pdf_url
+    ? ["about", "services", "menu", "reviews"]
+    : ["about", "services", "reviews"];
+
+  const scrollToSection = useCallback((s: Section) => {
     setActiveSection(s);
     const el = sectionRefs.current[s];
     if (el) {
@@ -89,18 +99,21 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setActiveSection(entry.target.id as "services" | "reviews" | "about");
+            setActiveSection(entry.target.id as Section);
           }
         });
       },
       { rootMargin: "-30% 0px -60% 0px", threshold: 0 }
     );
-    (["services", "reviews", "about"] as const).forEach((s) => {
+    const sections: Section[] = vendor.menu_pdf_url
+      ? ["services", "menu", "reviews", "about"]
+      : ["services", "reviews", "about"];
+    sections.forEach((s) => {
       const el = sectionRefs.current[s];
       if (el) observer.observe(el);
     });
     return () => observer.disconnect();
-  }, []);
+  }, [vendor.menu_pdf_url]);
   const [copied, setCopied] = useState(false);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
@@ -415,7 +428,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
           {/* Desktop tab nav */}
           <nav className="hidden md:flex items-center gap-0 ml-2 h-16">
-            {(["about", "services", "reviews"] as const).map((s) => (
+            {navSections.map((s) => (
               <button key={s} onClick={() => scrollToSection(s)}
                 className={`px-4 h-full text-sm font-semibold border-b-2 transition-colors ${
                   activeSection === s ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"
@@ -464,7 +477,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
         {/* Mobile tab row */}
         <div className="md:hidden border-t border-gray-100 flex">
-          {(["about", "services", "reviews"] as const).map((s) => (
+          {navSections.map((s) => (
             <button key={s} onClick={() => scrollToSection(s)}
               className={`flex-1 py-3 text-xs font-semibold border-b-2 transition-colors ${
                 activeSection === s ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400"
@@ -508,6 +521,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                       listing={listing}
                       vendorName={vendor.business_name}
                       vendorPhone={vendor.phone}
+                      menuPdfUrl={vendor.menu_pdf_url ?? null}
                       onBook={() => openBooking(listing)}
                       onBuy={() => { trackClick(listing.id); setBuyListing(listing); }}
                       onMessage={() => { trackClick(listing.id); setMessageListing(listing); }}
@@ -529,6 +543,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                         listing={listing}
                         vendorName={vendor.business_name}
                         vendorPhone={vendor.phone}
+                        menuPdfUrl={vendor.menu_pdf_url ?? null}
                         onBook={() => openBooking(listing)}
                         onBuy={() => { trackClick(listing.id); setBuyListing(listing); }}
                         onMessage={() => { trackClick(listing.id); setMessageListing(listing); }}
@@ -539,6 +554,29 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               </>
             )}
         </div>
+
+        {/* ── MENU (only when a menu PDF is saved) ──────────────── */}
+        {vendor.menu_pdf_url && (
+          <div id="menu" ref={(el) => { sectionRefs.current.menu = el; }} className="mt-16 pt-8 border-t border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+              <h2 className="text-xl font-black text-gray-900">🍽️ Menu</h2>
+              <a
+                href={vendor.menu_pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-gray-700 transition-colors"
+              >
+                Open Menu (PDF) →
+              </a>
+            </div>
+            {/* PDF embeds are unreliable on mobile browsers — the button above covers small screens */}
+            <iframe
+              src={vendor.menu_pdf_url}
+              title={`${vendor.business_name} menu`}
+              className="hidden sm:block w-full h-[600px] rounded-2xl border border-gray-200"
+            />
+          </div>
+        )}
 
         {/* ── CONTACT & LOCATION ────────────────────────────────── */}
         <div className="max-w-2xl mt-16 pt-8 border-t border-gray-100 space-y-4">
@@ -783,8 +821,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 }
 
 /* ─── LISTING CARD ────────────────────────────────────────────────── */
-function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessage }: {
-  listing: Listing; vendorName: string; vendorPhone: string | null;
+function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onBook, onBuy, onMessage }: {
+  listing: Listing; vendorName: string; vendorPhone: string | null; menuPdfUrl: string | null;
   onBook: () => void; onBuy: () => void; onMessage: () => void;
 }) {
   const TYPE_ICON: Record<string, string> = { product: "📦", service: "🔧", restaurant: "🍽️", event: "🎉", rental: "🏠", thrift: "🏷️", housing_sale: "🏠", housing_rent: "🏡" };
@@ -810,12 +848,34 @@ function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessag
     priceLabel = listing.price !== null ? formatPrice(listing.price) : listing.price_label ?? null;
   }
 
-  // CTA label for the bottom link
-  let ctaLabel = "View Details";
-  if (listing.type === "rental") ctaLabel = "Book Now";
-  else if (BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0]))) ctaLabel = "Buy Now";
-  else if (vendorPhone) ctaLabel = "Call Now";
-  else ctaLabel = "Message";
+  // CTA for the bottom link — driven by the listing's saved cta_type (shared
+  // LISTING_CTAS map), falling back to the legacy type/category-based default
+  // for listings saved before cta_type existed. A saved "call" without a phone
+  // or "menu" without a saved menu PDF also falls back.
+  const savedCta = isListingCtaType(listing.cta_type) ? listing.cta_type : null;
+  let ctaLabel: string;
+  let ctaAction: ListingCtaAction | "message";
+  if (savedCta && !(savedCta === "call" && !vendorPhone) && !(savedCta === "menu" && !menuPdfUrl)) {
+    ctaLabel = LISTING_CTAS[savedCta].label;
+    ctaAction = LISTING_CTAS[savedCta].action;
+  } else if (listing.type === "rental") {
+    ctaLabel = "Book Now"; ctaAction = "book";
+  } else if (BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0]))) {
+    ctaLabel = "Buy Now"; ctaAction = "buy";
+  } else if (vendorPhone) {
+    ctaLabel = "Call Now"; ctaAction = "call";
+  } else {
+    ctaLabel = "Message"; ctaAction = "message";
+  }
+
+  // Card-level click mirrors the CTA (call cards open the message form, matching
+  // the previous whole-card behavior since a surprise tel: dial is jarring).
+  function runCta() {
+    if (ctaAction === "book") onBook();
+    else if (ctaAction === "buy") onBuy();
+    else if (ctaAction === "menu" && menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
+    else onMessage();
+  }
 
   // Category chip text
   const chipText = (listing.tags ?? []).filter((t) => !t.startsWith("__"))[0]?.toUpperCase()
@@ -827,7 +887,7 @@ function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessag
   return (
     <div
       className="relative rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer aspect-[4/3]"
-      onClick={listing.type === "rental" ? onBook : BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0])) ? onBuy : onMessage}
+      onClick={runCta}
     >
       {/* Full-bleed image */}
       {hasImage
@@ -874,8 +934,8 @@ function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessag
             <span className="text-white font-black text-lg drop-shadow">{priceLabel}{listing.condition ? <span className="text-white/60 text-xs font-normal ml-1.5 capitalize">{listing.condition}</span> : null}</span>
           )}
 
-          {/* CTA — dial the phone for "Call Now", otherwise open the matching form */}
-          {ctaLabel === "Call Now" && vendorPhone ? (
+          {/* CTA — dial the phone for "Call Now", open the menu PDF for "View Menu", otherwise open the matching form */}
+          {ctaAction === "call" && vendorPhone ? (
             <a
               href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`}
               onClick={(e) => e.stopPropagation()}
@@ -883,9 +943,19 @@ function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessag
             >
               {ctaLabel} <span className="text-base">→</span>
             </a>
+          ) : ctaAction === "menu" && menuPdfUrl ? (
+            <a
+              href={menuPdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
+            >
+              {ctaLabel} <span className="text-base">→</span>
+            </a>
           ) : (
             <button
-              onClick={(e) => { e.stopPropagation(); listing.type === "rental" ? onBook() : BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0])) ? onBuy() : onMessage(); }}
+              onClick={(e) => { e.stopPropagation(); runCta(); }}
               className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
             >
               {ctaLabel} <span className="text-base">→</span>

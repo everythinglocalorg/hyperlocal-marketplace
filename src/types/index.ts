@@ -61,6 +61,7 @@ export interface Listing {
   images: string[]
   category: string
   tags: string[]
+  cta_type?: string | null
   is_active: boolean
   is_featured: boolean
   view_count: number
