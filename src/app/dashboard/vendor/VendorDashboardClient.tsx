@@ -114,7 +114,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "referrals", label: "Referrals", icon: "🤝" },
   { id: "notifications", label: "Notifications", icon: "🔔" },
   { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
-  { id: "bookings", label: "Estimate & Apt Manager", icon: "📅", premiumOnly: true },
+  { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
   { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
