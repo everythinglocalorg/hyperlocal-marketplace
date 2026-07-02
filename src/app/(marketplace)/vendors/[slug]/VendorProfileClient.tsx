@@ -843,13 +843,23 @@ function ListingCard({ listing, vendorName, vendorPhone, onBook, onBuy, onMessag
             <span className="text-white font-black text-lg drop-shadow">{priceLabel}{listing.condition ? <span className="text-white/60 text-xs font-normal ml-1.5 capitalize">{listing.condition}</span> : null}</span>
           )}
 
-          {/* CTA link — red accent like Bergeron */}
-          <button
-            onClick={(e) => { e.stopPropagation(); listing.type === "rental" ? onBook() : BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0])) ? onBuy() : onMessage(); }}
-            className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
-          >
-            {ctaLabel} <span className="text-base">→</span>
-          </button>
+          {/* CTA — dial the phone for "Call Now", otherwise open the matching form */}
+          {ctaLabel === "Call Now" && vendorPhone ? (
+            <a
+              href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
+            >
+              {ctaLabel} <span className="text-base">→</span>
+            </a>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); listing.type === "rental" ? onBook() : BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0])) ? onBuy() : onMessage(); }}
+              className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
+            >
+              {ctaLabel} <span className="text-base">→</span>
+            </button>
+          )}
         </div>
       </div>
     </div>
