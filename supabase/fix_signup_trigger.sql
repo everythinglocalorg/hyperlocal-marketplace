@@ -67,3 +67,14 @@ begin
   return new;
 end;
 $$ language plpgsql security definer;
+
+-- ============================================================
+-- OPTIONAL — run this ONLY if you disable "Confirm email" in
+-- Auth settings. It unblocks users who already signed up but
+-- never received/clicked their confirmation email; without it
+-- they stay stuck at "Email not confirmed" on login.
+-- ============================================================
+-- update auth.users
+--   set email_confirmed_at = now()
+--   where email_confirmed_at is null
+--     and deleted_at is null;

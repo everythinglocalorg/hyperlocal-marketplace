@@ -20,7 +20,16 @@ export function friendlyAuthError(error: AuthError): string {
       return "Too many attempts right now. Wait a minute and try again.";
     case "signup_disabled":
       return "New signups are temporarily disabled. Please try again later.";
-    default:
-      return error.message;
+    case "unexpected_failure":
+      return "Something went wrong on our end. Please try again in a few minutes.";
+    default: {
+      // Gateway/network failures surface as AuthRetryableFetchError whose
+      // message is JSON.stringify of the raw response — literally "{}".
+      const msg = error.message?.trim();
+      if (!msg || msg === "{}" || /failed to fetch|network|load failed/i.test(msg)) {
+        return "We couldn't reach the server. Check your connection and try again in a moment.";
+      }
+      return msg;
+    }
   }
 }
