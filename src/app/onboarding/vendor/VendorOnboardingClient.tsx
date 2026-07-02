@@ -25,7 +25,6 @@ type FormData = {
   service_radius_miles: number;
   description: string;
   logo_url: string;
-  banner_url: string;
 };
 
 type GeoLocation = {
@@ -46,7 +45,6 @@ const INITIAL: FormData = {
   service_radius_miles: 25,
   description: "",
   logo_url: "",
-  banner_url: "",
 };
 
 export default function VendorOnboardingClient() {
@@ -139,7 +137,8 @@ export default function VendorOnboardingClient() {
       service_radius_miles: form.service_radius_miles,
       description: form.description,
       logo_url: form.logo_url || null,
-      banner_url: form.banner_url || null,
+      // Card/storefront convention: banner shows the logo
+      banner_url: form.logo_url || null,
       tier: "premium",
       features: { messages: true, analytics: true, bookings: true, crm: true, estimates: true },
     });
@@ -411,20 +410,7 @@ export default function VendorOnboardingClient() {
               </div>
 
               <div className="space-y-5">
-                {/* Cover photo — full width, banner style */}
-                {userId && (
-                  <ImageUpload
-                    bucket="vendor-banners"
-                    userId={userId}
-                    currentUrl={form.banner_url || undefined}
-                    onUpload={(url) => set("banner_url", url)}
-                    shape="banner"
-                    label="Cover photo"
-                    hint="The big hero image on your storefront — show off your space, your work, or your product. Recommended: 1200×400px."
-                  />
-                )}
-
-                {/* Profile photo — square logo */}
+                {/* Logo — square, also used as the card/banner image */}
                 {userId && (
                   <ImageUpload
                     bucket="vendor-logos"
@@ -432,8 +418,8 @@ export default function VendorOnboardingClient() {
                     currentUrl={form.logo_url || undefined}
                     onUpload={(url) => set("logo_url", url)}
                     shape="square"
-                    label="Profile photo"
-                    hint="Your logo or a photo of you/your team. Shown as a small thumbnail next to your name. Recommended: 400×400px."
+                    label="Logo"
+                    hint="Your business logo — or a photo of you/your team. Shown on your storefront and next to your name. Recommended: 400×400px."
                   />
                 )}
 
