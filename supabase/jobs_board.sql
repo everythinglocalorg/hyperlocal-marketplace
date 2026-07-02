@@ -16,6 +16,7 @@ create table if not exists public.jobs (
   pay_label text,                             -- free text: "$18-22/hr", "DOE"
   contact_email text,
   contact_phone text,
+  application_url text,                       -- outside application link, if the business uses one
   city text not null,
   state text,
   city_slug text not null,                    -- e.g. "eau-claire-wi"
@@ -26,6 +27,9 @@ create table if not exists public.jobs (
   created_at timestamptz default now(),
   expires_at timestamptz
 );
+
+-- Upgrade path for tables created before application_url existed
+alter table public.jobs add column if not exists application_url text;
 
 -- Indexes
 create index if not exists jobs_city_slug_idx on public.jobs(city_slug);
@@ -64,6 +68,9 @@ create policy "Admins can delete any job" on public.jobs
 -- viewer-radius in search_vendors_nearby). Newest first, with a
 -- computed distance_miles.
 -- ============================================================
+-- Drop first: create-or-replace cannot change the return row type
+drop function if exists jobs_nearby(double precision, double precision, integer, integer);
+
 create or replace function jobs_nearby(
   p_latitude double precision,
   p_longitude double precision,
@@ -80,6 +87,7 @@ returns table (
   pay_label text,
   contact_email text,
   contact_phone text,
+  application_url text,
   city text,
   state text,
   city_slug text,
@@ -101,6 +109,7 @@ begin
     j.pay_label,
     j.contact_email,
     j.contact_phone,
+    j.application_url,
     j.city,
     j.state,
     j.city_slug,

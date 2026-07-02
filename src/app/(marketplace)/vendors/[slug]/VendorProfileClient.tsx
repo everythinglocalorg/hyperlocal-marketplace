@@ -87,7 +87,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     setActiveSection(s);
     const el = sectionRefs.current[s];
     if (el) {
-      const offset = 120; // sticky nav height
+      const offset = 150; // global header + sticky vendor nav
       const top = el.getBoundingClientRect().top + window.scrollY - offset;
       window.scrollTo({ top, behavior: "smooth" });
     }
@@ -411,8 +411,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
       )}
 
-      {/* ── STICKY MAIN NAV ───────────────────────────────────────── */}
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
+      {/* ── STICKY VENDOR NAV (sits below the global header) ───────── */}
+      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-16 z-40">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
           {/* Back + Logo */}
           <Link href="/search" className="text-gray-400 hover:text-gray-700 transition-colors text-xl shrink-0 leading-none">←</Link>

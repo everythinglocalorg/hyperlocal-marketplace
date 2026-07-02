@@ -32,6 +32,7 @@ type Job = {
   pay_label: string | null;
   contact_email: string | null;
   contact_phone: string | null;
+  application_url: string | null;
   city: string;
   state: string | null;
   city_slug: string;
@@ -82,6 +83,7 @@ export default function JobsBoardClient({
   const [payLabel, setPayLabel] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [applicationUrl, setApplicationUrl] = useState("");
   const [radiusMiles, setRadiusMiles] = useState(25);
   const [postAsBusiness, setPostAsBusiness] = useState(!!myVendor);
   const [submitting, setSubmitting] = useState(false);
@@ -97,6 +99,13 @@ export default function JobsBoardClient({
   const [applySent, setApplySent] = useState(false);
 
   const filteredJobs = filterType === "all" ? jobs : jobs.filter((j) => j.job_type === filterType);
+
+  // "company.com/careers" -> "https://company.com/careers"; empty -> null
+  function normalizeUrl(raw: string): string | null {
+    const url = raw.trim();
+    if (!url) return null;
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  }
 
   async function submitJob(e: React.FormEvent) {
     e.preventDefault();
@@ -114,6 +123,7 @@ export default function JobsBoardClient({
       pay_label: payLabel.trim() || null,
       contact_email: contactEmail.trim() || null,
       contact_phone: contactPhone.trim() || null,
+      application_url: normalizeUrl(applicationUrl),
       city: cityName,
       state: stateCode,
       city_slug: citySlug,
@@ -134,7 +144,7 @@ export default function JobsBoardClient({
       setJobs((prev) => [newJob, ...prev]);
       setTitle(""); setDescription(""); setJobType("full_time");
       setPayLabel(""); setContactEmail(""); setContactPhone("");
-      setRadiusMiles(25);
+      setApplicationUrl(""); setRadiusMiles(25);
       setComposerOpen(false);
     }
     setSubmitting(false);
@@ -239,14 +249,10 @@ export default function JobsBoardClient({
         </div>
       )}
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
+      {/* Sub-header (sits below the global header) */}
+      <div className="bg-white border-b border-gray-100 sticky top-16 z-10">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-green-600 font-bold text-lg">Everything Local</Link>
-            <span className="text-gray-300">/</span>
-            <CitySelector value={citySlug} onChange={(slug) => switchCity(slug)} />
-          </div>
+          <CitySelector value={citySlug} onChange={(slug) => switchCity(slug)} />
           {isAdmin && <span className="text-xs bg-red-100 text-red-700 font-bold px-2 py-1 rounded-full">Admin</span>}
         </div>
       </div>
@@ -314,6 +320,13 @@ export default function JobsBoardClient({
                   <input type="tel" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
                     placeholder="Contact phone"
                     className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+
+                <div>
+                  <input type="text" value={applicationUrl} onChange={(e) => setApplicationUrl(e.target.value)}
+                    placeholder="🔗 Application link (optional), e.g. yourcompany.com/careers"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  <p className="text-xs text-gray-400 mt-1">If you use an outside application page, applicants will be sent there instead of the built-in form.</p>
                 </div>
 
                 {/* Visibility radius */}
@@ -437,10 +450,17 @@ export default function JobsBoardClient({
 
                   {/* Action bar */}
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-50 flex-wrap">
-                    <button onClick={() => openApply(job)}
-                      className="bg-green-600 text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-green-700 transition-colors">
-                      Apply
-                    </button>
+                    {job.application_url ? (
+                      <a href={job.application_url} target="_blank" rel="noopener noreferrer"
+                        className="bg-green-600 text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-green-700 transition-colors">
+                        Apply ↗
+                      </a>
+                    ) : (
+                      <button onClick={() => openApply(job)}
+                        className="bg-green-600 text-white text-sm font-semibold px-4 py-1.5 rounded-full hover:bg-green-700 transition-colors">
+                        Apply
+                      </button>
+                    )}
                     {job.contact_email && (
                       <a href={`mailto:${job.contact_email}?subject=${encodeURIComponent(`Re: ${job.title} (Everything Local)`)}`}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 bg-gray-100 hover:bg-green-50 hover:text-green-700 transition-colors">

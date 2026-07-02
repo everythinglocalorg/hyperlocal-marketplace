@@ -447,19 +447,11 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
+      {/* Top bar (sits below the global header) */}
+      <div className="bg-white border-b border-gray-100 sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          {/* Row 1: logo / search bar / filters */}
+          {/* Row 1: search bar / filters */}
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-xl font-bold text-green-600 shrink-0 hidden sm:block">
-              Everything Local
-            </Link>
-            <Link href="/" aria-label="Home" className="sm:hidden shrink-0 p-2 -ml-1 text-green-600 hover:text-green-700">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" />
-              </svg>
-            </Link>
             <div className="flex-1">
               <SearchBar
                 value={query}
