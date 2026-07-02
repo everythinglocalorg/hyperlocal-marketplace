@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
+import { track } from "@/lib/analytics";
 import { resolveCity, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
@@ -141,6 +142,7 @@ export default function HomePage() {
   }
 
   function searchCategory(category: string) {
+    track("category_pill_click", { category, source: "homepage" });
     const LABEL_MAP: Record<string, string> = {
       "Restaurants": "Restaurants & Food",
       "Events": "Events & Rentals",

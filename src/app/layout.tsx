@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
+import AnalyticsListener from "@/components/AnalyticsListener";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"] });
@@ -18,6 +19,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className={`${geist.className} min-h-full flex flex-col bg-white text-gray-900`}>
+        <AnalyticsListener />
         {children}
       </body>
     </html>

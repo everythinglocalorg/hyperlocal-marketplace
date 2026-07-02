@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { track } from "@/lib/analytics";
 
 interface Props {
   vendor: { id: string; business_name: string; city: string; state: string; category: string; phone: string | null; logo_url: string | null };
@@ -27,6 +28,7 @@ export default function ClaimClient({ vendor, slug }: Props) {
       setLoading(false);
       return;
     }
+    track("claim_completed", { vendor_id: vendor.id, vendor_slug: slug });
     router.push("/dashboard/vendor");
   }
 

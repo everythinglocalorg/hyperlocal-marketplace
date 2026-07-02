@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { track } from "@/lib/analytics";
 
 function SignupForm() {
   const router = useRouter();
@@ -43,6 +44,7 @@ function SignupForm() {
     if (error) {
       setError(error.message);
     } else {
+      track("sign_up", { role, method: "email", referred: !!referralCode });
       setSuccess(true);
     }
     setLoading(false);
