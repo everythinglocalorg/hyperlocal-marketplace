@@ -1907,7 +1907,6 @@ function AnalyticsTab({ listings, stats, vendorId }: { listings: Listing[]; stat
             <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-0.5">Products Sold</p>
             <p className="text-2xl font-black text-gray-900">{productsSold}</p>
             <p className="text-sm text-gray-500">Successful transactions</p>
-            <p className="text-xs text-gray-400 mt-1">Each sale awards +2 Local Bucks</p>
           </div>
         </div>
       </div>
@@ -2442,7 +2441,7 @@ function ReferralsTab({ userId, referralCode, businessName }: {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Referrals</h1>
         <p className="text-gray-500 text-sm mt-1">
-          Share your unique links — earn <span className="font-semibold text-amber-600">50 Local Bucks</span> for every person who signs up and makes a purchase.
+          Share your unique links — earn <span className="font-semibold text-amber-600">20 Local Bucks</span> for every person who signs up with your link.
         </p>
       </div>
 
@@ -2503,8 +2502,7 @@ function ReferralsTab({ userId, referralCode, businessName }: {
           <ol className="text-xs text-amber-700 space-y-1 list-decimal list-inside">
             <li>You share your link with another vendor or buyer</li>
             <li>They sign up — automatically tagged as your referral</li>
-            <li>They complete their first purchase or booking</li>
-            <li>You earn <strong>50 Local Bucks</strong> — automatically, instantly</li>
+            <li>You earn <strong>20 Local Bucks</strong> — automatically, instantly</li>
           </ol>
         </div>
       </div>
@@ -2560,7 +2558,7 @@ function ReferralsTab({ userId, referralCode, businessName }: {
                       : r.converted ? "bg-blue-100 text-blue-700"
                       : "bg-gray-100 text-gray-500"
                     }`}>
-                      {r.bucks_awarded ? "🪙 +50 LB earned" : r.converted ? "Converted" : "Pending"}
+                      {r.bucks_awarded ? "🪙 +20 LB earned" : r.converted ? "Converted" : "Pending"}
                     </span>
                     <p className="text-xs text-gray-400 mt-1">{new Date(r.created_at).toLocaleDateString()}</p>
                   </div>

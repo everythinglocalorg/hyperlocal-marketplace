@@ -102,14 +102,11 @@ interface Props {
 
 const REASON_LABELS: Record<string, string> = {
   signup_bonus: "Signed up",
-  vendor_signup: "Created your storefront",
-  first_purchase: "First purchase",
+  add_phone: "Added your phone number",
   leave_review: "Left a review",
+  complete_vendor_profile: "Completed your storefront",
   referral_conversion: "Referral converted",
-  phone_verified: "Verified phone number",
-  boost_vendor: "Boosted a vendor",
-  featured_profile: "Featured profile",
-  premium_listing: "Premium listing",
+  referral_signup: "Referral signed up",
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -399,7 +396,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {[
-                { label: "Local Bucks", value: `🪙 ${profile.local_bucks.toLocaleString()}`, sub: "available to spend", color: "text-amber-600" },
+                { label: "Local Bucks", value: `🪙 ${profile.local_bucks.toLocaleString()}`, sub: "in your wallet", color: "text-amber-600" },
                 { label: "Bookings", value: bookings.length, sub: `${pendingBookings} pending`, color: "text-blue-600" },
                 { label: "Completed", value: completedBookings, sub: "services received", color: "text-green-600" },
                 { label: "Referrals", value: referrals.length, sub: `${referrals.filter((r) => r.converted).length} converted`, color: "text-purple-600" },
@@ -433,7 +430,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                   <p className="text-amber-100">Signup</p>
                 </div>
                 <div>
-                  <p className="font-bold text-lg">+50</p>
+                  <p className="font-bold text-lg">+20</p>
                   <p className="text-amber-100">Per referral</p>
                 </div>
                 <div>
@@ -791,7 +788,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
         {tab === "bucks" && (
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Local Bucks</h1>
-            <p className="text-gray-500 text-sm mb-6">Earn by engaging with the community. Spend to boost your profile or favorite vendors.</p>
+            <p className="text-gray-500 text-sm mb-6">Earn by engaging with the community.</p>
 
             {/* Balance */}
             <div className="bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl p-6 text-white mb-6">
@@ -800,36 +797,19 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
             </div>
 
             {/* How to earn */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            <div className="mb-6">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                 <h3 className="font-semibold text-gray-900 mb-3">Ways to Earn</h3>
                 <div className="space-y-2.5">
                   {[
                     { label: "Sign up", amount: "+10" },
-                    { label: "Verify phone", amount: "+5" },
+                    { label: "Add your phone", amount: "+5" },
                     { label: "Leave a review", amount: "+5" },
-                    { label: "Refer a friend", amount: "+50" },
-                    { label: "First purchase", amount: "+25" },
+                    { label: "Refer a friend", amount: "+20" },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between">
                       <span className="text-sm text-gray-600">{item.label}</span>
                       <span className="text-sm font-bold text-amber-600">{item.amount} 🪙</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-                <h3 className="font-semibold text-gray-900 mb-3">Ways to Spend</h3>
-                <div className="space-y-2.5">
-                  {[
-                    { label: "Boost a vendor (1 day)", amount: "50" },
-                    { label: "Featured profile (1 week)", amount: "150" },
-                    { label: "Premium listing", amount: "100" },
-                    { label: "Unlock exclusive deals", amount: "200" },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">{item.label}</span>
-                      <span className="text-sm font-bold text-gray-500">{item.amount} 🪙</span>
                     </div>
                   ))}
                 </div>
@@ -879,7 +859,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">Referrals</h1>
             <p className="text-gray-500 text-sm mb-6">
-              Share your link — earn <span className="font-semibold text-amber-600">50 Local Bucks</span> when someone signs up and makes their first purchase.
+              Share your link — earn <span className="font-semibold text-amber-600">20 Local Bucks</span> when someone signs up with it.
             </p>
 
             {/* Stats */}
@@ -922,8 +902,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                 <ol className="text-xs text-amber-700 space-y-1 list-decimal list-inside">
                   <li>Share your link with friends or local business owners</li>
                   <li>They sign up — automatically tagged as your referral</li>
-                  <li>They make their first purchase or booking</li>
-                  <li>You instantly earn <strong>50 Local Bucks</strong></li>
+                  <li>You instantly earn <strong>20 Local Bucks</strong></li>
                 </ol>
               </div>
             </div>
@@ -975,7 +954,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                             : r.converted ? "bg-blue-100 text-blue-700"
                             : "bg-gray-100 text-gray-500"
                           }`}>
-                            {r.bucks_awarded ? "🪙 +50 LB" : r.converted ? "Converted" : "Pending"}
+                            {r.bucks_awarded ? "🪙 +20 LB" : r.converted ? "Converted" : "Pending"}
                           </span>
                           <p className="text-xs text-gray-400 mt-1">{new Date(r.created_at).toLocaleDateString()}</p>
                         </div>

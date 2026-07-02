@@ -200,6 +200,9 @@ export default function HomePage() {
                     </span>
                   )}
                 </Link>
+                <Link href={`/community/${activeCity}`} title="Neighborhood Chat" className="relative text-xl leading-none">
+                  🏘️
+                </Link>
                 <Link
                   href={`/community/${activeCity}`}
                   className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden sm:block"
@@ -409,7 +412,7 @@ export default function HomePage() {
               {[
                 { icon: "👋", label: "Sign up", bucks: "+10 LB" },
                 { icon: "⭐", label: "Leave a review", bucks: "+5 LB" },
-                { icon: "🤝", label: "Refer a friend", bucks: "+50 LB" },
+                { icon: "🤝", label: "Refer a friend", bucks: "+20 LB" },
               ].map((item) => (
                 <div key={item.label} className="text-center">
                   <p className="text-xl mb-1">{item.icon}</p>

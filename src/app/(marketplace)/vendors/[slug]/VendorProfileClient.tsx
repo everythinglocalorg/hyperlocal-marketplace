@@ -615,7 +615,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           </div>
           <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white mt-4">
             <h3 className="font-bold mb-1">Know someone who'd love this business?</h3>
-            <p className="text-green-100 text-sm mb-4">Share your link and earn <strong>50 Local Bucks</strong> when they sign up.</p>
+            <p className="text-green-100 text-sm mb-4">Share your link and earn <strong>20 Local Bucks</strong> when they sign up.</p>
             <button onClick={copyShareLink} className={`w-full py-2.5 rounded-xl text-sm font-semibold transition-colors ${copied ? "bg-white text-green-700" : "bg-white/20 text-white hover:bg-white/30"}`}>
               {copied ? "✓ Copied!" : currentUserReferralCode ? "Copy your referral link" : "Copy link"}
             </button>

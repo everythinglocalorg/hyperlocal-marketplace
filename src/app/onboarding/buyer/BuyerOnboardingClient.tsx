@@ -314,10 +314,9 @@ export default function BuyerOnboardingClient() {
               <p className="text-gray-500 text-sm mb-8">Start discovering amazing local vendors in your community.</p>
               <div className="grid grid-cols-1 gap-3 mb-8 text-left">
                 {[
-                  { icon: "🪙", title: "10 Local Bucks in your wallet", desc: "Use them to boost vendors you love" },
+                  { icon: "🪙", title: "10 Local Bucks in your wallet", desc: "Yours the moment you joined" },
                   { icon: "⭐", title: "Earn 5 LB for every review", desc: "Help your community discover great businesses" },
-                  { icon: "🤝", title: "Earn 50 LB per referral", desc: "Share with friends and earn big rewards" },
-                  { icon: "🛍️", title: "Earn 25 LB on first purchase", desc: "Shop local and get rewarded" },
+                  { icon: "🤝", title: "Earn 20 LB per referral", desc: "Share your link — earn when friends sign up" },
                 ].map((item) => (
                   <div key={item.title} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
                     <span className="text-xl">{item.icon}</span>

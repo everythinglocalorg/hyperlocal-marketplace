@@ -30,7 +30,6 @@ export default function PremiumGate({ feature }: PremiumGateProps) {
             "📞 Click-to-Call & Click-to-Book buttons",
             "⚡ Auto-responders & follow-up workflows",
             "⭐ Priority search placement",
-            "🪙 50 bonus Local Bucks on upgrade",
           ].map((item) => (
             <li key={item} className="flex items-start gap-2">
               <span className="shrink-0">{item.slice(0, 2)}</span>
