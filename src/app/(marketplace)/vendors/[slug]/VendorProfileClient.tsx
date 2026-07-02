@@ -33,10 +33,22 @@ type Vendor = {
   logo_url: string | null; banner_url: string | null; tier: string;
   is_verified: boolean; is_claimed: boolean; rating: number; review_count: number;
   local_bucks_earned: number; service_radius_miles: number;
+  service_locations?: string[] | null;
   page_blocks?: PageBlock[] | null;
   menu_pdf_url?: string | null;
   cta_button?: { action?: "call" | "estimate" | "order"; url?: string } | null;
 };
+
+// Categories where customers request estimates rather than just "getting in touch".
+const SERVICE_CATEGORIES = new Set<string>([
+  "Services & Trades",
+  "Home & Garden",
+  "Auto & Transportation",
+  "Pet Services",
+  "Childcare & Education",
+  "Events & Rentals",
+  "Health & Beauty",
+]);
 
 type Listing = {
   id: string; title: string; description: string | null; type: string;
@@ -117,6 +129,11 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const ctaAction = ctaBtn?.action ?? null;
   const ctaOrderUrl = ctaBtn?.url ?? null;
   const CTA_LABELS: Record<string, string> = { call: "Call", estimate: "Request Free Estimate", order: "Order Now" };
+
+  // Service-based businesses request estimates; product/food/retail businesses "get in touch".
+  const isServiceBased = SERVICE_CATEGORIES.has(vendor.category);
+  const inquiryHeading = isServiceBased ? "Request A Free Estimate" : "Get in Touch";
+  const inquirySubmitLabel = isServiceBased ? "Request Free Estimate →" : "Send Message →";
 
   // Sidebar inquiry form state
   const [sidebarName, setSidebarName] = useState("");
@@ -542,7 +559,17 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           )}
           <div className="flex items-start gap-3 text-sm">
             <span className="text-xl">🗺️</span>
-            <div><p className="font-semibold text-gray-700">Service Area</p><p className="text-gray-500">Within {vendor.service_radius_miles} miles of {vendor.city}, {vendor.state}</p></div>
+            <div>
+              <p className="font-semibold text-gray-700">Service Area</p>
+              <p className="text-gray-500">Within {vendor.service_radius_miles} miles of {vendor.city}, {vendor.state}</p>
+              {vendor.service_locations && vendor.service_locations.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {vendor.service_locations.map((loc) => (
+                    <span key={loc} className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">{loc}</span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white mt-4">
             <h3 className="font-bold mb-1">Know someone who'd love this business?</h3>
@@ -648,7 +675,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           <div className="lg:hidden mt-10 border-t border-gray-100 pt-8">
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
               <div className="bg-gray-900 px-5 py-4">
-                <h2 className="text-white font-black text-base leading-tight">Get in Touch</h2>
+                <h2 className="text-white font-black text-base leading-tight">{inquiryHeading}</h2>
                 <p className="text-gray-400 text-xs mt-0.5">We'll get back to you as soon as possible.</p>
               </div>
               {sidebarDone ? (
@@ -664,7 +691,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                   <input value={sidebarPhone} onChange={(e) => setSidebarPhone(e.target.value)} placeholder="Phone (optional)" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900" />
                   <textarea required value={sidebarMessage} onChange={(e) => setSidebarMessage(e.target.value)} rows={3} placeholder="How can we help you?" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 resize-none" />
                   <button type="submit" disabled={sidebarSubmitting} className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors disabled:opacity-60">
-                    {sidebarSubmitting ? "Sending…" : "Send Message →"}
+                    {sidebarSubmitting ? "Sending…" : inquirySubmitLabel}
                   </button>
                 </form>
               )}
@@ -676,7 +703,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         <aside className="hidden lg:block w-80 shrink-0 sticky top-20">
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="bg-gray-900 px-6 py-5">
-              <h2 className="text-white font-black text-lg leading-tight">Get in Touch</h2>
+              <h2 className="text-white font-black text-lg leading-tight">{inquiryHeading}</h2>
               <p className="text-gray-400 text-sm mt-1">We'll get back to you as soon as possible.</p>
             </div>
             {sidebarDone ? (
@@ -712,7 +739,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                   type="submit" disabled={sidebarSubmitting}
                   className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition-colors disabled:opacity-60"
                 >
-                  {sidebarSubmitting ? "Sending…" : "Send Message →"}
+                  {sidebarSubmitting ? "Sending…" : inquirySubmitLabel}
                 </button>
                 <p className="text-center text-xs text-gray-400">Your info goes directly to {vendor.business_name}</p>
               </form>

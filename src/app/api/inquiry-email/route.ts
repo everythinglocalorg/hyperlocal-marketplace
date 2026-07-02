@@ -19,15 +19,11 @@ export async function POST(req: NextRequest) {
   const supabaseAdmin = getSupabaseAdmin();
   const { data: vendor } = await supabaseAdmin
     .from("vendors")
-    .select("business_name, user_id")
+    .select("business_name, user_id, slug")
     .eq("id", vendorId)
     .single();
 
   if (!vendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
-
-  const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(vendor.user_id);
-  const vendorEmail = user?.email;
-  if (!vendorEmail) return NextResponse.json({ ok: true }); // no email on file, silently ok
 
   const typeLabel: Record<string, string> = {
     general: "General Inquiry",
@@ -37,6 +33,50 @@ export async function POST(req: NextRequest) {
     cta: "Contact Form",
   };
   const label = typeLabel[inquiryType] ?? "New Inquiry";
+
+  // ── Add the lead to the vendor's CRM (dedupe by email or phone) ──────────
+  try {
+    let existing: { id: string } | null = null;
+    if (buyerEmail) {
+      const { data } = await supabaseAdmin
+        .from("crm_contacts").select("id").eq("vendor_id", vendorId).eq("email", buyerEmail).limit(1).maybeSingle();
+      existing = data;
+    }
+    if (!existing && buyerPhone) {
+      const { data } = await supabaseAdmin
+        .from("crm_contacts").select("id").eq("vendor_id", vendorId).eq("phone", buyerPhone).limit(1).maybeSingle();
+      existing = data;
+    }
+    if (!existing) {
+      await supabaseAdmin.from("crm_contacts").insert({
+        vendor_id: vendorId,
+        name: buyerName,
+        email: buyerEmail || null,
+        phone: buyerPhone || null,
+        source: inquiryType === "estimate" ? "estimate" : "inquiry",
+        notes: message || null,
+      });
+    }
+  } catch { /* CRM insert is best-effort; never block the inquiry */ }
+
+  // ── Notify the business owner in-app ────────────────────────────────────
+  if (vendor.user_id) {
+    try {
+      await supabaseAdmin.from("notifications").insert({
+        user_id: vendor.user_id,
+        type: "inquiry",
+        title: `${label} from ${buyerName}`,
+        body: message?.slice(0, 200) ?? null,
+        link: "/dashboard/vendor",
+      });
+    } catch { /* best-effort */ }
+  }
+
+  const { data: { user } } = vendor.user_id
+    ? await supabaseAdmin.auth.admin.getUserById(vendor.user_id)
+    : { data: { user: null } };
+  const vendorEmail = user?.email;
+  if (!vendorEmail) return NextResponse.json({ ok: true }); // no email on file, CRM+notification already saved
 
   const resend = getResend();
   await resend.emails.send({

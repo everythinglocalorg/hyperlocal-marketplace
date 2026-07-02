@@ -83,8 +83,10 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
   }
 
   async function moveContact(contactId: string, newColumnId: string) {
-    await supabase.from("crm_contacts").update({ column_id: newColumnId }).eq("id", contactId);
-    setContacts((prev) => prev.map((c) => c.id === contactId ? { ...c, column_id: newColumnId } : c));
+    // "__inbox__" is the virtual New Leads column → store as null (unassigned)
+    const columnValue = newColumnId === "__inbox__" ? null : newColumnId;
+    await supabase.from("crm_contacts").update({ column_id: columnValue }).eq("id", contactId);
+    setContacts((prev) => prev.map((c) => c.id === contactId ? { ...c, column_id: columnValue } : c));
   }
 
   async function updateNotes(contactId: string, notes: string) {
@@ -116,20 +118,21 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
         <button onClick={addColumn} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors">+ Add Column</button>
       </div>
 
-      {/* Kanban board */}
+      {/* Kanban board — "New Leads" inbox first, then the vendor's pipeline columns */}
       <div className="flex gap-4 overflow-x-auto pb-4 flex-1">
-        {columns.map((col) => {
-          const colContacts = contacts.filter((c) => c.column_id === col.id);
+        {[{ id: "__inbox__", name: "🆕 New Leads", position: -1 }, ...columns].map((col) => {
+          const isInbox = col.id === "__inbox__";
+          const colContacts = contacts.filter((c) => isInbox ? c.column_id === null : c.column_id === col.id);
           return (
             <div
               key={col.id}
-              className="shrink-0 w-60 flex flex-col bg-gray-50 rounded-2xl border border-gray-200"
+              className={`shrink-0 w-60 flex flex-col rounded-2xl border ${isInbox ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"}`}
               onDragOver={(e) => onDragOver(e, col.id)}
               onDrop={() => onDrop(col.id)}
             >
               {/* Column header */}
               <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-200">
-                {editingColId === col.id ? (
+                {!isInbox && editingColId === col.id ? (
                   <input
                     autoFocus
                     value={editingColName}
@@ -138,6 +141,8 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                     onKeyDown={(e) => { if (e.key === "Enter") renameColumn(col.id, editingColName); }}
                     className="flex-1 text-sm font-semibold bg-white border border-green-400 rounded px-2 py-0.5 focus:outline-none"
                   />
+                ) : isInbox ? (
+                  <span className="flex-1 text-sm font-semibold text-green-800 truncate">{col.name}</span>
                 ) : (
                   <button
                     className="flex-1 text-left text-sm font-semibold text-gray-800 hover:text-green-700 truncate"
@@ -148,7 +153,7 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                 )}
                 <div className="flex items-center gap-1 ml-2">
                   <span className="text-xs text-gray-400 bg-gray-200 rounded-full px-1.5">{colContacts.length}</span>
-                  <button onClick={() => deleteColumn(col.id)} className="text-gray-300 hover:text-red-400 text-xs ml-1">✕</button>
+                  {!isInbox && <button onClick={() => deleteColumn(col.id)} className="text-gray-300 hover:text-red-400 text-xs ml-1">✕</button>}
                 </div>
               </div>
 
@@ -173,7 +178,8 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                 ))}
               </div>
 
-              {/* Add contact */}
+              {/* Add contact (pipeline columns only; inbox fills from website inquiries) */}
+              {!isInbox && (
               <div className="p-2 border-t border-gray-200">
                 {showAddContact === col.id ? (
                   <div className="space-y-1.5">
@@ -198,6 +204,7 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                   </button>
                 )}
               </div>
+              )}
             </div>
           );
         })}

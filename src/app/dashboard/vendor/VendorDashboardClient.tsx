@@ -2548,6 +2548,11 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [address, setAddress] = useState(vendor.address ?? "");
   const [city, setCity] = useState(vendor.city ?? "");
   const [vendorState, setVendorState] = useState(vendor.state ?? "");
+  // Up to 10 service locations (towns/cities served) for SEO + LocalBusiness schema
+  const [serviceLocations, setServiceLocations] = useState<string[]>(() => {
+    const existing: string[] = Array.isArray(vendor.service_locations) ? vendor.service_locations : [];
+    return Array.from({ length: 10 }, (_, i) => existing[i] ?? "");
+  });
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(vendor.logo_url);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
@@ -2648,6 +2653,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       address: address.trim() || null,
       city: city.trim(),
       state: vendorState.trim(),
+      service_locations: serviceLocations.map((s) => s.trim()).filter(Boolean),
       logo_url: logoUrl,
       banner_url: bannerUrl,
     }).eq("id", vendor.id);
@@ -2722,6 +2728,25 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
             <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourbusiness.com" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
         </div>
+        {/* ── SERVICE LOCATIONS (SEO + schema) ─────────────────────── */}
+        <div className="border border-gray-200 rounded-2xl p-5 bg-white">
+          <label className="block text-sm font-semibold text-gray-700">Service Locations</label>
+          <p className="text-xs text-gray-400 mt-0.5 mb-3">
+            List up to 10 cities or towns you serve. These appear on your public page and power local-SEO search schema so nearby customers can find you.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {serviceLocations.map((loc, i) => (
+              <input
+                key={i}
+                value={loc}
+                onChange={(e) => setServiceLocations((prev) => prev.map((v, idx) => idx === i ? e.target.value : v))}
+                placeholder={`Location ${i + 1}${i === 0 ? " (e.g. Eau Claire, WI)" : ""}`}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            ))}
+          </div>
+        </div>
+
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">{error}</p>}
         <button type="submit" disabled={saving} className={`w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${saved ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}>
           {saving ? "Saving..." : saved ? "Saved!" : "Save store settings"}
