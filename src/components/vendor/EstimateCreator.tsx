@@ -3,11 +3,13 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type LineItem = { id: string; description: string; qty: number; unit_price: number };
-type Contact = { id: string; name: string; email: string | null; phone: string | null };
+type Contact = { id: string; name: string; email: string | null; phone: string | null; address?: string | null };
 type Estimate = {
   id: string; title: string; status: string; line_items: LineItem[];
   notes: string | null; contact_id: string | null; created_at: string;
   contact?: Contact | null;
+  customer_name?: string | null; customer_email?: string | null;
+  customer_phone?: string | null; customer_address?: string | null;
 };
 
 interface Props { vendorId: string; defaultContact?: Contact | null; onBack: () => void; }
@@ -45,22 +47,30 @@ export default function EstimateCreator({ vendorId, defaultContact, onBack }: Pr
       line_items: [{ id: crypto.randomUUID(), description: "", qty: 1, unit_price: 0 }],
       notes: null, contact_id: contact?.id ?? null, created_at: new Date().toISOString(),
       contact: contact ?? null,
+      customer_name: contact?.name ?? "", customer_email: contact?.email ?? "",
+      customer_phone: contact?.phone ?? "", customer_address: contact?.address ?? "",
     });
   }
 
-  async function saveEstimate(est: Estimate) {
+  // Upsert the estimate and return its id (does not close the editor)
+  async function saveEstimate(est: Estimate): Promise<string | null> {
     const payload = {
       vendor_id: vendorId, title: est.title, status: est.status,
       line_items: est.line_items, notes: est.notes, contact_id: est.contact_id,
+      customer_name: est.customer_name?.trim() || null,
+      customer_email: est.customer_email?.trim() || null,
+      customer_phone: est.customer_phone?.trim() || null,
+      customer_address: est.customer_address?.trim() || null,
     };
     if (est.id) {
       await supabase.from("estimates").update(payload).eq("id", est.id);
       setEstimates((prev) => prev.map((e) => e.id === est.id ? { ...est } : e));
+      return est.id;
     } else {
-      const { data } = await supabase.from("estimates").insert(payload).select("*").single();
-      if (data) setEstimates((prev) => [{ ...est, id: data.id }, ...prev]);
+      const { data } = await supabase.from("estimates").insert(payload).select("id").single();
+      if (data) { setEstimates((prev) => [{ ...est, id: data.id }, ...prev]); return data.id; }
+      return null;
     }
-    setEditing(null);
   }
 
   async function deleteEstimate(id: string) {
@@ -81,8 +91,9 @@ export default function EstimateCreator({ vendorId, defaultContact, onBack }: Pr
   if (editing) return (
     <EstimateEditor
       estimate={editing}
+      vendorId={vendorId}
       onSave={saveEstimate}
-      onCancel={() => setEditing(null)}
+      onClose={() => setEditing(null)}
     />
   );
 
@@ -119,7 +130,7 @@ export default function EstimateCreator({ vendorId, defaultContact, onBack }: Pr
                     <p className="font-semibold text-gray-900 truncate">{est.title}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[est.status]}`}>{est.status}</span>
                   </div>
-                  {est.contact && <p className="text-xs text-gray-400">{est.contact.name}</p>}
+                  {(est.customer_name ?? est.contact?.name) && <p className="text-xs text-gray-400">{est.customer_name ?? est.contact?.name}</p>}
                   <p className="text-xs text-gray-400">{new Date(est.created_at).toLocaleDateString()}</p>
                 </div>
                 <p className="text-lg font-bold text-green-700 shrink-0">${total.toFixed(2)}</p>
@@ -137,8 +148,57 @@ export default function EstimateCreator({ vendorId, defaultContact, onBack }: Pr
   );
 }
 
-function EstimateEditor({ estimate, onSave, onCancel }: { estimate: Estimate; onSave: (e: Estimate) => void; onCancel: () => void }) {
+function EstimateEditor({ estimate, vendorId, onSave, onClose }: {
+  estimate: Estimate; vendorId: string;
+  onSave: (e: Estimate) => Promise<string | null>; onClose: () => void;
+}) {
+  const supabase = createClient();
   const [est, setEst] = useState<Estimate>({ ...estimate, line_items: estimate.line_items.map((li) => ({ ...li })) });
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [sending, setSending] = useState<null | "email" | "internal">(null);
+  const [sendMsg, setSendMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [savingClose, setSavingClose] = useState(false);
+
+  useEffect(() => {
+    supabase.from("crm_contacts").select("id, name, email, phone, address").eq("vendor_id", vendorId).order("name")
+      .then(({ data }) => setContacts((data as Contact[]) ?? []));
+  }, [vendorId, supabase]);
+
+  function pullContact(id: string) {
+    const c = contacts.find((x) => x.id === id);
+    if (!c) return;
+    setEst((prev) => ({
+      ...prev, contact_id: c.id,
+      customer_name: c.name ?? "", customer_email: c.email ?? "",
+      customer_phone: c.phone ?? "", customer_address: c.address ?? "",
+    }));
+  }
+
+  async function sendEstimate(channel: "email" | "internal") {
+    setSendMsg(null);
+    if (!est.customer_email?.trim()) {
+      setSendMsg({ ok: false, text: "Add the customer's email first." });
+      return;
+    }
+    if (channel === "email" && !window.confirm(`Email this estimate to ${est.customer_email}?`)) return;
+    setSending(channel);
+    const id = await onSave(est); // ensure saved, get id
+    if (!id) { setSending(null); setSendMsg({ ok: false, text: "Could not save the estimate." }); return; }
+    const res = await fetch("/api/estimate-send", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estimateId: id, channel }),
+    });
+    const data = await res.json().catch(() => ({}));
+    setSending(null);
+    if (res.ok) {
+      setEst((prev) => ({ ...prev, id, status: "sent" }));
+      setSendMsg({ ok: true, text: channel === "email" ? "Estimate emailed to the customer." : "Estimate sent as an in-app message." });
+    } else if (data.error === "no_account") {
+      setSendMsg({ ok: false, text: "That customer doesn't have an account — use “Email to customer” instead." });
+    } else {
+      setSendMsg({ ok: false, text: data.error ?? "Could not send the estimate." });
+    }
+  }
 
   function updateLine(id: string, field: keyof LineItem, value: string | number) {
     setEst((prev) => ({ ...prev, line_items: prev.line_items.map((li) => li.id === id ? { ...li, [field]: value } : li) }));
@@ -174,13 +234,32 @@ function EstimateEditor({ estimate, onSave, onCancel }: { estimate: Estimate; on
         </select>
       </div>
 
-      {est.contact && (
-        <div className="mb-4 bg-gray-50 rounded-xl px-4 py-3 text-sm">
-          <p className="font-semibold text-gray-700">{est.contact.name}</p>
-          {est.contact.email && <p className="text-gray-400">{est.contact.email}</p>}
-          {est.contact.phone && <p className="text-gray-400">{est.contact.phone}</p>}
+      {/* Customer info — pull from CRM or enter manually */}
+      <div className="mb-5 bg-gray-50 rounded-xl px-4 py-4">
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</p>
+          {contacts.length > 0 && (
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) pullContact(e.target.value); }}
+              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">Pull from CRM…</option>
+              {contacts.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          )}
         </div>
-      )}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <input value={est.customer_name ?? ""} onChange={(e) => setEst({ ...est, customer_name: e.target.value })}
+            placeholder="Name" className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <input value={est.customer_email ?? ""} onChange={(e) => setEst({ ...est, customer_email: e.target.value })}
+            type="email" placeholder="Email" className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <input value={est.customer_phone ?? ""} onChange={(e) => setEst({ ...est, customer_phone: e.target.value })}
+            type="tel" placeholder="Phone" className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <input value={est.customer_address ?? ""} onChange={(e) => setEst({ ...est, customer_address: e.target.value })}
+            placeholder="Address" className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+        </div>
+      </div>
 
       {/* Line items */}
       <div className="mb-4">
@@ -239,9 +318,37 @@ function EstimateEditor({ estimate, onSave, onCancel }: { estimate: Estimate; on
         />
       </div>
 
+      {/* Send options */}
+      <div className="mb-4 border-t border-gray-100 pt-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Send proposal</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button" onClick={() => sendEstimate("internal")} disabled={sending !== null}
+            className="flex items-center gap-2 border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-40"
+          >
+            💬 {sending === "internal" ? "Sending…" : "Send as message"}
+          </button>
+          <button
+            type="button" onClick={() => sendEstimate("email")} disabled={sending !== null}
+            className="flex items-center gap-2 border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-40"
+          >
+            📧 {sending === "email" ? "Sending…" : "Email to customer"}
+          </button>
+        </div>
+        {sendMsg && (
+          <p className={`text-xs mt-2 ${sendMsg.ok ? "text-green-600" : "text-red-500"}`}>{sendMsg.text}</p>
+        )}
+      </div>
+
       <div className="flex gap-3">
-        <button onClick={() => onSave(est)} className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors">Save Estimate</button>
-        <button onClick={onCancel} className="px-6 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
+        <button
+          onClick={async () => { setSavingClose(true); const id = await onSave(est); setSavingClose(false); if (id) onClose(); }}
+          disabled={savingClose}
+          className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50"
+        >
+          {savingClose ? "Saving…" : "Save Estimate"}
+        </button>
+        <button onClick={onClose} className="px-6 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
       </div>
     </div>
   );
@@ -272,12 +379,13 @@ function PrintView({ estimate, onClose }: { estimate: Estimate; onClose: () => v
         </div>
 
         {/* Client info */}
-        {estimate.contact && (
+        {(estimate.customer_name ?? estimate.contact?.name) && (
           <div className="mb-8 bg-gray-50 rounded-xl p-4">
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Prepared for</p>
-            <p className="font-bold text-gray-900">{estimate.contact.name}</p>
-            {estimate.contact.email && <p className="text-gray-500 text-sm">{estimate.contact.email}</p>}
-            {estimate.contact.phone && <p className="text-gray-500 text-sm">{estimate.contact.phone}</p>}
+            <p className="font-bold text-gray-900">{estimate.customer_name ?? estimate.contact?.name}</p>
+            {(estimate.customer_email ?? estimate.contact?.email) && <p className="text-gray-500 text-sm">{estimate.customer_email ?? estimate.contact?.email}</p>}
+            {(estimate.customer_phone ?? estimate.contact?.phone) && <p className="text-gray-500 text-sm">{estimate.customer_phone ?? estimate.contact?.phone}</p>}
+            {estimate.customer_address && <p className="text-gray-500 text-sm">{estimate.customer_address}</p>}
           </div>
         )}
 
