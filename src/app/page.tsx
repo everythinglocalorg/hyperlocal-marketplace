@@ -298,21 +298,6 @@ export default function HomePage() {
                 Search
               </button>
             </form>
-
-            {/* Popular searches */}
-            <div className="flex flex-wrap justify-center gap-2">
-              {["Plumbers", "Italian food", "Fresh eggs", "Hair salons", "Dog grooming", "Handmade crafts"].map((term) => (
-                <button
-                  key={term}
-                  onClick={() => {
-                    router.push(`/search?q=${encodeURIComponent(term)}${activeCity ? `&city=${activeCity}` : ""}`);
-                  }}
-                  className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full hover:border-green-400 hover:text-green-700 transition-colors"
-                >
-                  {term}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Recent listings */}
