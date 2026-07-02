@@ -10,6 +10,21 @@ import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
 import CitySelector from "@/components/CitySelector";
 import Link from "next/link";
+import ListingDetailModal, { DetailListing } from "@/components/ListingDetailModal";
+import RentalBookingModal from "@/components/rental/RentalBookingModal";
+import BuyNowModal from "@/components/BuyNowModal";
+import MessageModal from "@/components/MessageModal";
+
+// Full listing row (plus its vendor) needed by the detail popup and its CTAs.
+const LISTING_SELECT = "id, title, description, type, price, price_label, condition, quantity, images, category, tags, is_featured, cta_type, waiver_url, waiver_filename, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating, phone, menu_pdf_url)";
+
+type ListingVendor = {
+  id: string; slug: string; business_name: string; city: string; state: string;
+  latitude: number | null; longitude: number | null; rating: number;
+  phone: string | null; menu_pdf_url: string | null;
+};
+
+type ListingCtx = { listing: DetailListing & { waiver_url?: string | null; waiver_filename?: string | null }; vendor: ListingVendor };
 
 type Vendor = {
   id: string;
@@ -54,10 +69,9 @@ const SORT_OPTIONS = [
 function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
   return (
-    <Link
-      href={vendor?.slug ? `/vendors/${vendor.slug}` : `/listings/${l.id}`}
+    <div
       onClick={onClick}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer"
     >
       <div className="h-36 bg-gray-100 relative">
         {l.images?.[0] ? (
@@ -85,16 +99,15 @@ function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
           <p className="text-xs text-gray-500 mt-2">📍 {l.price_label}</p>
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 
 function KeywordListingCard({ r, onClick }: { r: SearchResult; onClick?: () => void }) {
   return (
-    <Link
-      href={`/listings/${r.id}`}
+    <div
       onClick={onClick}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
+      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer"
     >
       <div className="h-36 bg-gray-100 relative">
         {r.image_url ? (
@@ -111,7 +124,7 @@ function KeywordListingCard({ r, onClick }: { r: SearchResult; onClick?: () => v
           <span className="text-xs text-gray-400">{r.city}, {r.state}</span>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -183,6 +196,38 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Listing detail popup + action modals — buy/book/message straight from search,
+  // no detour through the business page.
+  const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
+  const [detailCtx, setDetailCtx] = useState<ListingCtx | null>(null);
+  const [buyCtx, setBuyCtx] = useState<ListingCtx | null>(null);
+  const [bookCtx, setBookCtx] = useState<ListingCtx | null>(null);
+  const [bookDurations, setBookDurations] = useState<any[]>([]);
+  const [msgCtx, setMsgCtx] = useState<ListingCtx | null>(null);
+
+  function trackListingClick(listingId: string) {
+    supabase.rpc("increment_listing_clicks", { listing_id_in: listingId }).then(() => {});
+  }
+
+  function openDetail(l: any) {
+    const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+    if (!vendor) return;
+    setDetailCtx({ listing: l, vendor });
+  }
+
+  // Keyword results only carry a summary — fetch the full row, then open.
+  async function openDetailById(listingId: string) {
+    const { data } = await supabase.from("listings").select(LISTING_SELECT).eq("id", listingId).single();
+    if (data) openDetail(data);
+  }
+
+  async function openBooking(ctx: ListingCtx) {
+    trackListingClick(ctx.listing.id);
+    const { data: durations } = await supabase.from("rental_durations").select("*").eq("listing_id", ctx.listing.id).order("hours");
+    setBookDurations(durations ?? []);
+    setBookCtx(ctx);
+  }
+
   const listingMode = searchParams.get("mode") === "listings";
   const listingType = searchParams.get("type") ?? "";
 
@@ -246,10 +291,13 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     return null;
   }, [cityCenter, activeCityObj, selectedCity, paramLat, paramLng, paramCity, paramState]);
 
-  // On mount: get user id for profile saves
+  // On mount: get user id for profile saves + profile for the action modals
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) setUserId(user.id);
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      setUserId(user.id);
+      const { data: profile } = await supabase.from("profiles").select("id, full_name").eq("id", user.id).single();
+      if (profile) setCurrentUser({ ...profile, email: user.email });
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -295,7 +343,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
       if (listingMode) {
         let q = supabase
           .from("listings")
-          .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
+          .select(LISTING_SELECT)
           .eq("is_active", true);
         if (listingType) q = q.eq("type", listingType);
         else if (category) q = q.eq("category", category);
@@ -348,7 +396,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         // listings whose vendor falls within the same radius.
         let geoListingQ = supabase
           .from("listings")
-          .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
+          .select(LISTING_SELECT)
           .eq("is_active", true);
         if (category) geoListingQ = geoListingQ.eq("category", category);
         geoListingQ = geoListingQ
@@ -403,7 +451,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
 
         let fbListingQ = supabase
           .from("listings")
-          .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
+          .select(LISTING_SELECT)
           .eq("is_active", true);
         if (category) fbListingQ = fbListingQ.eq("category", category);
         fbListingQ = fbListingQ
@@ -455,6 +503,47 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Listing detail popup + action modals */}
+      {detailCtx && (
+        <ListingDetailModal
+          listing={detailCtx.listing}
+          vendorPhone={detailCtx.vendor.phone}
+          menuPdfUrl={detailCtx.vendor.menu_pdf_url}
+          vendorName={detailCtx.vendor.business_name}
+          vendorSlug={detailCtx.vendor.slug}
+          onClose={() => setDetailCtx(null)}
+          onBook={() => { const ctx = detailCtx; setDetailCtx(null); openBooking(ctx); }}
+          onBuy={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setBuyCtx(ctx); }}
+          onMessage={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setMsgCtx(ctx); }}
+        />
+      )}
+      {buyCtx && (
+        <BuyNowModal
+          listing={{ id: buyCtx.listing.id, title: buyCtx.listing.title, price: buyCtx.listing.price, price_label: buyCtx.listing.price_label }}
+          vendor={{ id: buyCtx.vendor.id, business_name: buyCtx.vendor.business_name }}
+          currentUser={currentUser}
+          inquiryType="buy"
+          onClose={() => setBuyCtx(null)}
+        />
+      )}
+      {bookCtx && (
+        <RentalBookingModal
+          listing={{ id: bookCtx.listing.id, title: bookCtx.listing.title, waiver_url: bookCtx.listing.waiver_url ?? null, waiver_filename: bookCtx.listing.waiver_filename ?? null }}
+          vendor={{ id: bookCtx.vendor.id, business_name: bookCtx.vendor.business_name }}
+          durations={bookDurations}
+          currentUser={currentUser}
+          onClose={() => setBookCtx(null)}
+        />
+      )}
+      {msgCtx && (
+        <MessageModal
+          listing={{ id: msgCtx.listing.id, title: msgCtx.listing.title }}
+          vendor={{ id: msgCtx.vendor.id, business_name: msgCtx.vendor.business_name }}
+          currentUser={currentUser}
+          onClose={() => setMsgCtx(null)}
+        />
+      )}
+
       {/* Top bar (sits below the global header) */}
       <div className="bg-white border-b border-gray-100 sticky top-16 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -626,35 +715,35 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {listingMode
                     ? listingResults.map((l: any, i: number) => (
-                        <ListingCard key={l.id} l={l} onClick={() => track("search_result_click", {
+                        <ListingCard key={l.id} l={l} onClick={() => { track("search_result_click", {
                           query: "",
                           mode: "listings",
                           result_type: "listing",
                           result_id: l.id,
                           position: i + 1,
                           total_results: listingResults.length,
-                        })} />
+                        }); openDetail(l); }} />
                       ))
                     : isKeyword
                     ? kwListings.map((r, i) => (
-                        <KeywordListingCard key={r.id} r={r} onClick={() => track("search_result_click", {
+                        <KeywordListingCard key={r.id} r={r} onClick={() => { track("search_result_click", {
                           query: query.trim(),
                           result_type: "listing",
                           result_id: r.id,
                           slug: r.slug ?? null,
                           position: i + 1,
                           total_results: kwListings.length,
-                        })} />
+                        }); openDetailById(r.id); }} />
                       ))
                     : listingResults.map((l: any, i: number) => (
-                        <ListingCard key={l.id} l={l} onClick={() => track("search_result_click", {
+                        <ListingCard key={l.id} l={l} onClick={() => { track("search_result_click", {
                           query: "",
                           mode: "browse",
                           result_type: "listing",
                           result_id: l.id,
                           position: i + 1,
                           total_results: listingResults.length,
-                        })} />
+                        }); openDetail(l); }} />
                       ))}
                 </div>
               </section>

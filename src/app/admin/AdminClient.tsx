@@ -9,7 +9,11 @@ type Vendor = {
   id: string; business_name: string; slug: string; tier: string;
   city: string; state: string; category: string; is_verified: boolean;
   features: Record<string, boolean> | null;
-  user_id: string;
+  user_id: string | null;
+  is_claimed: boolean;
+  claimed_at: string | null;
+  owner_name: string | null;
+  owner_email: string | null;
 };
 type UserRow = { id: string; email: string; full_name: string | null; is_admin: boolean; created_at: string };
 type Listing = { id: string; title: string; vendor_id: string; is_active: boolean; price: number | null; vendor?: { business_name: string } | null };
@@ -78,8 +82,28 @@ function VendorsTab({ adminId }: { adminId: string }) {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const { data } = await supabase.from("vendors").select("id,business_name,slug,tier,city,state,category,is_verified,features,user_id").order("business_name");
-    setVendors((data ?? []).map((v: any) => ({ ...v, features: v.features ?? {} })));
+    const { data } = await supabase
+      .from("vendors")
+      .select("id,business_name,slug,tier,city,state,category,is_verified,features,user_id,is_claimed,claimed_at")
+      .order("business_name");
+    const rows = (data ?? []) as any[];
+
+    // Look up the owner (name + email) for every claimed vendor so admins can
+    // verify the right person took over the store.
+    const ownerIds = Array.from(new Set(rows.filter((v) => v.user_id).map((v) => v.user_id)));
+    const ownerMap = new Map<string, { full_name: string | null; email: string | null }>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await supabase
+        .from("profiles").select("id, full_name, email").in("id", ownerIds);
+      (owners ?? []).forEach((o: any) => ownerMap.set(o.id, { full_name: o.full_name, email: o.email }));
+    }
+
+    setVendors(rows.map((v) => ({
+      ...v,
+      features: v.features ?? {},
+      owner_name: v.user_id ? ownerMap.get(v.user_id)?.full_name ?? null : null,
+      owner_email: v.user_id ? ownerMap.get(v.user_id)?.email ?? null : null,
+    })));
     setLoading(false);
   }
 
@@ -115,10 +139,13 @@ function VendorsTab({ adminId }: { adminId: string }) {
     if (selected?.id === vendor.id) setSelected({ ...vendor, is_verified: newVal });
   }
 
+  const s = search.toLowerCase();
   const filtered = vendors.filter((v) =>
-    !search || v.business_name.toLowerCase().includes(search.toLowerCase()) ||
-    v.city.toLowerCase().includes(search.toLowerCase()) ||
-    v.category.toLowerCase().includes(search.toLowerCase())
+    !search || v.business_name.toLowerCase().includes(s) ||
+    v.city.toLowerCase().includes(s) ||
+    v.category.toLowerCase().includes(s) ||
+    (v.owner_email?.toLowerCase().includes(s) ?? false) ||
+    (v.owner_name?.toLowerCase().includes(s) ?? false)
   );
 
   return (
@@ -146,8 +173,14 @@ function VendorsTab({ adminId }: { adminId: string }) {
                     <div className="flex items-center gap-2">
                       <p className="font-semibold text-gray-900 truncate">{v.business_name}</p>
                       {v.is_verified && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">✓ Verified</span>}
+                      {v.is_claimed
+                        ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">✓ Claimed</span>
+                        : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">⏳ Unclaimed</span>}
                     </div>
                     <p className="text-xs text-gray-400">{v.category} · {v.city}, {v.state}</p>
+                    {v.is_claimed && v.owner_email && (
+                      <p className="text-xs text-green-700 mt-0.5 truncate">👤 {v.owner_email}</p>
+                    )}
                   </button>
                   <select
                     value={v.tier === "premium" ? "premium" : "free"}
@@ -176,6 +209,31 @@ function VendorsTab({ adminId }: { adminId: string }) {
                 <p className="text-xs text-gray-400">{selected.city}, {selected.state}</p>
               </div>
               <button onClick={() => setSelected(null)} className="text-gray-300 hover:text-gray-500">✕</button>
+            </div>
+
+            {/* Owner / claim verification */}
+            <div className={`mb-5 rounded-xl p-3 ${selected.is_claimed ? "bg-green-50 border border-green-200" : "bg-amber-50 border border-amber-200"}`}>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Ownership</p>
+              {selected.is_claimed ? (
+                <>
+                  <p className="text-sm font-semibold text-green-800">✓ Claimed</p>
+                  <div className="mt-1.5 space-y-0.5 text-sm">
+                    <p className="text-gray-700"><span className="text-gray-400">Owner:</span> {selected.owner_name || "—"}</p>
+                    <p className="text-gray-700 break-all">
+                      <span className="text-gray-400">Email:</span>{" "}
+                      {selected.owner_email
+                        ? <a href={`mailto:${selected.owner_email}`} className="text-green-700 hover:underline">{selected.owner_email}</a>
+                        : "—"}
+                    </p>
+                    {selected.claimed_at && (
+                      <p className="text-gray-500 text-xs">Claimed {new Date(selected.claimed_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    )}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Verify this email matches the real business before approving Local Pro or changes.</p>
+                </>
+              ) : (
+                <p className="text-sm font-semibold text-amber-800">⏳ Unclaimed placeholder — no owner account yet.</p>
+              )}
             </div>
 
             {/* Tier control */}
