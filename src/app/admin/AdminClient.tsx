@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ALL_FEATURES, FeatureKey, allFeaturesOn, allFeaturesOff } from "@/lib/features";
 
-type AdminTab = "vendors" | "users" | "listings" | "logs" | "security";
+type AdminTab = "vendors" | "claims" | "users" | "listings" | "logs" | "security";
 
 type Vendor = {
   id: string; business_name: string; slug: string; tier: string;
@@ -45,6 +45,7 @@ export default function AdminClient({ adminId }: Props) {
         <div className="flex gap-2 mb-6">
           {([
             { id: "vendors", label: "🏪 Vendors" },
+            { id: "claims", label: "🪪 Claims" },
             { id: "users", label: "👤 Users" },
             { id: "listings", label: "📦 Listings" },
             { id: "security", label: "🚨 Security" },
@@ -61,6 +62,7 @@ export default function AdminClient({ adminId }: Props) {
         </div>
 
         {tab === "vendors" && <VendorsTab adminId={adminId} />}
+        {tab === "claims" && <ClaimRequestsTab adminId={adminId} />}
         {tab === "users" && <UsersTab adminId={adminId} />}
         {tab === "listings" && <ListingsTab adminId={adminId} />}
         {tab === "security" && <SecurityTab adminId={adminId} />}
@@ -286,6 +288,135 @@ function VendorsTab({ adminId }: { adminId: string }) {
               </div>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── CLAIM REQUESTS TAB ──────────────────────────────────────────── */
+type ClaimReq = {
+  id: string; vendor_id: string; user_id: string; full_name: string | null;
+  contact_email: string | null; contact_phone: string | null; message: string | null;
+  status: string; created_at: string;
+  vendor?: { business_name: string; city: string; state: string; slug: string; phone: string | null; is_claimed: boolean } | null;
+  requester_email?: string | null;
+};
+
+function ClaimRequestsTab({ adminId }: { adminId: string }) {
+  const supabase = createClient();
+  const [reqs, setReqs] = useState<ClaimReq[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"pending" | "all">("pending");
+  const [busy, setBusy] = useState<string | null>(null);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    const { data } = await supabase
+      .from("claim_requests")
+      .select("*, vendor:vendors(business_name, city, state, slug, phone, is_claimed)")
+      .order("created_at", { ascending: false });
+    const rows = (data ?? []) as any[];
+    // Attach the requester's account email (their signup identity)
+    const ids = Array.from(new Set(rows.map((r) => r.user_id)));
+    const emailMap = new Map<string, string | null>();
+    if (ids.length > 0) {
+      const { data: profs } = await supabase.from("profiles").select("id, email").in("id", ids);
+      (profs ?? []).forEach((p: any) => emailMap.set(p.id, p.email));
+    }
+    setReqs(rows.map((r) => ({
+      ...r,
+      vendor: Array.isArray(r.vendor) ? r.vendor[0] : r.vendor,
+      requester_email: emailMap.get(r.user_id) ?? null,
+    })));
+    setLoading(false);
+  }
+
+  async function approve(r: ClaimReq) {
+    if (!confirm(`Approve ${r.full_name ?? "this user"} as owner of ${r.vendor?.business_name}?`)) return;
+    setBusy(r.id);
+    const { data, error } = await supabase.rpc("approve_claim_request", { p_request_id: r.id });
+    setBusy(null);
+    if (error || !data?.ok) { alert(data?.error ?? error?.message ?? "Failed to approve"); return; }
+    await supabase.from("admin_logs").insert({ admin_id: adminId, action: "approve_claim", target_type: "vendor", target_id: r.vendor_id, detail: `${r.full_name} (${r.contact_email})` });
+    load();
+  }
+
+  async function reject(r: ClaimReq) {
+    const note = prompt(`Reject this claim for ${r.vendor?.business_name}? Optional note to record:`);
+    if (note === null) return;
+    setBusy(r.id);
+    const { data, error } = await supabase.rpc("reject_claim_request", { p_request_id: r.id, p_note: note || null });
+    setBusy(null);
+    if (error || !data?.ok) { alert(data?.error ?? error?.message ?? "Failed to reject"); return; }
+    load();
+  }
+
+  const shown = filter === "pending" ? reqs.filter((r) => r.status === "pending") : reqs;
+  const statusColor: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-700", approved: "bg-green-100 text-green-700", rejected: "bg-gray-200 text-gray-500",
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Claim Requests</h2>
+          <p className="text-sm text-gray-400">{reqs.filter((r) => r.status === "pending").length} pending review</p>
+        </div>
+        <div className="flex gap-2">
+          {(["pending", "all"] as const).map((f) => (
+            <button key={f} onClick={() => setFilter(f)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize ${filter === f ? "bg-green-600 text-white" : "bg-white border border-gray-200 text-gray-600"}`}>
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
+      ) : shown.length === 0 ? (
+        <p className="text-center text-gray-400 py-16">No {filter === "pending" ? "pending" : ""} claim requests.</p>
+      ) : (
+        <div className="space-y-3">
+          {shown.map((r) => (
+            <div key={r.id} className="bg-white border border-gray-100 rounded-2xl p-4">
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-gray-900 truncate">{r.vendor?.business_name ?? "Unknown business"}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColor[r.status]}`}>{r.status}</span>
+                  </div>
+                  <p className="text-xs text-gray-400">{r.vendor?.city}, {r.vendor?.state} · on file: {r.vendor?.phone ?? "no phone"}</p>
+                </div>
+                <span className="text-xs text-gray-400 shrink-0">{new Date(r.created_at).toLocaleDateString()}</span>
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-3 text-sm space-y-0.5">
+                <p className="text-gray-800"><span className="text-gray-400">Claimer:</span> {r.full_name ?? "—"}</p>
+                <p className="text-gray-800 break-all"><span className="text-gray-400">Contact email:</span> {r.contact_email ?? "—"}</p>
+                <p className="text-gray-800 break-all"><span className="text-gray-400">Account email:</span> {r.requester_email ?? "—"}</p>
+                {r.contact_phone && <p className="text-gray-800"><span className="text-gray-400">Phone:</span> {r.contact_phone}</p>}
+                {r.message && <p className="text-gray-600 italic mt-1">"{r.message}"</p>}
+              </div>
+
+              {r.status === "pending" && (
+                <div className="flex gap-2 mt-3">
+                  <button onClick={() => approve(r)} disabled={busy === r.id}
+                    className="flex-1 bg-green-600 text-white text-sm font-semibold py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-40">
+                    {busy === r.id ? "…" : "✓ Approve & transfer"}
+                  </button>
+                  <button onClick={() => reject(r)} disabled={busy === r.id}
+                    className="flex-1 border border-red-200 text-red-600 text-sm font-semibold py-2 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40">
+                    ✕ Reject
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </div>

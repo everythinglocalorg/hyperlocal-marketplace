@@ -13,6 +13,7 @@ export type AnalyticsEventType =
   | "category_pill_click"
   | "claim_banner_view"
   | "claim_banner_click"
+  | "claim_requested"
   | "claim_completed"
   | "sign_up"
   | "login";
