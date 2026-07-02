@@ -346,14 +346,18 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
       } else if (resolvedCoords) {
         // Geo/nearby mode — vendors within `radius` miles (via RPC), and
         // listings whose vendor falls within the same radius.
+        let geoListingQ = supabase
+          .from("listings")
+          .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
+          .eq("is_active", true);
+        if (category) geoListingQ = geoListingQ.eq("category", category);
+        geoListingQ = geoListingQ
+          .order("is_featured", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(80);
+
         const [listingRes, vendorRes] = await Promise.all([
-          supabase
-            .from("listings")
-            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
-            .eq("is_active", true)
-            .order("is_featured", { ascending: false })
-            .order("created_at", { ascending: false })
-            .limit(80),
+          geoListingQ,
           supabase.rpc("search_vendors_nearby", {
             p_latitude: resolvedCoords.latitude,
             p_longitude: resolvedCoords.longitude,
@@ -397,14 +401,18 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           vendorQ = vendorQ.ilike("city", activeCityObj.city);
         }
 
+        let fbListingQ = supabase
+          .from("listings")
+          .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
+          .eq("is_active", true);
+        if (category) fbListingQ = fbListingQ.eq("category", category);
+        fbListingQ = fbListingQ
+          .order("is_featured", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(80);
+
         const [listingRes, vendorRes] = await Promise.all([
-          supabase
-            .from("listings")
-            .select("id, title, type, price, price_label, images, category, tags, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating)")
-            .eq("is_active", true)
-            .order("is_featured", { ascending: false })
-            .order("created_at", { ascending: false })
-            .limit(80),
+          fbListingQ,
           vendorQ,
         ]);
 
@@ -551,7 +559,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
             {CATEGORIES.map((c) => (
               <button
                 key={c}
-                onClick={() => { track("category_pill_click", { category: c, source: "search" }); setCategory(c); updateURL({ category: c, mode: "listings", type: "" }); }}
+                onClick={() => { track("category_pill_click", { category: c, source: "search" }); setCategory(c); updateURL({ category: c, mode: "", type: "" }); }}
                 className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                   category === c ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
@@ -594,6 +602,8 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                           : "All Listings"
                         : isKeyword
                         ? `Products & Listings`
+                        : category
+                        ? `${category}`
                         : "Latest Products"}
                     </h2>
                     <p className="text-sm text-gray-400 mt-0.5">
