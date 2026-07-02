@@ -1,0 +1,158 @@
+-- ═════════════════════════════════════════════════════════════════════════════
+-- EVERYTHING LOCAL — PENDING MIGRATIONS (run once, all at once)
+--
+-- HOW TO RUN: Supabase dashboard → SQL Editor → New query → paste this whole
+-- file → Run. Every statement uses "if not exists" / "if exists", so it is safe
+-- to run again if any piece was already applied.
+--
+-- Covers: manual appointments, first-party analytics, service locations,
+-- and estimate customer-info + sending.
+-- (Chain/franchise cleanup is intentionally NOT included — see remove_chains.sql,
+--  which is destructive and should be reviewed and run separately.)
+-- ═════════════════════════════════════════════════════════════════════════════
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 1) MANUAL APPOINTMENTS — vendors book walk-in / phone customers with no account
+-- ─────────────────────────────────────────────────────────────────────────────
+alter table public.bookings
+  alter column buyer_id drop not null;
+
+alter table public.bookings
+  add column if not exists customer_name  text,
+  add column if not exists customer_phone text,
+  add column if not exists title          text;
+
+alter table public.bookings
+  add column if not exists source text not null default 'buyer';
+-- source: 'buyer' = requested through the site, 'manual' = vendor created it
+
+drop policy if exists "Vendors can create own bookings" on public.bookings;
+create policy "Vendors can create own bookings" on public.bookings
+  for insert with check (
+    vendor_id in (select id from public.vendors where user_id = auth.uid())
+  );
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 2) FIRST-PARTY ANALYTICS — raw behavioral event stream + reporting views
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.analytics_events (
+  id uuid primary key default gen_random_uuid(),
+  event_type text not null check (char_length(event_type) <= 64),
+  event_data jsonb not null default '{}',
+  user_id uuid references auth.users(id) on delete set null,
+  session_id text check (char_length(session_id) <= 64),
+  path text check (char_length(path) <= 2048),
+  referrer text check (char_length(referrer) <= 2048),
+  city_context text check (char_length(city_context) <= 128),
+  device_type text check (device_type in ('mobile', 'tablet', 'desktop')),
+  user_agent text check (char_length(user_agent) <= 512),
+  created_at timestamptz not null default now(),
+  constraint analytics_event_data_size check (pg_column_size(event_data) < 8192)
+);
+
+create index if not exists analytics_events_type_idx on public.analytics_events (event_type);
+create index if not exists analytics_events_created_idx on public.analytics_events (created_at desc);
+create index if not exists analytics_events_type_created_idx on public.analytics_events (event_type, created_at desc);
+create index if not exists analytics_events_user_idx on public.analytics_events (user_id) where user_id is not null;
+create index if not exists analytics_events_session_idx on public.analytics_events (session_id);
+create index if not exists analytics_events_data_gin_idx on public.analytics_events using gin (event_data jsonb_path_ops);
+
+alter table public.analytics_events enable row level security;
+
+drop policy if exists "Anyone can log analytics events" on public.analytics_events;
+create policy "Anyone can log analytics events"
+  on public.analytics_events for insert
+  to anon, authenticated
+  with check (user_id is null or user_id = auth.uid());
+
+drop policy if exists "Admins can read analytics events" on public.analytics_events;
+create policy "Admins can read analytics events"
+  on public.analytics_events for select
+  to authenticated
+  using ((select is_admin from public.profiles where id = auth.uid()) = true);
+
+create or replace view public.analytics_top_searches
+with (security_invoker = true) as
+select
+  lower(trim(event_data->>'query')) as search_term,
+  count(*) as searches,
+  count(distinct session_id) as unique_sessions,
+  round(avg(coalesce((event_data->>'result_count')::int, 0)), 1) as avg_results,
+  count(*) filter (where coalesce((event_data->>'result_count')::int, 0) = 0) as zero_result_count,
+  max(created_at) as last_searched_at
+from public.analytics_events
+where event_type = 'search'
+  and coalesce(trim(event_data->>'query'), '') <> ''
+group by 1
+order by searches desc;
+
+create or replace view public.analytics_zero_result_searches
+with (security_invoker = true) as
+select
+  lower(trim(event_data->>'query')) as search_term,
+  event_data->>'category' as category,
+  city_context,
+  count(*) as searches,
+  count(distinct session_id) as unique_sessions,
+  max(created_at) as last_searched_at
+from public.analytics_events
+where event_type = 'search'
+  and coalesce(trim(event_data->>'query'), '') <> ''
+  and coalesce((event_data->>'result_count')::int, 0) = 0
+group by 1, 2, 3
+order by searches desc;
+
+create or replace view public.analytics_search_ctr
+with (security_invoker = true) as
+with searches as (
+  select lower(trim(event_data->>'query')) as search_term, count(*) as searches
+  from public.analytics_events
+  where event_type = 'search'
+    and coalesce(trim(event_data->>'query'), '') <> ''
+  group by 1
+),
+clicks as (
+  select lower(trim(event_data->>'query')) as search_term,
+         count(*) as clicks,
+         round(avg((event_data->>'position')::numeric), 1) as avg_click_position
+  from public.analytics_events
+  where event_type = 'search_result_click'
+    and coalesce(trim(event_data->>'query'), '') <> ''
+  group by 1
+)
+select
+  s.search_term,
+  s.searches,
+  coalesce(c.clicks, 0) as clicks,
+  round(coalesce(c.clicks, 0)::numeric / s.searches, 3) as ctr,
+  c.avg_click_position
+from searches s
+left join clicks c using (search_term)
+order by s.searches desc;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 3) SERVICE LOCATIONS — up to 10 towns a vendor serves (SEO areaServed)
+-- ─────────────────────────────────────────────────────────────────────────────
+alter table public.vendors
+  add column if not exists service_locations text[] not null default '{}';
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 4) ESTIMATE SENDING — snapshot customer info + CRM contact address
+-- ─────────────────────────────────────────────────────────────────────────────
+alter table public.estimates
+  add column if not exists customer_name    text,
+  add column if not exists customer_email   text,
+  add column if not exists customer_phone   text,
+  add column if not exists customer_address text,
+  add column if not exists sent_at          timestamptz;
+
+alter table public.crm_contacts
+  add column if not exists address text;
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- Done. If you saw no errors, all four features are ready.
+-- ═════════════════════════════════════════════════════════════════════════════
