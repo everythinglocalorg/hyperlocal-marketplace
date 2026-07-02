@@ -126,6 +126,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [bookingDurations, setBookingDurations] = useState<any[]>([]);
   const [buyListing, setBuyListing] = useState<Listing | null>(null);
   const [messageListing, setMessageListing] = useState<Listing | null>(null);
+  const [detailListing, setDetailListing] = useState<Listing | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showContactDropdown, setShowContactDropdown] = useState(false);
@@ -389,6 +390,18 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     )}
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
     {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
+
+    {/* Listing detail popup — full photos/details; its sticky action bar reuses the same CTA handlers */}
+    {detailListing && (
+      <ListingDetailModal
+        listing={detailListing}
+        vendorPhone={vendor.phone}
+        menuPdfUrl={vendor.menu_pdf_url ?? null}
+        onClose={() => setDetailListing(null)}
+        onBook={() => { const l = detailListing; setDetailListing(null); openBooking(l); }}
+        onBuy={() => { const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}
+        onMessage={() => { const l = detailListing; setDetailListing(null); trackClick(l.id); setMessageListing(l); }}
+      />}
 
     <div className="min-h-screen bg-white">
 

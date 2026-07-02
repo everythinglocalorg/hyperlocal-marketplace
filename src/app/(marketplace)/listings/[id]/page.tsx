@@ -1,27 +1,60 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { redirect, notFound } from "next/navigation";
+import RedirectClient from "./RedirectClient";
 
-export default async function ListingRedirectPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+type Props = { params: Promise<{ id: string }> };
+
+async function loadListing(id: string) {
   const supabase = await createClient();
-
-  // Get the listing's vendor_id
-  const { data: listing } = await supabase
+  const { data } = await supabase
     .from("listings")
-    .select("vendor_id")
+    .select("id, title, description, images, price, vendor:vendors(slug, business_name, city, state)")
     .eq("id", id)
-    .single();
+    .maybeSingle();
+  if (!data) return null;
+  const vendor = Array.isArray(data.vendor) ? data.vendor[0] : data.vendor;
+  return { ...data, vendor };
+}
 
-  if (!listing) notFound();
+// Link-preview metadata so sharing a product in chats/messages shows the
+// listing photo (falls back gracefully to a text card if it has no image).
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  const listing = await loadListing(id);
+  if (!listing) return { title: "Listing — Everything Local" };
 
-  // Get the vendor slug
-  const { data: vendor } = await supabase
-    .from("vendors")
-    .select("slug")
-    .eq("id", listing.vendor_id)
-    .single();
+  const biz = listing.vendor?.business_name ?? "Everything Local";
+  const title = `${listing.title} — ${biz}`;
+  const description =
+    listing.description ||
+    `${listing.title} from ${biz}${listing.vendor?.city ? ` in ${listing.vendor.city}, ${listing.vendor.state}` : ""} on Everything Local.`;
+  const image = listing.images?.[0] || undefined;
 
-  if (!vendor?.slug) notFound();
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: image ? [{ url: image, alt: listing.title }] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
+}
 
-  redirect(`/vendors/${vendor.slug}`);
+export default async function ListingRedirectPage({ params }: Props) {
+  const { id } = await params;
+  const listing = await loadListing(id);
+  if (!listing?.vendor?.slug) notFound();
+
+  // Human visitors are forwarded to the vendor page; link-unfurl bots read the
+  // Open Graph tags above (the listing photo) from this page's HTML first.
+  return <RedirectClient to={`/vendors/${listing.vendor.slug}`} title={listing.title} />;
 }

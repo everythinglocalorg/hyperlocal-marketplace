@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import VendorProfileClient from "./VendorProfileClient";
@@ -5,6 +6,43 @@ import VendorProfileClient from "./VendorProfileClient";
 interface Props {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ ref?: string }>;
+}
+
+// Link-preview (Open Graph / Twitter) metadata so shares in chats & messages
+// show the business logo/banner instead of a blank default.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const supabase = await createClient();
+  const { data: vendor } = await supabase
+    .from("vendors")
+    .select("business_name, description, category, city, state, logo_url, banner_url")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (!vendor) return { title: "Business — Everything Local" };
+
+  const title = `${vendor.business_name} — Everything Local`;
+  const description =
+    vendor.description ||
+    `${vendor.business_name} · ${vendor.category} in ${vendor.city}, ${vendor.state}. Discover and support local on Everything Local.`;
+  const image = vendor.banner_url || vendor.logo_url || undefined;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "profile",
+      images: image ? [{ url: image, alt: vendor.business_name }] : undefined,
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title,
+      description,
+      images: image ? [image] : undefined,
+    },
+  };
 }
 
 export default async function VendorProfilePage({ params, searchParams }: Props) {
