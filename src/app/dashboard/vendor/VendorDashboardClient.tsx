@@ -670,12 +670,15 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   <h1 className="text-2xl font-bold text-gray-900">Welcome back, {profile?.full_name?.split(" ")[0] ?? "there"} 👋</h1>
                   <p className="text-gray-500 text-sm mt-0.5">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
                 </div>
-                <button
-                  onClick={() => { goToTab("listings"); setShowNewListing(true); }}
-                  className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
-                >
-                  + Add Listing
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <ReferralCopyButton referralCode={profile?.referral_code ?? ""} />
+                  <button
+                    onClick={() => { goToTab("listings"); setShowNewListing(true); }}
+                    className="bg-green-600 text-white px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors whitespace-nowrap"
+                  >
+                    + Add Listing
+                  </button>
+                </div>
               </div>
 
               {/* Stats grid */}
@@ -2363,6 +2366,46 @@ type ReferredBy = {
   business_name: string | null;
   referral_code: string;
 } | null;
+
+// Compact one-click "copy my referral link" button for the overview header.
+function ReferralCopyButton({ referralCode }: { referralCode: string }) {
+  const [copied, setCopied] = useState(false);
+  if (!referralCode) return null;
+
+  async function copy() {
+    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const link = `${appUrl}/signup?ref=${referralCode}`;
+    try {
+      await navigator.clipboard.writeText(link);
+    } catch {
+      // Fallback for browsers/contexts without clipboard API
+      const ta = document.createElement("textarea");
+      ta.value = link; document.body.appendChild(ta); ta.select();
+      document.execCommand("copy"); document.body.removeChild(ta);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <button
+      onClick={copy}
+      title="Copy your referral link"
+      className={`px-3 sm:px-4 py-2.5 rounded-xl text-sm font-semibold border transition-colors whitespace-nowrap ${
+        copied
+          ? "bg-green-50 border-green-300 text-green-700"
+          : "bg-white border-gray-200 text-gray-700 hover:border-green-400 hover:text-green-700"
+      }`}
+    >
+      {copied ? "✓ Copied!" : (
+        <>
+          <span className="hidden sm:inline">🔗 Referral Link</span>
+          <span className="sm:hidden">🔗 Refer</span>
+        </>
+      )}
+    </button>
+  );
+}
 
 function ReferralsTab({ userId, referralCode, businessName }: {
   userId: string;
