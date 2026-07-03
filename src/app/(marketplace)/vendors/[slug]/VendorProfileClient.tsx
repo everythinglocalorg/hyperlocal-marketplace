@@ -30,6 +30,7 @@ type Vendor = {
   is_verified: boolean; is_claimed: boolean; rating: number; review_count: number;
   local_bucks_earned: number; service_radius_miles: number;
   service_locations?: string[] | null;
+  banner_position?: number | null;
   page_blocks?: PageBlock[] | null;
   menu_pdf_url?: string | null;
   cta_button?: { action?: "call" | "estimate" | "order"; url?: string } | null;
@@ -553,7 +554,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         {/* Cover — real banner if the vendor has one, else a branded gradient */}
         <div className="relative h-28 sm:h-40 overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700">
           {heroCover && (
-            <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" />
+            <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `center ${vendor.banner_position ?? 50}%` }} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
           <span className="absolute top-3 left-4 text-[11px] font-bold tracking-wider text-white bg-black/30 backdrop-blur px-3 py-1 rounded-full uppercase">
@@ -562,13 +563,13 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
 
         <div className="max-w-6xl mx-auto px-4 pb-5">
-          <div className="flex items-end gap-4 -mt-10 sm:-mt-12">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-4 -mt-12">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden shrink-0 flex items-center justify-center">
               {vendor.logo_url
                 ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
                 : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
             </div>
-            <div className="flex-1 min-w-0 pb-1">
+            <div className="flex-1 min-w-0 sm:pb-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
                 {vendor.is_verified
@@ -593,8 +594,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-3 py-1.5">🪙 Earn Local Bucks on referrals</span>
           </div>
 
-          {/* Obvious primary CTA */}
-          <div className="flex flex-wrap gap-2 mt-4">
+          {/* Obvious primary CTA — desktop only; mobile uses the sticky bottom bar */}
+          <div className="hidden lg:flex flex-wrap gap-2 mt-4">
             {ctaAction === "call" && vendor.phone ? (
               <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
                 📞 Call now →
@@ -1063,7 +1064,7 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
             <a
               href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`}
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
+              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors shrink-0"
             >
               {ctaLabel} <span className="text-base">→</span>
             </a>
@@ -1073,14 +1074,14 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
+              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors shrink-0"
             >
               {ctaLabel} <span className="text-base">→</span>
             </a>
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); runCta(); }}
-              className="flex items-center gap-1.5 text-green-400 hover:text-green-300 text-xs font-black tracking-wider uppercase transition-colors shrink-0"
+              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors shrink-0"
             >
               {ctaLabel} <span className="text-base">→</span>
             </button>

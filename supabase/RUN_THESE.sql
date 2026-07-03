@@ -318,7 +318,14 @@ begin
 end; $$;
 
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 9) COVER REPOSITION — vertical framing of the business-page cover photo
+-- ─────────────────────────────────────────────────────────────────────────────
+alter table public.vendors
+  add column if not exists banner_position integer not null default 50;
+
+
 -- ═════════════════════════════════════════════════════════════════════════════
--- Done. If you saw no errors, all eight features are ready.
+-- Done. If you saw no errors, all nine features are ready.
 -- (Jobs Board = run supabase/jobs_board.sql separately, once.)
 -- ═════════════════════════════════════════════════════════════════════════════

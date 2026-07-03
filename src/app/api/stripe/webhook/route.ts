@@ -95,10 +95,36 @@ export async function POST(req: NextRequest) {
         account.details_submitted &&
         account.metadata?.vendor_id
       ) {
+        const vendorId = account.metadata.vendor_id;
         await supabase
           .from("vendors")
           .update({ stripe_connect_enabled: true })
-          .eq("id", account.metadata.vendor_id);
+          .eq("id", vendorId);
+
+        // One-time 10 LB reward for connecting Stripe payouts
+        // (account.updated fires repeatedly; the ledger check keeps it single).
+        const { data: vendorRow } = await supabase
+          .from("vendors")
+          .select("user_id")
+          .eq("id", vendorId)
+          .single();
+        if (vendorRow?.user_id) {
+          const { data: prior } = await supabase
+            .from("local_bucks_transactions")
+            .select("id")
+            .eq("user_id", vendorRow.user_id)
+            .eq("reason", "connect_stripe")
+            .limit(1);
+          if (!prior?.length) {
+            await supabase.rpc("award_local_bucks", {
+              p_user_id: vendorRow.user_id,
+              p_amount: 10,
+              p_reason: "connect_stripe",
+              p_reference_id: vendorId,
+              p_reference_type: "vendor",
+            });
+          }
+        }
       }
       break;
     }

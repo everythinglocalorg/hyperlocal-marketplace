@@ -2642,6 +2642,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [logoPreview, setLogoPreview] = useState<string | null>(vendor.logo_url);
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(vendor.banner_url);
+  const [bannerPosition, setBannerPosition] = useState<number>(vendor.banner_position ?? 50);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -2741,6 +2742,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       service_locations: serviceLocations.map((s) => s.trim()).filter(Boolean),
       logo_url: logoUrl,
       banner_url: bannerUrl,
+      banner_position: bannerPosition,
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
       setSaved(true); setTimeout(() => setSaved(false), 3000);
@@ -2761,9 +2763,24 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           <label className="block text-sm font-semibold text-gray-700 mb-1">Cover photo</label>
           <p className="text-xs text-gray-400 mb-2">The big banner across the top of your public page. If you skip it, we use your first product photo automatically.</p>
           <div onClick={() => bannerRef.current?.click()} className="w-full h-32 rounded-2xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center">
-            {bannerPreview ? <img src={bannerPreview} alt="" className="w-full h-full object-cover" /> : <span className="text-gray-400 text-sm">Click to upload a cover photo (1200x300 recommended)</span>}
+            {bannerPreview
+              ? <img src={bannerPreview} alt="" className="w-full h-full object-cover" style={{ objectPosition: `center ${bannerPosition}%` }} />
+              : <span className="text-gray-400 text-sm">Click to upload a cover photo (1200x300 recommended)</span>}
           </div>
           <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={onBannerChange} />
+          {bannerPreview && (
+            <div className="mt-3">
+              <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+                <span>Reposition — drag to frame the cover</span>
+                <span className="text-gray-400">{bannerPosition < 34 ? "Top" : bannerPosition > 66 ? "Bottom" : "Center"}</span>
+              </label>
+              <input
+                type="range" min={0} max={100} step={1} value={bannerPosition}
+                onChange={(e) => setBannerPosition(Number(e.target.value))}
+                className="w-full accent-green-600"
+              />
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <div onClick={() => logoRef.current?.click()} className="w-20 h-20 rounded-2xl bg-green-100 flex items-center justify-center font-bold text-2xl text-green-700 overflow-hidden cursor-pointer ring-2 ring-green-100 hover:ring-green-400 transition-all shrink-0">

@@ -50,6 +50,26 @@ export async function POST() {
       .from("vendors")
       .update({ domain_verified: verified })
       .eq("id", vendor.id);
+
+    // One-time 10 LB reward the first time this account verifies a domain
+    // (re-verifications and domain swaps don't pay again).
+    if (verified) {
+      const { data: prior } = await supabase
+        .from("local_bucks_transactions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("reason", "connect_domain")
+        .limit(1);
+      if (!prior?.length) {
+        await supabase.rpc("award_local_bucks", {
+          p_user_id: user.id,
+          p_amount: 10,
+          p_reason: "connect_domain",
+          p_reference_id: vendor.id,
+          p_reference_type: "vendor",
+        });
+      }
+    }
   }
 
   return NextResponse.json({
