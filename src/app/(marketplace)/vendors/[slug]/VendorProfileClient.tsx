@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/utils";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
 import MessageModal from "@/components/MessageModal";
+import WelcomeGateModal from "@/components/WelcomeGateModal";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
 
 type PageBlock = {
@@ -124,6 +125,12 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showContactDropdown, setShowContactDropdown] = useState(false);
+  // Soft signup gate: guests must create a profile before high-intent actions.
+  const [gateNext, setGateNext] = useState<string | null>(null);
+  function requireAccount(): boolean {
+    if (!currentUserId) { setGateNext(`/vendors/${vendor.slug}`); return true; }
+    return false;
+  }
   const [showCtaForm, setShowCtaForm] = useState(false);
   const [ctaFormName, setCtaFormName] = useState("");
   const [ctaFormEmail, setCtaFormEmail] = useState("");
@@ -147,6 +154,13 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const inquiryHeading = isServiceBased ? "Request A Free Estimate" : "Get in Touch";
   const inquirySubmitLabel = isServiceBased ? "Request Free Estimate →" : "Send Message →";
 
+  // Hero cover: the vendor's own banner if they set one, otherwise default to
+  // their first product/listing photo, else fall back to a branded gradient.
+  const heroCover =
+    (vendor.banner_url && vendor.banner_url !== vendor.logo_url)
+      ? vendor.banner_url
+      : (listings.find((l) => l.images?.[0])?.images[0] ?? null);
+
   // Sidebar inquiry form state
   const [sidebarName, setSidebarName] = useState("");
   const [sidebarEmail, setSidebarEmail] = useState("");
@@ -157,6 +171,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
   async function submitSidebarInquiry(e: React.FormEvent) {
     e.preventDefault();
+    if (requireAccount()) return;
     setSidebarSubmitting(true);
     await supabase.from("purchase_inquiries").insert({
       vendor_id: vendor.id,
@@ -348,6 +363,22 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   return (<>
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
+    <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
+
+    {/* Sticky mobile CTA bar — conversion stays one tap away while scrolling */}
+    <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 flex gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <button
+        onClick={() => { if (requireAccount()) return; if (ctaAction && ctaAction !== "call") setShowCtaForm(true); else setShowMessageModal(true); }}
+        className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors text-sm"
+      >
+        {ctaAction ? CTA_LABELS[ctaAction] : isServiceBased ? "Request Free Estimate" : "Message"} →
+      </button>
+      {vendor.phone && (
+        <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-5 py-3 rounded-xl text-sm">
+          📞
+        </a>
+      )}
+    </div>
     {showMessageModal && <MessageModal listing={{ id: vendor.id, title: `Contact ${vendor.business_name}` }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
 
     {/* CTA built-in form modal */}
@@ -392,9 +423,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         vendorPhone={vendor.phone}
         menuPdfUrl={vendor.menu_pdf_url ?? null}
         onClose={() => setDetailListing(null)}
-        onBook={() => { const l = detailListing; setDetailListing(null); openBooking(l); }}
-        onBuy={() => { const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}
-        onMessage={() => { const l = detailListing; setDetailListing(null); trackClick(l.id); setMessageListing(l); }}
+        onBook={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); openBooking(l); }}
+        onBuy={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}
+        onMessage={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setMessageListing(l); }}
       />
     )}
 
@@ -456,7 +487,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               </a>
             )}
             <button
-              onClick={() => setShowMessageModal(true)}
+              onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
               className="text-sm border border-gray-200 text-gray-700 px-2.5 py-2 rounded-lg font-semibold hover:border-gray-400 transition-colors whitespace-nowrap"
             >
               <span className="hidden sm:inline">💬 Message</span>
@@ -474,7 +505,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                   <span className="sm:hidden text-lg leading-none">🛒</span>
                 </a>
               ) : ctaAction !== "call" ? (
-                <button onClick={() => setShowCtaForm(true)} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
+                <button onClick={() => { if (requireAccount()) return; setShowCtaForm(true); }} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
                   <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
                   <span className="sm:hidden text-lg leading-none">{ctaAction === "estimate" ? "📋" : "🛒"}</span>
                 </button>
@@ -495,6 +526,104 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           ))}
         </div>
       </header>
+
+      {/* ── BUSINESS HERO ─────────────────────────────────────────── */}
+      <section className="bg-white border-b border-gray-100">
+        {/* Cover — real banner if the vendor has one, else a branded gradient */}
+        <div className="relative h-28 sm:h-40 overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700">
+          {heroCover && (
+            <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+          <span className="absolute top-3 left-4 text-[11px] font-bold tracking-wider text-white bg-black/30 backdrop-blur px-3 py-1 rounded-full uppercase">
+            {vendor.category}
+          </span>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 pb-5">
+          <div className="flex items-end gap-4 -mt-10 sm:-mt-12">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden shrink-0 flex items-center justify-center">
+              {vendor.logo_url
+                ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
+                : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
+            </div>
+            <div className="flex-1 min-w-0 pb-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
+                {vendor.is_verified
+                  ? <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>
+                  : vendor.is_claimed
+                  ? <span className="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Claimed</span>
+                  : null}
+              </div>
+              <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 flex-wrap">
+                <span className="text-amber-500 font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
+                <span className="text-gray-400">{vendor.review_count > 0 ? `(${vendor.review_count} reviews)` : "New"}</span>
+                <span>·</span>
+                <span>{vendor.city}, {vendor.state}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Trust chips */}
+          <div className="flex flex-wrap gap-2 mt-4">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">📍 Serves {vendor.city} + {vendor.service_radius_miles} mi</span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">🏡 Locally owned</span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-3 py-1.5">🪙 Earn Local Bucks on referrals</span>
+          </div>
+
+          {/* Obvious primary CTA */}
+          <div className="flex flex-wrap gap-2 mt-4">
+            {ctaAction === "call" && vendor.phone ? (
+              <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
+                📞 Call now →
+              </a>
+            ) : ctaAction === "order" && ctaOrderUrl ? (
+              <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
+                {CTA_LABELS.order} →
+              </a>
+            ) : (
+              <button
+                onClick={() => { if (requireAccount()) return; if (ctaAction && ctaAction !== "call") setShowCtaForm(true); else setShowMessageModal(true); }}
+                className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
+              >
+                {ctaAction ? CTA_LABELS[ctaAction] : isServiceBased ? "Request Free Estimate" : `Contact ${vendor.business_name.split(" ")[0]}`} →
+              </button>
+            )}
+            {vendor.phone && ctaAction !== "call" && (
+              <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="border-2 border-gray-200 text-gray-800 font-bold px-6 py-3 rounded-xl hover:border-gray-400 transition-colors">
+                📞 Call
+              </a>
+            )}
+            <button
+              onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
+              className="border-2 border-gray-200 text-gray-800 font-bold px-6 py-3 rounded-xl hover:border-gray-400 transition-colors"
+            >
+              💬 Message
+            </button>
+          </div>
+
+          {/* Trust stats bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-base font-black text-gray-900">★ {(vendor.rating ?? 5).toFixed(1)}</p>
+              <p className="text-[11px] text-gray-500">{vendor.review_count > 0 ? `${vendor.review_count} reviews` : "New business"}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-base font-black text-gray-900">{vendor.service_radius_miles} mi</p>
+              <p className="text-[11px] text-gray-500">Service area</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-base font-black text-gray-900">{listings.length}</p>
+              <p className="text-[11px] text-gray-500">{listings.length === 1 ? "Listing" : "Listings"}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3 text-center">
+              <p className="text-base font-black text-gray-900">📍</p>
+              <p className="text-[11px] text-gray-500">Owned here</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col lg:flex-row gap-8 items-start">
         <div className="flex-1 min-w-0 w-full">
@@ -531,9 +660,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                       vendorPhone={vendor.phone}
                       menuPdfUrl={vendor.menu_pdf_url ?? null}
                       onOpen={() => setDetailListing(listing)}
-                      onBook={() => openBooking(listing)}
-                      onBuy={() => { trackClick(listing.id); setBuyListing(listing); }}
-                      onMessage={() => { trackClick(listing.id); setMessageListing(listing); }}
+                      onBook={() => { if (requireAccount()) return; openBooking(listing); }}
+                      onBuy={() => { if (requireAccount()) return; trackClick(listing.id); setBuyListing(listing); }}
+                      onMessage={() => { if (requireAccount()) return; trackClick(listing.id); setMessageListing(listing); }}
                     />
                   ))}
                 </div>
@@ -826,6 +955,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           </p>
         )}
       </div>
+      {/* Spacer so the sticky mobile CTA bar never covers the footer */}
+      <div className="h-20 lg:hidden" />
     </div>
   </>);
 }
