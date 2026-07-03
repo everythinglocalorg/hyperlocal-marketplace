@@ -325,7 +325,36 @@ alter table public.vendors
   add column if not exists banner_position integer not null default 50;
 
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 10) FOLLOWS / LIKES — follow a business or person; live follower counts
+-- ─────────────────────────────────────────────────────────────────────────────
+create table if not exists public.follows (
+  id uuid primary key default gen_random_uuid(),
+  follower_id uuid references public.profiles(id) on delete cascade not null,
+  target_type text not null check (target_type in ('vendor', 'user')),
+  target_id uuid not null,
+  created_at timestamptz default now(),
+  unique (follower_id, target_type, target_id)
+);
+create index if not exists follows_target_idx on public.follows(target_type, target_id);
+create index if not exists follows_follower_idx on public.follows(follower_id);
+alter table public.follows enable row level security;
+
+drop policy if exists "Anyone can view follows" on public.follows;
+create policy "Anyone can view follows" on public.follows for select using (true);
+drop policy if exists "Users insert own follows" on public.follows;
+create policy "Users insert own follows" on public.follows for insert with check (auth.uid() = follower_id);
+drop policy if exists "Users delete own follows" on public.follows;
+create policy "Users delete own follows" on public.follows for delete using (auth.uid() = follower_id);
+
+do $$
+begin
+  alter publication supabase_realtime add table public.follows;
+exception when others then null;
+end $$;
+
+
 -- ═════════════════════════════════════════════════════════════════════════════
--- Done. If you saw no errors, all nine features are ready.
+-- Done. If you saw no errors, all ten features are ready.
 -- (Jobs Board = run supabase/jobs_board.sql separately, once.)
 -- ═════════════════════════════════════════════════════════════════════════════

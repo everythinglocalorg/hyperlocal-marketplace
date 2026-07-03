@@ -6,6 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
 import { friendlyAuthError } from "@/lib/auth-errors";
+import TurnstileWidget from "@/components/TurnstileWidget";
+
+const CAPTCHA_ON = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 function SignupForm() {
   const router = useRouter();
@@ -20,11 +23,16 @@ function SignupForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [captchaToken, setCaptchaToken] = useState("");
 
   const supabase = createClient();
 
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
+    if (CAPTCHA_ON && !captchaToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
     setLoading(true);
     setError(null);
 
@@ -40,11 +48,14 @@ function SignupForm() {
           referred_by_code: referralCode,
         },
         emailRedirectTo: `${window.location.origin}/callback`,
+        ...(captchaToken ? { captchaToken } : {}),
       },
     });
 
     if (error) {
       setError(friendlyAuthError(error));
+      // Turnstile tokens are single-use — refresh for the retry
+      if (CAPTCHA_ON) { setCaptchaToken(""); try { window.turnstile?.reset(); } catch { /* noop */ } }
     } else if (data.user && data.user.identities?.length === 0) {
       // Supabase returns a stub user (no identities) when the email is already
       // registered and email confirmation is enabled.
@@ -233,9 +244,11 @@ function SignupForm() {
           </div>
         )}
 
+        <TurnstileWidget onVerify={setCaptchaToken} />
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (CAPTCHA_ON && !captchaToken)}
           className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create free account"}

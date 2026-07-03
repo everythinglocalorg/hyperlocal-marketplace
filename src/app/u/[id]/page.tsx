@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import ShareProfileButton from "./ShareProfileButton";
+import FollowButton from "@/components/FollowButton";
 import VendorLogo from "@/components/vendor/VendorLogo";
 
 interface Props {
@@ -111,7 +112,12 @@ export default async function PublicProfilePage({ params }: Props) {
               {profile.city ? `📍 ${profile.city}${profile.state ? `, ${profile.state}` : ""}` : "Supporting local"}
               {memberSince ? ` · Local since ${memberSince}` : ""}
             </p>
-            <div className="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start">
+            <div className="mt-4 flex flex-wrap gap-2 justify-center sm:justify-start items-center">
+              {!isOwner && (
+                <span className="bg-white rounded-full px-3 py-1.5 inline-flex items-center">
+                  <FollowButton targetType="user" targetId={id} size="sm" />
+                </span>
+              )}
               <ShareProfileButton />
               {isOwner && (
                 <Link

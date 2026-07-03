@@ -9,6 +9,7 @@ import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
 import MessageModal from "@/components/MessageModal";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
+import FollowButton from "@/components/FollowButton";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
 
 type PageBlock = {
@@ -585,6 +586,11 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                 <span>{vendor.city}, {vendor.state}</span>
               </div>
             </div>
+          </div>
+
+          {/* Follow — live follower count */}
+          <div className="mt-4">
+            <FollowButton targetType="vendor" targetId={vendor.id} />
           </div>
 
           {/* Trust chips */}
