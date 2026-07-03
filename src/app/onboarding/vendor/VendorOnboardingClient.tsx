@@ -503,13 +503,13 @@ export default function VendorOnboardingClient() {
                   <li>✓ Your storefront goes live immediately</li>
                   <li>✓ You earn 25 Local Bucks for completing your profile</li>
                   <li>✓ Add unlimited listings from your dashboard</li>
-                  <li>✓ Full Local Pro access starts today — free for 30 days</li>
+                  <li>✓ Full Local Pro+ access — free during launch</li>
                 </ul>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
                 <div className="flex items-center gap-2 mb-2">
-                  <span>🏅</span>
-                  <p className="text-sm font-bold text-amber-800">Your 30-Day Local Pro Trial</p>
+                  <span>🎉</span>
+                  <p className="text-sm font-bold text-amber-800">Local Pro+ — free during launch</p>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[

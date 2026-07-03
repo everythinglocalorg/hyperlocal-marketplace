@@ -259,10 +259,10 @@ function SignupForm() {
         <div className="mt-4 space-y-3">
           <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">🏅</span>
-              <p className="text-sm font-bold text-green-800">30-Day Local Pro Trial — Included Free</p>
+              <span className="text-lg">🎉</span>
+              <p className="text-sm font-bold text-green-800">Local Pro+ — Free during launch</p>
             </div>
-            <p className="text-xs text-green-700 mb-3">Every new vendor starts with full Local Pro access. No credit card required.</p>
+            <p className="text-xs text-green-700 mb-3">Every new business gets full Local Pro+ access free right now. No trial, no credit card.</p>
             <ul className="space-y-1.5">
               {[
                 { icon: "📊", label: "Store & listing analytics" },
