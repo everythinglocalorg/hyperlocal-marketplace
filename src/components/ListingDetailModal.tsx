@@ -95,7 +95,10 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
     else onMessage();
   }
 
-  const ctaClasses = "flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white font-bold py-3 rounded-xl text-sm hover:bg-green-700 transition-colors";
+  // One dominant, oversized primary CTA — the decision should be obvious at a glance.
+  const primaryCta = "flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-black py-4 rounded-2xl text-base hover:bg-green-700 active:scale-[0.99] transition-all shadow-lg shadow-green-600/30";
+  // Attach the price to buy/book actions so value + action land in one look.
+  const showPriceInCta = !!priceLabel && (ctaAction === "buy" || ctaAction === "book");
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
@@ -228,29 +231,40 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
           )}
         </div>
 
-        {/* Sticky action bar */}
-        <div className="shrink-0 border-t border-gray-100 bg-white p-4 flex gap-2" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-          {ctaAction !== "message" && (
-            <button
-              onClick={onMessage}
-              className="flex items-center justify-center gap-1.5 border border-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-xl text-sm hover:border-gray-400 transition-colors"
-            >
-              💬 Message
-            </button>
-          )}
-          {ctaAction === "call" && vendorPhone ? (
-            <a href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`} className={ctaClasses}>
-              📞 {ctaLabel}
-            </a>
-          ) : ctaAction === "menu" && menuPdfUrl ? (
-            <a href={menuPdfUrl} target="_blank" rel="noopener noreferrer" className={ctaClasses}>
-              🍽️ {ctaLabel}
-            </a>
-          ) : (
-            <button onClick={runCta} className={ctaClasses}>
-              {ctaLabel} →
-            </button>
-          )}
+        {/* Sticky action bar — the conversion moment: one dominant CTA, message demoted */}
+        <div className="shrink-0 border-t border-gray-100 bg-white px-4 pt-3" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+          <div className="flex items-center justify-center gap-2 mb-2.5 text-[11px] font-medium text-gray-500">
+            <span>📍 Locally owned</span>
+            <span className="text-gray-300">·</span>
+            <span>🪙 Earn Local Bucks</span>
+          </div>
+          <div className="flex items-stretch gap-2">
+            {ctaAction !== "message" && (
+              <button
+                onClick={onMessage}
+                aria-label="Message the business"
+                className="shrink-0 w-16 flex flex-col items-center justify-center gap-0.5 border border-gray-200 text-gray-600 rounded-2xl hover:border-gray-400 hover:text-gray-800 transition-colors"
+              >
+                <span className="text-lg leading-none">💬</span>
+                <span className="text-[10px] font-medium">Message</span>
+              </button>
+            )}
+            {ctaAction === "call" && vendorPhone ? (
+              <a href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`} className={primaryCta}>
+                📞 {ctaLabel}
+              </a>
+            ) : ctaAction === "menu" && menuPdfUrl ? (
+              <a href={menuPdfUrl} target="_blank" rel="noopener noreferrer" className={primaryCta}>
+                🍽️ {ctaLabel}
+              </a>
+            ) : (
+              <button onClick={runCta} className={primaryCta}>
+                <span>{ctaLabel}</span>
+                {showPriceInCta && <span className="font-bold opacity-90">· {priceLabel}</span>}
+                <span className="text-lg">→</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
