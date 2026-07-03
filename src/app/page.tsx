@@ -12,6 +12,7 @@ import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import VendorLogo from "@/components/vendor/VendorLogo";
 import TypedText from "@/components/TypedText";
+import WelcomeGateModal from "@/components/WelcomeGateModal";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -41,6 +42,14 @@ export default function HomePage() {
   const [newVendors, setNewVendors] = useState<any[]>([]);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [radius, setRadius] = useState(50);
+  // Soft signup gate: guests see the welcome modal before searching/browsing.
+  const [gateNext, setGateNext] = useState<string | null>(null);
+
+  // Returns true (and opens the welcome modal) if the visitor is a guest.
+  function gate(href: string): boolean {
+    if (authChecked && !user) { setGateNext(href); return true; }
+    return false;
+  }
 
   useEffect(() => {
     const supabase = createClient();
@@ -137,7 +146,9 @@ export default function HomePage() {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (activeCity) params.set("city", activeCity);
-    router.push(`/search?${params.toString()}`);
+    const url = `/search?${params.toString()}`;
+    if (gate(url)) return;
+    router.push(url);
   }
 
   function searchCategory(category: string) {
@@ -166,7 +177,9 @@ export default function HomePage() {
       params.set("category", LABEL_MAP[category] ?? category);
       params.set("mode", "listings");
     }
-    router.push(`/search?${params.toString()}`);
+    const url = `/search?${params.toString()}`;
+    if (gate(url)) return;
+    router.push(url);
   }
 
   const cityName = resolveCity(activeCity)?.label?.split(",")[0] ?? "your town";
@@ -174,27 +187,28 @@ export default function HomePage() {
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <main className="flex-1">
-        {/* Category bar */}
+        {/* Category bar — single horizontal-scroll row on mobile (top picks lead,
+            swipe for the rest); wraps and centers on sm+ to show everything. */}
         <div className="bg-white border-b border-gray-100">
-          <div className="max-w-6xl mx-auto px-4 py-2 flex flex-wrap justify-center gap-1">
+          <div className="max-w-6xl mx-auto px-4 py-2 flex gap-1 overflow-x-auto flex-nowrap scrollbar-hide sm:flex-wrap sm:justify-center sm:overflow-visible">
             {[
               ["Services & Trades","🔧"],
               ["Restaurants","🍽️"],
               ["Housing","🏠"],
+              ["Thrift Sales","🏷️"],
               ["Products","📦"],
               ["Health & Beauty","💆"],
               ["Home & Garden","🏡"],
               ["Auto","🚗"],
               ["Events","🎉"],
               ["Clothing","👗"],
-              ["Thrift Sales","🏷️"],
               ["Pets","🐾"],
               ["Sports","⚽"],
               ["Arts & Crafts","🎨"],
               ["Childcare","📚"],
             ].map(([label, icon]) => (
               <button key={label} onClick={() => searchCategory(label)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 border border-gray-200 hover:border-green-300 transition-colors whitespace-nowrap">
+                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 border border-gray-200 hover:border-green-300 transition-colors whitespace-nowrap">
                 <span>{icon}</span>{label}
               </button>
             ))}
@@ -258,7 +272,7 @@ export default function HomePage() {
             </form>
 
             {/* Friction-killer trust line */}
-            <p className="text-xs text-gray-400 mb-5">100% free · No credit card needed · Now live in Eau Claire &amp; Faribault</p>
+            <p className="text-xs text-gray-400 mb-5">100% free · No credit card needed · Now Live in Your Neighborhood</p>
 
             {/* Value chips — reasons to keep reading */}
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-gray-500 mb-6">
@@ -272,6 +286,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
                 href={`/search${activeCity ? `?city=${activeCity}` : ""}`}
+                onClick={(e) => { if (gate(`/search${activeCity ? `?city=${activeCity}` : ""}`)) e.preventDefault(); }}
                 className="w-full sm:w-auto bg-gray-900 text-white font-bold px-6 py-3 rounded-2xl hover:bg-gray-800 transition-colors text-center"
               >
                 Browse all local businesses →
@@ -292,7 +307,7 @@ export default function HomePage() {
                 <h2 className="text-lg font-bold text-gray-900">
                   {activeCity ? `Recent Gems in ${resolveCity(activeCity)?.label ?? activeCity}` : "Recent Gems"}
                 </h2>
-                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
+                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} onClick={(e) => { if (gate(`/search${activeCity ? `?city=${activeCity}` : ""}`)) e.preventDefault(); }} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {recentListings.map((l) => {
@@ -328,7 +343,7 @@ export default function HomePage() {
                 <h2 className="text-lg font-bold text-gray-900">
                   {activeCity ? `New businesses in ${resolveCity(activeCity)?.label ?? activeCity}` : "New businesses"}
                 </h2>
-                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} className="text-sm text-green-600 hover:underline">View all →</Link>
+                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} onClick={(e) => { if (gate(`/search${activeCity ? `?city=${activeCity}` : ""}`)) e.preventDefault(); }} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {newVendors.map((v) => (
@@ -527,6 +542,9 @@ export default function HomePage() {
         </div>
       </footer>
 
+      {/* Soft signup gate for guests (search / browse) */}
+      <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
+
       {/* Spacer so the sticky bar never covers footer content on mobile */}
       <div className="h-20 lg:hidden" />
 
@@ -534,6 +552,7 @@ export default function HomePage() {
       <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 flex gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
         <Link
           href={`/search${activeCity ? `?city=${activeCity}` : ""}`}
+          onClick={(e) => { if (gate(`/search${activeCity ? `?city=${activeCity}` : ""}`)) e.preventDefault(); }}
           className="flex-1 bg-green-600 text-white text-center text-sm font-bold py-3 rounded-xl hover:bg-green-700 transition-colors"
         >
           🔎 Explore local
