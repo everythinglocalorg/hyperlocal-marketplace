@@ -82,6 +82,31 @@ export default async function VendorProfilePage({ params, searchParams }: Props)
     .order("created_at", { ascending: false })
     .limit(10);
 
+  // Local Top 8 — auto-ranked "Best of {city}" award. A business earns the badge
+  // if it ranks in the top 8 of its city by a popularity score. Only awarded when
+  // the city has more than 8 active businesses, so "top 8" is genuinely a cut.
+  // Ranks recompute automatically as engagement grows.
+  let localTop8Rank: number | null = null;
+  if (vendor.city && vendor.state) {
+    const { data: cityVendors } = await supabase
+      .from("vendors")
+      .select("id, rating, review_count, local_bucks_earned, profile_views")
+      .eq("is_active", true)
+      .ilike("city", vendor.city)
+      .eq("state", vendor.state);
+    const list = cityVendors ?? [];
+    if (list.length > 8) {
+      const score = (v: typeof list[number]) =>
+        (v.review_count ?? 0) * 100 +
+        (v.profile_views ?? 0) * 10 +
+        (v.local_bucks_earned ?? 0) * 3 +
+        (v.rating ?? 0) * 2;
+      const ranked = [...list].sort((a, b) => score(b) - score(a) || (a.id < b.id ? -1 : 1));
+      const idx = ranked.findIndex((v) => v.id === vendor.id);
+      if (idx > -1 && idx < 8) localTop8Rank = idx + 1;
+    }
+  }
+
   // Get current user if logged in
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user
@@ -127,6 +152,7 @@ export default async function VendorProfilePage({ params, searchParams }: Props)
         currentUserId={user?.id ?? null}
         currentUserReferralCode={profile?.referral_code ?? null}
         inboundRefCode={ref ?? null}
+        localTop8Rank={localTop8Rank}
       />
     </>
   );

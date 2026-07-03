@@ -11,6 +11,7 @@ import MessageModal from "@/components/MessageModal";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import FollowButton from "@/components/FollowButton";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
+import LocalTop8Badge from "@/components/LocalTop8Badge";
 
 type PageBlock = {
   id: string;
@@ -87,9 +88,10 @@ type Section = "about" | "services" | "menu" | "reviews";
 interface Props {
   vendor: Vendor; listings: Listing[]; reviews: Review[];
   currentUserId: string | null; currentUserReferralCode: string | null; inboundRefCode: string | null;
+  localTop8Rank?: number | null;
 }
 
-export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode }: Props) {
+export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank }: Props) {
   const supabase = createClient();
   const [activeSection, setActiveSection] = useState<Section>("services");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -578,6 +580,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                   : vendor.is_claimed
                   ? <span className="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Claimed</span>
                   : null}
+                {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
               </div>
               <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 flex-wrap">
                 <span className="text-amber-500 font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
