@@ -168,6 +168,8 @@ export default function HomePage() {
     router.push(`/search?${params.toString()}`);
   }
 
+  const cityName = resolveCity(activeCity)?.label?.split(",")[0] ?? "your town";
+
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <main className="flex-1">
@@ -199,18 +201,33 @@ export default function HomePage() {
         </div>
 
         {/* Hero */}
-        <section className="bg-gradient-to-br from-green-50 via-white to-emerald-50 pt-20 pb-16 px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4 leading-tight">
-              Hidden Gems and Trusted Locals<br />
-              <span className="text-green-600">In Your Neighborhood</span>
+        <section className="relative overflow-hidden bg-gradient-to-br from-green-50 via-white to-emerald-50 pt-14 sm:pt-20 pb-16 px-4">
+          {/* soft glow accents */}
+          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-green-200/40 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
+
+          <div className="relative max-w-3xl mx-auto text-center">
+            {/* trust chip */}
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-6 shadow-sm">
+              <span className="flex -space-x-1.5">
+                <span className="w-5 h-5 rounded-full bg-green-500 border-2 border-white" />
+                <span className="w-5 h-5 rounded-full bg-emerald-400 border-2 border-white" />
+                <span className="w-5 h-5 rounded-full bg-amber-400 border-2 border-white" />
+              </span>
+              <span className="text-xs font-semibold text-gray-600">Over 150 locals already on Everything Local</span>
+            </div>
+
+            <h1 className="text-4xl sm:text-6xl font-black text-gray-900 mb-4 leading-[1.05] tracking-tight">
+              Discover the best of {cityName}.<br />
+              <span className="text-green-600">Get rewarded for shopping local.</span>
             </h1>
-            <p className="text-lg text-gray-500 mb-10">
-              Plumbers, restaurants, fresh produce, handmade goods — search your community.
+            <p className="text-lg sm:text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
+              One search for every local business, product, and service near you —
+              and every dollar you spend earns <span className="font-semibold text-amber-600">🪙 Local Bucks</span> to spend around town.
             </p>
 
             {/* City selector */}
-            <div className="flex justify-center mb-4">
+            <div className="flex justify-center mb-3">
               <CitySelector
                 value={activeCity}
                 onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
@@ -219,25 +236,52 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Search bar */}
-            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-3 flex gap-2 mb-6">
+            {/* Search bar — the obvious primary action */}
+            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-3 flex gap-2 mb-4">
               <div className="relative flex-1">
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder='Try "plumber", "fresh eggs"… or @ a person/business'
-                  className="w-full px-4 py-3 text-sm rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-100"
+                  className="w-full px-4 py-3.5 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-100"
                 />
                 <AtMentionDropdown query={query} />
               </div>
               <button
                 type="submit"
-                className="bg-green-600 text-white px-6 py-3 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
+                className="bg-green-600 text-white px-7 py-3.5 rounded-xl text-base font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20 whitespace-nowrap"
               >
-                Search
+                Search →
               </button>
             </form>
+
+            {/* Friction-killer trust line */}
+            <p className="text-xs text-gray-400 mb-5">100% free · No credit card needed · Now live in Eau Claire &amp; Faribault</p>
+
+            {/* Value chips — reasons to keep reading */}
+            <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-gray-500 mb-6">
+              <span className="inline-flex items-center gap-1.5">⚡ Instant local search</span>
+              <span className="inline-flex items-center gap-1.5">🪙 Earn Local Bucks</span>
+              <span className="inline-flex items-center gap-1.5">💬 Message businesses direct</span>
+              <span className="inline-flex items-center gap-1.5">✅ 100% locally owned</span>
+            </div>
+
+            {/* Secondary CTAs */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href={`/search${activeCity ? `?city=${activeCity}` : ""}`}
+                className="w-full sm:w-auto bg-gray-900 text-white font-bold px-6 py-3 rounded-2xl hover:bg-gray-800 transition-colors text-center"
+              >
+                Browse all local businesses →
+              </Link>
+              <Link
+                href="/signup?role=vendor"
+                className="w-full sm:w-auto border-2 border-green-600 text-green-700 font-bold px-6 py-3 rounded-2xl hover:bg-green-50 transition-colors text-center"
+              >
+                List your business — free
+              </Link>
+            </div>
           </div>
 
           {/* Recent listings */}
@@ -300,9 +344,53 @@ export default function HomePage() {
           )}
         </section>
 
+        {/* Why Everything Local */}
+        <section className="py-16 px-4 bg-white border-t border-gray-100">
+          <div className="max-w-5xl mx-auto text-center">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">We&apos;re not another Amazon or Yelp</h2>
+            <p className="text-gray-500 text-base sm:text-lg max-w-2xl mx-auto mb-10">
+              We&apos;re building something that puts your community first — one place for everything and everyone local.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-left">
+              {[
+                { icon: "🏘️", title: "Truly Local", body: "Every business, listing, and service lives right here in your area." },
+                { icon: "🎯", title: "One Destination", body: "Products, services, food, events, rentals, makers — one go-to hub." },
+                { icon: "✅", title: "Community Verified", body: "Know exactly who you're buying from, with reviews you can trust." },
+                { icon: "💎", title: "Discover Hidden Gems", body: "Find the local businesses and creators you didn't know existed." },
+              ].map((c) => (
+                <div key={c.title} className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                  <div className="text-3xl mb-3">{c.icon}</div>
+                  <h3 className="font-bold text-gray-900 mb-1">{c.title}</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">{c.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section className="py-16 px-4 bg-gray-50 border-t border-gray-100">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-10">How it works</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+              {[
+                { n: "1", icon: "🔎", title: "Search local", body: "Find businesses, products, and services near you — filtered to your town." },
+                { n: "2", icon: "💬", title: "Connect direct", body: "Message, book, request an estimate, or buy — straight from the business." },
+                { n: "3", icon: "🪙", title: "Earn Local Bucks", body: "Get rewarded for shopping and referring — then spend it around town." },
+              ].map((s) => (
+                <div key={s.n} className="relative">
+                  <div className="w-14 h-14 rounded-2xl bg-green-600 text-white text-2xl font-black flex items-center justify-center mx-auto mb-4">{s.icon}</div>
+                  <h3 className="font-bold text-gray-900 mb-1">{s.n}. {s.title}</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">{s.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
 
         {/* Ask Your Neighbors */}
-        <section className="py-14 px-4 bg-gray-50 border-t border-gray-100">
+        <section className="py-14 px-4 bg-white border-t border-gray-100">
           <div className="max-w-3xl mx-auto text-center">
             <p className="text-3xl mb-3">🏘️</p>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Have a question?</h2>
@@ -366,8 +454,27 @@ export default function HomePage() {
             <p className="text-gray-400 mb-8">
               List for free. Upgrade for <LocalProPriceInline inverted /> to unlock analytics, bookings, and CRM tools. No transaction fees — you keep 100% of your sales.
             </p>
-            <Link href="/signup?role=vendor" className="inline-block bg-green-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-green-400 transition-colors">
-              List your business free →
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link href="/signup?role=vendor" className="inline-block bg-green-500 text-white px-8 py-3 rounded-full font-semibold hover:bg-green-400 transition-colors">
+                List your business free →
+              </Link>
+              <Link href="/incubator" className="inline-block border-2 border-white/30 text-white px-8 py-3 rounded-full font-semibold hover:bg-white/10 transition-colors">
+                🚀 Start a business
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* Business Incubator teaser */}
+        <section className="py-16 px-4 bg-green-50 border-t border-green-100">
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-xs font-bold uppercase tracking-widest text-green-700 mb-3">Business Incubator</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-3">Dreaming of starting your own local business?</h2>
+            <p className="text-gray-500 text-base sm:text-lg max-w-2xl mx-auto mb-8">
+              Everything Local helps you go from idea to open — free guides, tools, and a built-in local audience ready to support you from day one.
+            </p>
+            <Link href="/incubator" className="inline-block bg-green-600 text-white font-bold px-8 py-3.5 rounded-full hover:bg-green-700 transition-colors">
+              Explore the Incubator →
             </Link>
           </div>
         </section>
@@ -388,6 +495,7 @@ export default function HomePage() {
             <p className="font-bold text-gray-900 mb-3">For Businesses</p>
             <ul className="space-y-2">
               <li><Link href="/signup?role=vendor" className="hover:text-green-600">Get Started</Link></li>
+              <li><Link href="/incubator" className="hover:text-green-600">🚀 Business Incubator</Link></li>
               <li><Link href="/pricing" className="hover:text-green-600">Pricing</Link></li>
               <li><Link href="/local-bucks" className="hover:text-green-600">🪙 Local Bucks</Link></li>
               <li><Link href="/connect-domain" className="hover:text-green-600">Connect Your Domain</Link></li>
@@ -417,6 +525,25 @@ export default function HomePage() {
           <span>© 2026 Everything Local · Made for local communities</span>
         </div>
       </footer>
+
+      {/* Spacer so the sticky bar never covers footer content on mobile */}
+      <div className="h-20 lg:hidden" />
+
+      {/* Sticky conversion bar (mobile) */}
+      <div className="fixed bottom-0 inset-x-0 z-40 lg:hidden bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 flex gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+        <Link
+          href={`/search${activeCity ? `?city=${activeCity}` : ""}`}
+          className="flex-1 bg-green-600 text-white text-center text-sm font-bold py-3 rounded-xl hover:bg-green-700 transition-colors"
+        >
+          🔎 Explore local
+        </Link>
+        <Link
+          href="/signup?role=vendor"
+          className="flex-1 border-2 border-green-600 text-green-700 text-center text-sm font-bold py-3 rounded-xl hover:bg-green-50 transition-colors"
+        >
+          List your business
+        </Link>
+      </div>
     </div>
   );
 }
