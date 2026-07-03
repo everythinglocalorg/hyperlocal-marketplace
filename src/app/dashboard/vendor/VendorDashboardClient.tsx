@@ -2758,9 +2758,10 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       <p className="text-sm text-gray-500 mb-6">Edit your public storefront — changes are live immediately.</p>
       <form onSubmit={handleSave} className="space-y-6">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Banner photo</label>
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Cover photo</label>
+          <p className="text-xs text-gray-400 mb-2">The big banner across the top of your public page. If you skip it, we use your first product photo automatically.</p>
           <div onClick={() => bannerRef.current?.click()} className="w-full h-32 rounded-2xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center">
-            {bannerPreview ? <img src={bannerPreview} alt="" className="w-full h-full object-cover" /> : <span className="text-gray-400 text-sm">Click to upload banner (1200x300 recommended)</span>}
+            {bannerPreview ? <img src={bannerPreview} alt="" className="w-full h-full object-cover" /> : <span className="text-gray-400 text-sm">Click to upload a cover photo (1200x300 recommended)</span>}
           </div>
           <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={onBannerChange} />
         </div>

@@ -35,6 +35,25 @@ type Vendor = {
   cta_button?: { action?: "call" | "estimate" | "order"; url?: string } | null;
 };
 
+// Category cover photos (hand-verified Unsplash) — used as the hero cover when
+// a vendor has no banner and no product photo yet. Darkened by a gradient.
+const UNSPLASH = (id: string) => `https://images.unsplash.com/photo-${id}?w=1200&q=60&auto=format&fit=crop`;
+const CATEGORY_COVERS: Record<string, string> = {
+  "Products": UNSPLASH("1441986300917-64674bd600d8"),
+  "Services & Trades": UNSPLASH("1504307651254-35680f356dfd"),
+  "Restaurants & Food": UNSPLASH("1517248135467-4c7edcad34c4"),
+  "Events & Rentals": UNSPLASH("1519671482749-fd09be7ccebf"),
+  "Health & Beauty": UNSPLASH("1560066984-138dadb4c035"),
+  "Home & Garden": UNSPLASH("1416879595882-3373a0480b5b"),
+  "Clothing & Accessories": UNSPLASH("1445205170230-053b83016050"),
+  "Arts & Crafts": UNSPLASH("1452860606245-08befc0ff44b"),
+  "Sports & Outdoors": UNSPLASH("1461896836934-ffe607ba8211"),
+  "Auto & Transportation": UNSPLASH("1487754180451-c456f719a1fc"),
+  "Pet Services": UNSPLASH("1450778869180-41d0601e046e"),
+  "Childcare & Education": UNSPLASH("1503676260728-1c00da094a0b"),
+  "Housing & Rentals": UNSPLASH("1560518883-ce09059eeffa"),
+};
+
 // Categories where customers request estimates rather than just "getting in touch".
 const SERVICE_CATEGORIES = new Set<string>([
   "Services & Trades",
@@ -159,7 +178,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const heroCover =
     (vendor.banner_url && vendor.banner_url !== vendor.logo_url)
       ? vendor.banner_url
-      : (listings.find((l) => l.images?.[0])?.images[0] ?? null);
+      : (listings.find((l) => l.images?.[0])?.images[0]
+          ?? CATEGORY_COVERS[vendor.category]
+          ?? null);
 
   // Sidebar inquiry form state
   const [sidebarName, setSidebarName] = useState("");
