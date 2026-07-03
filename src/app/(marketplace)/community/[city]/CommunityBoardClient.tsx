@@ -434,19 +434,19 @@ export default function CommunityBoardClient({
 
       <div className="max-w-2xl mx-auto px-4 py-6">
 
-        {/* Board tabs — the Jobs Board is a sibling of the Neighborhood Chat */}
+        {/* Board tabs — Local Jobs is a sibling of Local Pages */}
         <div className="flex gap-2 mb-4">
           <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
-            💬 Neighborhood Chat
+            🏘️ Local Pages
           </span>
           <Link href={`/jobs/${citySlug}`}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
-            💼 Jobs Board
+            💼 Local Jobs
           </Link>
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 mb-5">
-          What's Happening in {cityName}
+          Local Pages in {cityName}
         </h1>
 
         {/* Inline composer */}
@@ -531,7 +531,7 @@ export default function CommunityBoardClient({
           <div className="text-center py-16">
             <p className="text-4xl mb-3">📋</p>
             <p className="text-gray-600 font-semibold mb-1">No posts yet</p>
-            <p className="text-gray-400 text-sm">Be the first to ask your neighbors something!</p>
+            <p className="text-gray-400 text-sm">Be the first to post on your town&apos;s Local Pages!</p>
           </div>
         ) : (
           <div className="space-y-3">

@@ -32,7 +32,7 @@ const GUIDES: Record<string, Guide> = {
         intro: "Use the marketplace itself as free market research:",
         bullets: [
           "Search your category on the Search page and see how many businesses already serve it locally.",
-          "Read the Neighbor Board — people literally post what they're looking for and can't find.",
+          "Read Local Pages — people literally post what they're looking for and can't find.",
           "Few or no results in your category is a gap, not a dead end — that's white space you can own.",
         ],
       },
@@ -152,7 +152,7 @@ const GUIDES: Record<string, Guide> = {
       {
         heading: "2. Show up where locals are asking",
         bullets: [
-          "Watch the Neighbor Board for people requesting exactly what you offer, and reply.",
+          "Watch Local Pages for people requesting exactly what you offer, and reply.",
           "Post a helpful answer, not a hard sell — trust drives local sales.",
           "If you're hiring as you grow, post to the Jobs Board to reach nearby talent.",
         ],
@@ -174,7 +174,7 @@ const GUIDES: Record<string, Guide> = {
         ],
       },
     ],
-    cta: { label: "Ask your neighbors →", href: "/community/eau-claire-wi" },
+    cta: { label: "Open Local Pages →", href: "/community/eau-claire-wi" },
   },
   "local-bucks": {
     title: "Local Bucks playbook",

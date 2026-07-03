@@ -75,14 +75,14 @@ export default function GlobalHeader() {
                 )}
               </Link>
               {/* Neighborhood icon: mobile only (desktop uses the pill) */}
-              <Link href={`/community/${activeCity}`} title="Neighborhood Chat" className="relative text-xl leading-none lg:hidden">
+              <Link href={`/community/${activeCity}`} title="Local Pages" className="relative text-xl leading-none lg:hidden">
                 🏘️
               </Link>
               <Link
                 href={`/community/${activeCity}`}
                 className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block"
               >
-                🏘️ Ask Your Neighbors
+                🏘️ Local Pages
               </Link>
               <Link
                 href={`/jobs/${activeCity}`}

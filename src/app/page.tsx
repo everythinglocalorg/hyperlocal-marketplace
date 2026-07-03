@@ -405,29 +405,31 @@ export default function HomePage() {
         </section>
 
 
-        {/* Ask Your Neighbors */}
+        {/* Local Pages + Local Jobs */}
         <section className="py-14 px-4 bg-white border-t border-gray-100">
           <div className="max-w-3xl mx-auto text-center">
             <p className="text-3xl mb-3">🏘️</p>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Have a question?</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Your town&apos;s Local Pages</h2>
             <p className="text-gray-500 text-base mb-6">
-              Post to the {resolveCity(activeCity)?.label ?? activeCity} neighbor board — ask for help, find a product, or request a local service.
+              Post to {resolveCity(activeCity)?.label ?? activeCity} Local Pages — ask for help, find a product, request a service, or browse local jobs.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href={`/community/${activeCity}`}
+                onClick={(e) => { if (gate(`/community/${activeCity}`)) e.preventDefault(); }}
                 className="inline-block bg-green-600 text-white font-bold px-8 py-3.5 rounded-full hover:bg-green-700 transition-colors"
               >
-                Ask Your Neighbors →
+                🏘️ Open Local Pages →
               </Link>
               <Link
                 href={`/jobs/${activeCity}`}
+                onClick={(e) => { if (gate(`/jobs/${activeCity}`)) e.preventDefault(); }}
                 className="inline-block bg-white border border-green-300 text-green-700 font-bold px-8 py-3.5 rounded-full hover:bg-green-50 transition-colors"
               >
                 💼 Browse Local Jobs
               </Link>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Switch towns with the city selector above to browse other boards</p>
+            <p className="text-xs text-gray-400 mt-3">Switch towns with the city selector above to browse other Local Pages</p>
           </div>
         </section>
 
@@ -521,7 +523,7 @@ export default function HomePage() {
           <div>
             <p className="font-bold text-gray-900 mb-3">Community</p>
             <ul className="space-y-2">
-              <li><Link href={`/community/${activeCity}`} className="hover:text-green-600">Neighbor Board</Link></li>
+              <li><Link href={`/community/${activeCity}`} className="hover:text-green-600">Local Pages</Link></li>
               <li><Link href={`/jobs/${activeCity}`} className="hover:text-green-600">Jobs Board</Link></li>
               <li><Link href="/signup" className="hover:text-green-600">Join Free</Link></li>
             </ul>
