@@ -11,6 +11,7 @@ import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import VendorLogo from "@/components/vendor/VendorLogo";
+import TypedText from "@/components/TypedText";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -217,8 +218,8 @@ export default function HomePage() {
               <span className="text-xs font-semibold text-gray-600">Over 150 locals already on Everything Local</span>
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-black text-gray-900 mb-4 leading-[1.05] tracking-tight">
-              Discover the best of {cityName}.<br />
+            <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 mb-4 leading-[1.1] tracking-tight">
+              Discover the best of <TypedText text={cityName} />.<br />
               <span className="text-green-600">Get rewarded for shopping local.</span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-500 mb-8 max-w-2xl mx-auto">

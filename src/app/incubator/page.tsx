@@ -21,12 +21,12 @@ const STEPS = [
 ];
 
 const RESOURCES = [
-  { icon: "🧭", title: "Idea & validation guide", body: "How to test demand for your product or service in your town before you spend a dollar." },
-  { icon: "🧾", title: "Getting-started checklist", body: "The practical steps to register, price, and prepare to open — in plain English." },
-  { icon: "🖼️", title: "Storefront best practices", body: "Photos, descriptions, and offers that convert browsers into paying local customers." },
-  { icon: "💬", title: "Winning your first customers", body: "Use reviews, referrals, and the neighbor board to land your first sales fast." },
-  { icon: "🪙", title: "Local Bucks playbook", body: "Turn the rewards system into repeat business and word-of-mouth growth." },
-  { icon: "🤝", title: "1-on-1 support", body: "Questions as you go? Reach out and a real person helps you get set up right." },
+  { icon: "🧭", title: "Idea & validation guide", body: "How to test demand for your product or service in your town before you spend a dollar.", href: "/incubator/guides/idea-and-validation" },
+  { icon: "🧾", title: "Getting-started checklist", body: "The practical steps to register, price, and prepare to open — in plain English.", href: "/incubator/guides/getting-started" },
+  { icon: "🖼️", title: "Storefront best practices", body: "Photos, descriptions, and offers that convert browsers into paying local customers.", href: "/incubator/guides/storefront" },
+  { icon: "💬", title: "Winning your first customers", body: "Use reviews, referrals, and the neighbor board to land your first sales fast.", href: "/incubator/guides/first-customers" },
+  { icon: "🪙", title: "Local Bucks playbook", body: "Turn the rewards system into repeat business and word-of-mouth growth.", href: "/incubator/guides/local-bucks" },
+  { icon: "🤝", title: "1-on-1 support", body: "Questions as you go? Reach out and a real person helps you get set up right.", href: "/contact" },
 ];
 
 export default function IncubatorPage() {
@@ -55,6 +55,31 @@ export default function IncubatorPage() {
             </Link>
           </div>
           <p className="text-xs text-gray-400 mt-4">100% free to start · No credit card · No transaction fees</p>
+        </div>
+      </section>
+
+      {/* A–Z, you stay in control */}
+      <section className="py-16 px-4 bg-gray-900 text-white">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-2xl sm:text-3xl font-black mb-3">We handle the business, A&ndash;Z. You stay in full control.</h2>
+          <p className="text-gray-400 text-base sm:text-lg max-w-2xl mx-auto mb-10">
+            Storefront, listings, bookings, estimates, customers, payments, and marketing — all in one place, done for you.
+            Nothing goes out and no change is made without your say-so. It&apos;s your business, your brand, your call.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-left">
+            {[
+              { icon: "🏪", t: "We build it", b: "Your storefront, set up and ready to sell." },
+              { icon: "📣", t: "We market it", b: "Local search, neighbor board, and referrals." },
+              { icon: "🛠️", t: "We run the tools", b: "Bookings, estimates, and CRM handled." },
+              { icon: "🔑", t: "You stay in control", b: "Approve everything. Own your brand." },
+            ].map((c) => (
+              <div key={c.t} className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                <div className="text-2xl mb-2">{c.icon}</div>
+                <p className="font-bold text-white text-sm">{c.t}</p>
+                <p className="text-gray-400 text-xs mt-1 leading-relaxed">{c.b}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -87,13 +112,23 @@ export default function IncubatorPage() {
             <p className="text-gray-500 text-base sm:text-lg">Practical, local, and made for first-time founders.</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {RESOURCES.map((r) => (
-              <div key={r.title} className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="text-3xl mb-3">{r.icon}</div>
-                <h3 className="font-bold text-gray-900 mb-1">{r.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{r.body}</p>
-              </div>
-            ))}
+            {RESOURCES.map((r) => {
+              const isGuide = r.href.startsWith("/incubator/guides/");
+              return (
+                <Link
+                  key={r.title}
+                  href={r.href}
+                  className="group bg-white rounded-2xl border border-gray-100 p-5 hover:border-green-300 hover:shadow-md transition-all block"
+                >
+                  <div className="text-3xl mb-3">{r.icon}</div>
+                  <h3 className="font-bold text-gray-900 mb-1">{r.title}</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">{r.body}</p>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-600 mt-3">
+                    {isGuide ? "Read guide · save as PDF" : "Contact us"} <span className="group-hover:translate-x-0.5 transition-transform">→</span>
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
