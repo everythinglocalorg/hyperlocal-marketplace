@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PRO_FEATURES } from "@/lib/pro-features";
 
 export const metadata: Metadata = {
   title: "Business Incubator — Launch your local business | Everything Local",
@@ -153,6 +154,39 @@ export default function IncubatorPage() {
                 <p className="text-xs text-gray-500 mt-0.5">{b.label}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Everything you get with Local Pro */}
+      <section className="py-16 px-4 bg-gray-50 border-t border-gray-100">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <span className="inline-block text-xs font-bold uppercase tracking-widest text-green-700 bg-white border border-green-200 rounded-full px-4 py-1.5 mb-4">
+              ⭐ Local Pro
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">Everything you get with Local Pro</h2>
+            <p className="text-gray-500 text-base sm:text-lg max-w-2xl mx-auto">
+              Start free, then unlock the full toolkit to run and grow your business — estimates, bookings,
+              analytics, payments, your own domain, and more, all in one place.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {PRO_FEATURES.map((f) => (
+              <div key={f.title} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="text-3xl mb-3">{f.icon}</div>
+                <h3 className="font-bold text-gray-900 mb-1">{f.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-10 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link href="/pricing" className="inline-flex items-center justify-center gap-1.5 border-2 border-green-600 text-green-700 font-bold px-8 py-3.5 rounded-2xl hover:bg-green-50 transition-colors">
+              See plans &amp; pricing →
+            </Link>
+            <Link href="/signup?role=vendor" className="inline-flex items-center justify-center gap-1.5 bg-green-600 text-white font-bold px-8 py-3.5 rounded-2xl hover:bg-green-700 transition-colors">
+              Start free →
+            </Link>
           </div>
         </div>
       </section>

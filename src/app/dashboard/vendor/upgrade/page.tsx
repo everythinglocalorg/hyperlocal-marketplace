@@ -5,16 +5,9 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import LocalProPrice from "@/components/LocalProPrice";
+import { PRO_FEATURES } from "@/lib/pro-features";
 
-const FEATURES = [
-  { icon: "📊", title: "Analytics Dashboard", desc: "Track views, clicks, and CTR for every listing in real time." },
-  { icon: "📅", title: "Estimate & Apt Manager", desc: "Accept, confirm, and manage customer estimates and appointments directly in your dashboard." },
-  { icon: "💬", title: "Customer Messaging", desc: "Receive and reply to messages from buyers directly inside Everything Local." },
-  { icon: "👥", title: "Customer CRM", desc: "Auto-populated contact list from completed bookings. Know your regulars." },
-  { icon: "🚀", title: "Priority Listing", desc: "Your business appears higher in search results than free vendors." },
-  { icon: "⭐", title: "Local Pro Badge", desc: "Stand out with a Local Pro badge on your storefront — trusted by buyers." },
-  { icon: "📦", title: "Unlimited Listings", desc: "Add as many products, services, and menu items as you need." },
-];
+const FEATURES = PRO_FEATURES;
 
 function UpgradePageInner() {
   const searchParams = useSearchParams();
@@ -67,7 +60,7 @@ function UpgradePageInner() {
             Grow your local business faster
           </h1>
           <p className="text-gray-500 text-lg max-w-xl mx-auto">
-            Get messaging, analytics, estimates, and CRM tools built for local vendors. Cancel anytime.
+            Estimates, appointments, analytics, messaging, payments, your own domain, and more — every tool to run and grow your local business. Cancel anytime.
           </p>
         </div>
 
@@ -101,16 +94,7 @@ function UpgradePageInner() {
               <div className="p-6">
                 {/* Feature checklist */}
                 <ul className="space-y-3 mb-6">
-                  {[
-                    "Analytics & insights",
-                    "Estimate & Apt Manager",
-                    "Customer messaging",
-                    "Customer CRM",
-                    "Priority search placement",
-                    "⭐ Local Pro badge",
-                    "Unlimited listings",
-                    "Email support",
-                  ].map((item) => (
+                  {[...FEATURES.map((f) => f.title), "Priority support"].map((item) => (
                     <li key={item} className="flex items-center gap-2.5 text-sm text-gray-700">
                       <span className="w-4 h-4 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold shrink-0">✓</span>
                       {item}

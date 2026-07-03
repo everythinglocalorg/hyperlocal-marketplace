@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LocalProPrice from "@/components/LocalProPrice";
+import { PRO_FEATURES } from "@/lib/pro-features";
 
 export const metadata = { title: "Pricing — Everything Local" };
 
@@ -50,19 +51,8 @@ export default function PricingPage() {
             <p className="mb-1"><LocalProPrice size="lg" /></p>
             <p className="text-gray-400 text-sm mb-6">30-day free trial · Cancel anytime</p>
             <ul className="space-y-3 text-sm text-gray-600 mb-8">
-              {[
-                "Everything in Free",
-                "Store & listing analytics",
-                "Elevated placement in your region",
-                "Featured in category browsing",
-                "Lead capture forms",
-                "Click-to-call & text buttons",
-                "⭐ Local Verified badge",
-                "🏅 Founding Member badge",
-                "Unlimited listings",
-                "Priority support",
-              ].map((f) => (
-                <li key={f} className="flex items-center gap-2"><span className="text-green-500">✓</span>{f}</li>
+              {["Everything in Free", ...PRO_FEATURES.map((f) => `${f.icon} ${f.title}`), "🏅 Founding Member badge", "Priority support"].map((f) => (
+                <li key={f} className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>{f}</li>
               ))}
             </ul>
             <Link href="/dashboard/vendor/upgrade" className="block w-full text-center bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors">

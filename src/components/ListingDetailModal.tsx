@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
-import { LISTING_CTAS, ListingCtaAction, isListingCtaType } from "@/lib/cta";
+import { LISTING_CTAS, ListingCtaType, ListingCtaAction, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
 // Minimal listing shape the detail popup (and its CTA resolution) needs.
 // Both the vendor profile and search results satisfy this structurally.
@@ -27,12 +27,6 @@ export type DetailListing = {
 
 export const TYPE_ICON: Record<string, string> = { product: "📦", service: "🔧", restaurant: "🍽️", event: "🎉", rental: "🏠", thrift: "🏷️", housing_sale: "🏠", housing_rent: "🏡" };
 
-const BUY_NOW_CATEGORIES = [
-  "Products", "Clothing & Accessories", "Auto & Transportation",
-  "Health & Wellness", "Arts & Crafts", "Home & Garden",
-  "Sports & Outdoors", "Childcare & Education",
-];
-
 export function parseHousing(listing: DetailListing): any | null {
   if (listing.type !== "housing_sale" && listing.type !== "housing_rent") return null;
   try { const t = listing.tags?.find((t) => t.startsWith("__housing:")); return t ? JSON.parse(t.replace("__housing:", "")) : null; } catch { return null; }
@@ -55,19 +49,17 @@ export function derivePriceLabel(listing: DetailListing): string | null {
   return listing.price !== null ? formatPrice(listing.price) : listing.price_label ?? null;
 }
 
-// CTA — driven by the listing's saved cta_type (shared LISTING_CTAS map),
-// falling back to the legacy type/category-based default for listings saved
-// before cta_type existed. A saved "call" without a phone or "menu" without a
-// saved menu PDF also falls back.
-export function resolveListingCta(listing: DetailListing, vendorPhone: string | null, menuPdfUrl: string | null): { ctaLabel: string; ctaAction: ListingCtaAction | "message" } {
-  const savedCta = isListingCtaType(listing.cta_type) ? listing.cta_type : null;
-  if (savedCta && !(savedCta === "call" && !vendorPhone) && !(savedCta === "menu" && !menuPdfUrl)) {
-    return { ctaLabel: LISTING_CTAS[savedCta].label, ctaAction: LISTING_CTAS[savedCta].action };
-  }
-  if (listing.type === "rental") return { ctaLabel: "Book Now", ctaAction: "book" };
-  if (BUY_NOW_CATEGORIES.some((c) => listing.category?.includes(c.split(" ")[0]))) return { ctaLabel: "Buy Now", ctaAction: "buy" };
-  if (vendorPhone) return { ctaLabel: "Call Now", ctaAction: "call" };
-  return { ctaLabel: "Message", ctaAction: "message" };
+// The public button mirrors the vendor's saved cta_type. When a listing has no
+// saved choice (legacy/imported), it uses the SAME default the listing form
+// shows for that type (defaultCtaForListingType), so the form dropdown and the
+// public button always correlate. A choice that can't function — "Call Now"
+// without a phone, or "View Menu" without a saved menu PDF — degrades sensibly.
+export function resolveListingCta(listing: DetailListing, vendorPhone: string | null, menuPdfUrl: string | null): { ctaLabel: string; ctaAction: ListingCtaAction } {
+  const saved = isListingCtaType(listing.cta_type) ? listing.cta_type : null;
+  let cta: ListingCtaType = saved ?? defaultCtaForListingType(listing.type);
+  if (cta === "call" && !vendorPhone) cta = "estimate";
+  if (cta === "menu" && !menuPdfUrl) cta = vendorPhone ? "call" : "estimate";
+  return { ctaLabel: LISTING_CTAS[cta].label, ctaAction: LISTING_CTAS[cta].action };
 }
 
 /* ─── LISTING DETAIL POPUP ────────────────────────────────────────── */

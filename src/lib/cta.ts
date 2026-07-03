@@ -31,9 +31,11 @@ export function isListingCtaType(value: unknown): value is ListingCtaType {
 export function defaultCtaForListingType(type: string): ListingCtaType {
   switch (type) {
     case "rental": return "rent";
+    case "housing_rent": return "rent";
+    case "housing_sale": return "estimate";
     case "restaurant": return "menu";
     case "service": return "estimate";
     case "event": return "book";
-    default: return "buy";
+    default: return "buy"; // product, thrift
   }
 }
