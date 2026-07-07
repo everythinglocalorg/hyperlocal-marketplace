@@ -569,7 +569,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         <div className="max-w-6xl mx-auto px-4 pb-5">
           {/* Logo sits on top of the banner; the name + details sit uniformly
               below it in the white area, never overlapping the banner. */}
-          <div className="w-20 h-20 sm:w-24 sm:h-24 -mt-12 sm:-mt-14 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
+          <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 -mt-12 sm:-mt-14 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
             {vendor.logo_url
               ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
               : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}

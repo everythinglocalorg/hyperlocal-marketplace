@@ -427,7 +427,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             <div className="min-w-0">
               <p className="font-semibold text-gray-900 text-sm truncate">{vendor.business_name}</p>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${isPremium ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500"}`}>
-                {isAdmin ? "👑 Admin" : isPremium ? "⭐ Local Pro" : "Free"}
+                {isAdmin ? "👑 Admin" : vendor.tier === "premium_plus" ? "💎 Local Pro+" : isPremium ? "⭐ Local Pro" : "Free"}
               </span>
             </div>
           </div>
@@ -3161,7 +3161,7 @@ function AdminBusinessesTab() {
   const [search, setSearch] = useState("");
   const [saving, setSaving] = useState<string | null>(null);
   // Staged tier changes not yet written to the database — keyed by vendor id
-  const [pendingTiers, setPendingTiers] = useState<Record<string, "free" | "premium">>({});
+  const [pendingTiers, setPendingTiers] = useState<Record<string, "free" | "premium" | "premium_plus">>({});
   const [savingAll, setSavingAll] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
 
@@ -3174,23 +3174,29 @@ function AdminBusinessesTab() {
   }, []);
 
   // Stage a tier change locally; committed when Save is clicked
-  function stageTier(vendorId: string, newTier: "free" | "premium", savedTier: string) {
+  function stageTier(vendorId: string, newTier: "free" | "premium" | "premium_plus", savedTier: string) {
     setSavedAt(null);
     setPendingTiers((prev) => {
       const next = { ...prev };
       // If the choice matches what's already in the DB, drop it from pending
-      if (newTier === (savedTier === "premium" ? "premium" : "free")) delete next[vendorId];
+      if (newTier === savedTier) delete next[vendorId];
       else next[vendorId] = newTier;
       return next;
     });
   }
+
+  // Paid tiers get all features on; free turns them off.
+  const featuresForTier = (tier: string) =>
+    tier === "free"
+      ? { messages: false, analytics: false, bookings: false, crm: false, estimates: false }
+      : { messages: true, analytics: true, bookings: true, crm: true, estimates: true };
 
   async function saveChanges() {
     const entries = Object.entries(pendingTiers);
     if (entries.length === 0) return;
     setSavingAll(true);
     await Promise.all(
-      entries.map(([id, tier]) => supabase.from("vendors").update({ tier }).eq("id", id))
+      entries.map(([id, tier]) => supabase.from("vendors").update({ tier, features: featuresForTier(tier) }).eq("id", id))
     );
     setVendors((prev) => prev.map((v) => pendingTiers[v.id] ? { ...v, tier: pendingTiers[v.id] } : v));
     setPendingTiers({});
@@ -3250,7 +3256,7 @@ function AdminBusinessesTab() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-xl font-black text-gray-900">All Businesses</h2>
-          <p className="text-sm text-gray-400">{vendors.length} total · {vendors.filter(v => v.tier === "premium").length} Local Pro · {vendors.filter(v => !v.is_claimed).length} unclaimed</p>
+          <p className="text-sm text-gray-400">{vendors.length} total · {vendors.filter(v => v.tier === "premium_plus").length} Pro+ · {vendors.filter(v => v.tier === "premium").length} Pro · {vendors.filter(v => !v.is_claimed).length} unclaimed</p>
         </div>
         <a href="/admin" className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-50">Full Admin →</a>
       </div>
@@ -3308,17 +3314,18 @@ function AdminBusinessesTab() {
                   </td>
                   <td className="px-4 py-3">
                     <select
-                      value={pendingTiers[v.id] ?? (v.tier === "premium" ? "premium" : "free")}
-                      onChange={(e) => stageTier(v.id, e.target.value as "free" | "premium", v.tier)}
+                      value={pendingTiers[v.id] ?? (v.tier === "premium_plus" ? "premium_plus" : v.tier === "premium" ? "premium" : "free")}
+                      onChange={(e) => stageTier(v.id, e.target.value as "free" | "premium" | "premium_plus", v.tier)}
                       disabled={saving === v.id || savingAll}
                       className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 cursor-pointer ${
                         pendingTiers[v.id]
                           ? "bg-blue-50 border-blue-300 text-blue-700 ring-1 ring-blue-200"
-                          : (v.tier === "premium" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-gray-50 border-gray-200 text-gray-600")
+                          : (v.tier === "premium_plus" ? "bg-purple-50 border-purple-300 text-purple-700" : v.tier === "premium" ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-gray-50 border-gray-200 text-gray-600")
                       }`}
                     >
                       <option value="free">Free</option>
                       <option value="premium">⭐ Local Pro</option>
+                      <option value="premium_plus">💎 Local Pro+</option>
                     </select>
                   </td>
                   <td className="px-4 py-3">

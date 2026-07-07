@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isPaidTier } from "@/lib/features";
 
 interface VendorCardProps {
   vendor: {
@@ -41,9 +42,9 @@ export default function VendorCard({ vendor }: VendorCardProps) {
         )}
 
         {/* Premium badge */}
-        {vendor.tier === "premium" && (
+        {isPaidTier(vendor.tier) && (
           <span className="absolute top-2 right-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow">
-            LOCAL PRO
+            {vendor.tier === "premium_plus" ? "LOCAL PRO+" : "LOCAL PRO"}
           </span>
         )}
 

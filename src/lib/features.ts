@@ -1,5 +1,19 @@
 export type FeatureKey = "messages" | "analytics" | "bookings" | "crm" | "estimates";
 
+// Membership tiers. `premium` = Local Pro ($49), `premium_plus` = Local Pro+ ($129).
+export type Tier = "free" | "premium" | "premium_plus";
+export const TIER_LABELS: Record<string, string> = {
+  free: "Free",
+  premium: "Local Pro",
+  premium_plus: "Local Pro+",
+};
+
+// True for any paid tier — use this for feature/access gates so Pro+ keeps
+// everything Pro has.
+export function isPaidTier(tier?: string | null): boolean {
+  return tier === "premium" || tier === "premium_plus";
+}
+
 export const ALL_FEATURES: { key: FeatureKey; label: string; icon: string }[] = [
   { key: "messages", label: "Messages", icon: "💬" },
   { key: "analytics", label: "Analytics", icon: "📊" },

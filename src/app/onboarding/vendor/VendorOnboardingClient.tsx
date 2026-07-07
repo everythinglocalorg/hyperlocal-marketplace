@@ -139,7 +139,7 @@ export default function VendorOnboardingClient() {
       logo_url: form.logo_url || null,
       // Card/storefront convention: banner shows the logo
       banner_url: form.logo_url || null,
-      tier: "premium",
+      tier: "premium_plus",
       features: { messages: true, analytics: true, bookings: true, crm: true, estimates: true },
     });
 

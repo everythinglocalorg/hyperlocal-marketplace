@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import VendorDashboardClient from "./VendorDashboardClient";
-import { allFeaturesOn } from "@/lib/features";
+import { allFeaturesOn, isPaidTier } from "@/lib/features";
 
 export default async function VendorDashboardPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab: initialTab } = await searchParams;
@@ -27,7 +27,7 @@ export default async function VendorDashboardPage({ searchParams }: { searchPara
   const isAdmin = profile?.is_admin === true;
   // Admins get all features for free
   const features = isAdmin ? allFeaturesOn() : (vendor.features ?? {});
-  const isPremium = isAdmin || vendor.tier === "premium";
+  const isPremium = isAdmin || isPaidTier(vendor.tier);
 
   return (
     <VendorDashboardClient

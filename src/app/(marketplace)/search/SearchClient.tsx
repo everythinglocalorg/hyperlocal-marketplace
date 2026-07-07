@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { track, trackSearch } from "@/lib/analytics";
+import { isPaidTier } from "@/lib/features";
 import { CITIES, CATEGORIES } from "@/types";
 import { cityFromSlug, resolveCity, makeSlug, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption, type CityCenter } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
@@ -142,7 +143,7 @@ function KeywordVendorCard({ r, onClick }: { r: SearchResult; onClick?: () => vo
           <div className="w-full h-full flex items-center justify-center text-4xl">🏪</div>
         )}
         <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600">business</span>
-        {r.tier === "premium" && (
+        {isPaidTier(r.tier) && (
           <span className="absolute top-2 right-2 bg-amber-400 text-white text-xs font-bold px-2 py-0.5 rounded-full">
             FEATURED
           </span>
@@ -379,7 +380,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         const listings = results.filter((r) => r.result_type === "listing");
         const vendorResults = results
           .filter((r) => r.result_type === "vendor")
-          .sort((a, b) => (b.tier === "premium" ? 1 : 0) - (a.tier === "premium" ? 1 : 0));
+          .sort((a, b) => (isPaidTier(b.tier) ? 1 : 0) - (isPaidTier(a.tier) ? 1 : 0));
         setKwListings(listings);
         setKwVendors(vendorResults);
         setListingResults([]);
