@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
 import LocalProPrice from "@/components/LocalProPrice";
 import { PRO_FEATURES } from "@/lib/pro-features";
+import { createClient } from "@/lib/supabase/client";
+import { LOCAL_PRO_PRICE } from "@/lib/pricing";
+import { computeLbDiscount, LB_MAX_PCT } from "@/lib/lb-discount";
 
 const FEATURES = PRO_FEATURES;
 
@@ -14,12 +17,31 @@ function UpgradePageInner() {
   const cancelled = searchParams.get("cancelled") === "1";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [balance, setBalance] = useState(0);
+  const [useLB, setUseLB] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("profiles").select("local_bucks").eq("id", user.id).single();
+      setBalance(data?.local_bucks ?? 0);
+    })();
+  }, []);
+
+  const charge = computeLbDiscount(LOCAL_PRO_PRICE * 100, useLB ? balance : 0, balance);
+  const fmt = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   async function handleUpgrade() {
     setLoading(true);
     setError(null);
 
-    const res = await fetch("/api/stripe/checkout", { method: "POST" });
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apply_local_bucks: charge.appliedLB }),
+    });
     const data = await res.json();
 
     if (data.url) {
@@ -101,6 +123,17 @@ function UpgradePageInner() {
                     </li>
                   ))}
                 </ul>
+
+                {/* Local Bucks — cover up to 20% of the first month */}
+                {balance > 0 && charge.maxLB > 0 && (
+                  <label className="flex items-center gap-2.5 mb-3 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2.5 cursor-pointer">
+                    <input type="checkbox" checked={useLB} onChange={(e) => setUseLB(e.target.checked)} className="accent-amber-500" />
+                    <span className="text-xs text-amber-800">
+                      Apply <strong>{charge.maxLB} 🪙</strong> Local Bucks (up to {Math.round(LB_MAX_PCT * 100)}% off first month)
+                      {useLB && <> — first month <strong>{fmt(charge.firstChargeCents)}</strong>, then ${LOCAL_PRO_PRICE}/mo</>}
+                    </span>
+                  </label>
+                )}
 
                 {error && (
                   <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-4 text-xs text-red-700">

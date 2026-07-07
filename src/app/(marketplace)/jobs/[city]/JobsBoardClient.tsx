@@ -100,6 +100,15 @@ export default function JobsBoardClient({
     }
   }, []);
 
+  // Local Bucks — cover up to 20% of the first month ($1 off the $5 post).
+  const [lbBalance, setLbBalance] = useState(0);
+  const [useLB, setUseLB] = useState(false);
+  useEffect(() => {
+    if (!currentUser) return;
+    supabase.from("profiles").select("local_bucks").eq("id", currentUser.id).single()
+      .then(({ data }) => setLbBalance(data?.local_bucks ?? 0));
+  }, [currentUser, supabase]);
+
   // Apply modal
   const [applyJob, setApplyJob] = useState<Job | null>(null);
   const [applicantName, setApplicantName] = useState(currentUser?.full_name ?? "");
@@ -157,7 +166,7 @@ export default function JobsBoardClient({
       const res = await fetch("/api/jobs/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: data.id }),
+        body: JSON.stringify({ job_id: data.id, apply_local_bucks: useLB ? Math.min(1, lbBalance) : 0 }),
       });
       const out = await res.json();
       if (out.url) { window.location.href = out.url; return; }
@@ -400,6 +409,13 @@ export default function JobsBoardClient({
                   <span className="text-base">💳</span>
                   <span><strong>$5/month</strong> keeps your job live to local job-seekers. Cancel anytime — deleting the job cancels the subscription.</span>
                 </div>
+
+                {lbBalance > 0 && (
+                  <label className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-100 px-3 py-2 text-xs text-amber-800 cursor-pointer">
+                    <input type="checkbox" checked={useLB} onChange={(e) => setUseLB(e.target.checked)} className="accent-amber-500" />
+                    <span>Apply <strong>1 🪙</strong> Local Buck — first month <strong>$4.00</strong>, then $5/mo</span>
+                  </label>
+                )}
 
                 <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
                   <button type="button" onClick={() => setComposerOpen(false)}

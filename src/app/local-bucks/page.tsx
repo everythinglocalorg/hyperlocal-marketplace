@@ -69,9 +69,9 @@ export default function LocalBucksPage() {
           <div className="grid sm:grid-cols-2 gap-4">
             {[
               {
-                icon: "🚫",
-                title: "Not Cash",
-                desc: "Local Bucks have no monetary value and cannot be redeemed for money, transferred, or sold. They exist entirely inside Everything Local.",
+                icon: "🎁",
+                title: "Rewards, Not Cash",
+                desc: "Local Bucks work like Kohl's Cash — a rewards credit you can apply to offset purchases on Everything Local (boosts, memberships, and more). They're not for cash collection: they hold no cash value on their own and can't be redeemed for money, transferred, or sold.",
               },
               {
                 icon: "⏳",

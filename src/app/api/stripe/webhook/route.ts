@@ -9,6 +9,21 @@ function adminSupabase() {
   );
 }
 
+// Deduct any Local Bucks the buyer applied — only after payment clears.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function spendLb(supabase: any, userId: string | undefined, lbStr: string | undefined, referenceId: string, reason: string) {
+  const lb = parseInt(lbStr ?? "0", 10);
+  if (lb > 0 && userId) {
+    await supabase.rpc("spend_local_bucks", {
+      p_user_id: userId,
+      p_amount: lb,
+      p_reason: reason,
+      p_reference_id: referenceId,
+      p_reference_type: reason,
+    });
+  }
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
@@ -42,6 +57,7 @@ export async function POST(req: NextRequest) {
           .from("jobs")
           .update({ is_active: true, stripe_subscription_id: session.subscription as string })
           .eq("id", session.metadata.job_id);
+        await spendLb(supabase, session.metadata.user_id, session.metadata.lb, session.metadata.job_id, "job");
         break;
       }
       // Place listing paid (attraction / thing_to_do / food_truck) → publish.
@@ -58,6 +74,7 @@ export async function POST(req: NextRequest) {
           .from("featured_boosts")
           .update({ is_active: true, stripe_subscription_id: session.subscription as string })
           .eq("id", session.metadata.boost_id);
+        await spendLb(supabase, session.metadata.user_id, session.metadata.lb, session.metadata.boost_id, "boost");
         break;
       }
       const vendorId = session.metadata?.vendor_id;
@@ -67,6 +84,7 @@ export async function POST(req: NextRequest) {
           .from("vendors")
           .update({ tier: "premium", is_verified: true, stripe_subscription_id: session.subscription as string })
           .eq("id", vendorId);
+        await spendLb(supabase, session.metadata.user_id, session.metadata.lb, vendorId, "membership");
       }
       break;
     }

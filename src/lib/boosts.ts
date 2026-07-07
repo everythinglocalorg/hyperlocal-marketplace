@@ -16,3 +16,12 @@ export type BoostEntityType = "listing" | "vendor";
 export function isBoostPlacement(v: unknown): v is BoostPlacement {
   return typeof v === "string" && v in BOOST_PLACEMENTS;
 }
+
+// Local Bucks toward a boost — shared with all monthly memberships (20% cap,
+// 1 LB = $1): $1 off a $5 boost, $2 off $10. See lib/lb-discount.
+import { computeLbDiscount, LB_CENTS, LB_MAX_PCT } from "./lb-discount";
+export { LB_CENTS as LOCAL_BUCK_CENTS, LB_MAX_PCT as LB_BOOST_MAX_PCT };
+
+export function computeBoostCharge(placement: BoostPlacement, requestedLB: number, balance: number) {
+  return computeLbDiscount(BOOST_PLACEMENTS[placement].priceCents, requestedLB, balance);
+}

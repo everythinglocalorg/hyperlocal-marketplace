@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
-import { BOOST_PLACEMENTS, isBoostPlacement } from "@/lib/boosts";
+import { BOOST_PLACEMENTS, isBoostPlacement, computeBoostCharge } from "@/lib/boosts";
 import { makeSlug, normalizeState } from "@/lib/cities";
 
 // Start a monthly boost subscription for a listing or a vendor. The boost row
@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { entity_type, entity_id, placement, return_path } = await req.json();
+    const { entity_type, entity_id, placement, return_path, apply_local_bucks } = await req.json();
     if (!isBoostPlacement(placement)) return NextResponse.json({ error: "Invalid placement" }, { status: 400 });
     if (entity_type !== "listing" && entity_type !== "vendor") return NextResponse.json({ error: "Invalid entity" }, { status: 400 });
     if (!entity_id) return NextResponse.json({ error: "Missing entity_id" }, { status: 400 });
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     if (boostErr || !boost) return NextResponse.json({ error: "Could not start boost" }, { status: 500 });
 
     // Reuse/create the user's Stripe customer (stored on their profile).
-    const { data: profile } = await supabase.from("profiles").select("stripe_customer_id, full_name").eq("id", user.id).single();
+    const { data: profile } = await supabase.from("profiles").select("stripe_customer_id, full_name, local_bucks").eq("id", user.id).single();
     let customerId = profile?.stripe_customer_id as string | null;
     if (!customerId) {
       const customer = await stripe.customers.create({ email: user.email, name: profile?.full_name ?? undefined, metadata: { user_id: user.id } });
@@ -58,6 +58,22 @@ export async function POST(req: Request) {
     const cfg = BOOST_PLACEMENTS[placement];
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://hyperlocal-marketplace-ochre.vercel.app";
     const back = typeof return_path === "string" && return_path.startsWith("/") ? return_path : "/dashboard/vendor";
+
+    // Local Bucks (validated server-side, capped at 15% and the user's balance)
+    // discount the first month via a one-time coupon; deducted on the webhook.
+    const charge = computeBoostCharge(placement, Number(apply_local_bucks) || 0, profile?.local_bucks ?? 0);
+    let discounts: { coupon: string }[] | undefined;
+    if (charge.discountCents > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: charge.discountCents,
+        currency: "usd",
+        duration: "once",
+        max_redemptions: 1,
+        name: `${charge.appliedLB} Local Bucks`,
+      });
+      discounts = [{ coupon: coupon.id }];
+    }
+    const meta = { type: "boost", boost_id: boost.id, user_id: user.id, lb: String(charge.appliedLB) };
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -71,11 +87,12 @@ export async function POST(req: Request) {
           recurring: { interval: "month" },
         },
       }],
-      metadata: { type: "boost", boost_id: boost.id, user_id: user.id },
-      subscription_data: { metadata: { type: "boost", boost_id: boost.id, user_id: user.id } },
+      metadata: meta,
+      subscription_data: { metadata: meta },
       success_url: `${appUrl}${back}?boosted=1`,
       cancel_url: `${appUrl}${back}?boost_cancelled=1`,
-      allow_promotion_codes: true,
+      // `discounts` and `allow_promotion_codes` are mutually exclusive in Stripe.
+      ...(discounts ? { discounts } : { allow_promotion_codes: true }),
     });
 
     return NextResponse.json({ url: session.url });
