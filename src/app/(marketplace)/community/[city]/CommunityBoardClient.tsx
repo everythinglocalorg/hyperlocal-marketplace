@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -69,6 +69,37 @@ export default function CommunityBoardClient({
   const [expandedPost, setExpandedPost] = useState<string | null>(null);
   const [responses, setResponses] = useState<Record<string, any[]>>({});
   const [loadingResponses, setLoadingResponses] = useState<string | null>(null);
+
+  // Paid "Local Pages" boosts — featured products & businesses pinned to the top.
+  const [featured, setFeatured] = useState<{ id: string; slug: string; title: string; image: string | null; kind: "listing" | "vendor" }[]>([]);
+  useEffect(() => {
+    (async () => {
+      const { data: boosts } = await supabase
+        .from("featured_boosts")
+        .select("entity_type, entity_id")
+        .eq("placement", "local_pages")
+        .eq("is_active", true)
+        .eq("city_slug", citySlug);
+      if (!boosts?.length) return;
+      const listingIds = boosts.filter((b) => b.entity_type === "listing").map((b) => b.entity_id);
+      const vendorIds = boosts.filter((b) => b.entity_type === "vendor").map((b) => b.entity_id);
+      const out: { id: string; slug: string; title: string; image: string | null; kind: "listing" | "vendor" }[] = [];
+      if (listingIds.length) {
+        const { data } = await supabase.from("listings").select("id, title, images, vendor:vendors(slug)").in("id", listingIds).eq("is_active", true);
+        for (const l of data ?? []) {
+          const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+          if (v?.slug) out.push({ id: l.id, slug: v.slug, title: l.title, image: l.images?.[0] ?? null, kind: "listing" });
+        }
+      }
+      if (vendorIds.length) {
+        const { data } = await supabase.from("vendors").select("id, business_name, slug, logo_url").in("id", vendorIds).eq("is_active", true);
+        for (const v of data ?? []) {
+          if (v.slug) out.push({ id: v.id, slug: v.slug, title: v.business_name, image: v.logo_url, kind: "vendor" });
+        }
+      }
+      setFeatured(out);
+    })();
+  }, [supabase, citySlug]);
 
   // High fives
   const [highfived, setHighfived] = useState<Set<string>>(new Set(initialHighfives));
@@ -452,6 +483,28 @@ export default function CommunityBoardClient({
         <h1 className="text-2xl font-bold text-gray-900 mb-5">
           Local Pages in {cityName}
         </h1>
+
+        {/* Featured locally — paid Local Pages boosts */}
+        {featured.length > 0 && (
+          <div className="mb-6">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-600 mb-2">🚀 Featured locally</p>
+            <div className="flex gap-3 overflow-x-auto flex-nowrap scrollbar-hide pb-1">
+              {featured.map((f) => (
+                <Link key={f.id} href={`/vendors/${f.slug}`}
+                  className="shrink-0 w-32 bg-white rounded-2xl border-2 border-amber-200 ring-1 ring-amber-100 overflow-hidden hover:shadow-md transition-all">
+                  <div className="w-full h-20 bg-gray-100 flex items-center justify-center overflow-hidden">
+                    {f.image
+                      ? <img src={f.image} alt={f.title} className={`w-full h-full ${f.kind === "vendor" ? "object-contain p-2" : "object-cover"}`} />
+                      : <span className="text-2xl text-gray-300">{f.kind === "vendor" ? "🏪" : "📦"}</span>}
+                  </div>
+                  <div className="p-2">
+                    <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">{f.title}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Inline composer */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mb-5">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -89,6 +89,17 @@ export default function JobsBoardClient({
   const [submitting, setSubmitting] = useState(false);
   const [postError, setPostError] = useState<string | null>(null);
 
+  // Post-payment return banner (Stripe redirects back with ?posted / ?post_cancelled).
+  const [payToast, setPayToast] = useState<null | "posted" | "cancelled">(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("posted") === "1") setPayToast("posted");
+    else if (p.get("post_cancelled") === "1") setPayToast("cancelled");
+    if (p.has("posted") || p.has("post_cancelled")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
   // Apply modal
   const [applyJob, setApplyJob] = useState<Job | null>(null);
   const [applicantName, setApplicantName] = useState(currentUser?.full_name ?? "");
@@ -114,6 +125,8 @@ export default function JobsBoardClient({
     setSubmitting(true);
     setPostError(null);
 
+    // Create the job as a draft (inactive). It goes live once the $5/month
+    // subscription is paid — the Stripe webhook flips is_active to true.
     const { data, error } = await supabase.from("jobs").insert({
       user_id: currentUser.id,
       vendor_id: postAsBusiness && myVendor ? myVendor.id : null,
@@ -130,30 +143,43 @@ export default function JobsBoardClient({
       latitude: center?.latitude ?? null,
       longitude: center?.longitude ?? null,
       radius_miles: radiusMiles,
-    }).select("*").single();
+      is_active: false,
+    }).select("id").single();
 
     if (error || !data) {
-      setPostError("Could not post the job. Please try again.");
-    } else {
-      const newJob: Job = {
-        ...data,
-        distance_miles: 0,
-        author: { id: currentUser.id, full_name: currentUser.full_name, avatar_url: currentUser.avatar_url },
-        vendor: postAsBusiness && myVendor ? myVendor : null,
-      };
-      setJobs((prev) => [newJob, ...prev]);
-      setTitle(""); setDescription(""); setJobType("full_time");
-      setPayLabel(""); setContactEmail(""); setContactPhone("");
-      setApplicationUrl(""); setRadiusMiles(25);
-      setComposerOpen(false);
+      setPostError("Could not start your posting. Please try again.");
+      setSubmitting(false);
+      return;
     }
+
+    // Send them to Stripe Checkout for the $5/month listing subscription.
+    try {
+      const res = await fetch("/api/jobs/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: data.id }),
+      });
+      const out = await res.json();
+      if (out.url) { window.location.href = out.url; return; }
+      setPostError(out.error ?? "Could not start checkout. Please try again.");
+    } catch {
+      setPostError("Could not reach checkout. Please try again.");
+    }
+    // Checkout didn't start — clean up the orphaned draft so it doesn't linger.
+    await supabase.from("jobs").delete().eq("id", data.id);
     setSubmitting(false);
   }
 
   async function deleteJob(jobId: string) {
-    if (!confirm("Delete this job posting?")) return;
-    const { error } = await supabase.from("jobs").delete().eq("id", jobId);
-    if (!error) {
+    if (!confirm("Delete this job posting? This also cancels its $5/month subscription.")) return;
+    // Route through the server so the Stripe subscription is canceled too — no
+    // more billing for a listing that's gone.
+    const res = await fetch("/api/jobs/cancel", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_id: jobId }),
+    });
+    if (res.ok) {
       setJobs((prev) => prev.filter((j) => j.id !== jobId));
     } else {
       alert("Could not delete job. Please try again.");
@@ -274,6 +300,22 @@ export default function JobsBoardClient({
           </Link>
         </div>
 
+        {/* Return from Stripe Checkout */}
+        {payToast === "posted" && (
+          <div className="mb-4 flex items-start gap-2 rounded-2xl bg-green-50 border border-green-200 px-4 py-3">
+            <span className="text-lg">✅</span>
+            <p className="text-sm text-green-800"><strong>Payment received — your job is going live!</strong> It appears here within a few seconds; refresh if you don't see it yet.</p>
+            <button onClick={() => setPayToast(null)} className="ml-auto text-green-400 hover:text-green-600">✕</button>
+          </div>
+        )}
+        {payToast === "cancelled" && (
+          <div className="mb-4 flex items-start gap-2 rounded-2xl bg-gray-50 border border-gray-200 px-4 py-3">
+            <span className="text-lg">↩️</span>
+            <p className="text-sm text-gray-700">Checkout cancelled — your job wasn't posted and you weren't charged.</p>
+            <button onClick={() => setPayToast(null)} className="ml-auto text-gray-400 hover:text-gray-600">✕</button>
+          </div>
+        )}
+
         <h1 className="text-2xl font-bold text-gray-900 mb-1">
           Jobs in {cityName}
         </h1>
@@ -354,12 +396,17 @@ export default function JobsBoardClient({
 
                 {postError && <p className="text-sm text-red-500">{postError}</p>}
 
+                <div className="flex items-center gap-2 rounded-xl bg-green-50 border border-green-100 px-3 py-2 text-xs text-green-800">
+                  <span className="text-base">💳</span>
+                  <span><strong>$5/month</strong> keeps your job live to local job-seekers. Cancel anytime — deleting the job cancels the subscription.</span>
+                </div>
+
                 <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
                   <button type="button" onClick={() => setComposerOpen(false)}
                     className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2">Cancel</button>
                   <button type="submit" disabled={submitting || !title.trim() || !description.trim()}
                     className="bg-green-600 text-white text-sm font-semibold px-6 py-2 rounded-full hover:bg-green-700 disabled:opacity-40 transition-colors">
-                    {submitting ? "Posting..." : "Post Job"}
+                    {submitting ? "Starting checkout…" : "Continue to payment — $5/mo →"}
                   </button>
                 </div>
               </form>

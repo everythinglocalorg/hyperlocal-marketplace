@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Globe, Phone, DollarSign, Clock, Tag, Tent, ChevronLeft } from "lucide-react";
@@ -35,6 +36,30 @@ const FEES_LABELS: Record<string, string> = {
 
 export default function PlaceProfileClient({ place, creator, currentUserId }: Props) {
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+  const router = useRouter();
+
+  async function handleDelete() {
+    if (!confirm(`Delete "${place.name}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/places/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ place_id: place.id }),
+      });
+      if (res.ok) {
+        router.push(`/explore/${place.city_slug}`);
+      } else {
+        const out = await res.json();
+        alert(out.error ?? "Delete failed.");
+        setDeleting(false);
+      }
+    } catch {
+      alert("Delete failed.");
+      setDeleting(false);
+    }
+  }
 
   const canEdit =
     currentUserId &&
@@ -101,12 +126,21 @@ export default function PlaceProfileClient({ place, creator, currentUserId }: Pr
                 </p>
               </div>
               {canEdit && (
-                <Link
-                  href={`/places/${place.slug}/edit`}
-                  className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 whitespace-nowrap"
-                >
-                  Edit
-                </Link>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/places/${place.slug}/edit`}
+                    className="text-xs text-gray-400 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-1.5 whitespace-nowrap"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="text-xs text-red-400 hover:text-red-600 border border-red-100 hover:border-red-300 rounded-lg px-3 py-1.5 whitespace-nowrap disabled:opacity-40"
+                  >
+                    {deleting ? "Deleting…" : "Delete"}
+                  </button>
+                </div>
               )}
             </div>
           </div>

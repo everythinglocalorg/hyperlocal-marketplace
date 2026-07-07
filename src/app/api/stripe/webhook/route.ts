@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       // Boost paid → activate the feature placement.
       if (session.metadata?.type === "boost" && session.metadata?.boost_id) {
         await supabase
-          .from("boosts")
+          .from("featured_boosts")
           .update({ is_active: true, stripe_subscription_id: session.subscription as string })
           .eq("id", session.metadata.boost_id);
         break;
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       // Boost subscription ended → drop the feature placement.
       if (sub.metadata?.type === "boost" && sub.metadata?.boost_id) {
         await supabase
-          .from("boosts")
+          .from("featured_boosts")
           .update({ is_active: false })
           .eq("id", sub.metadata.boost_id);
         break;

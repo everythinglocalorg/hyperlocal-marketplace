@@ -105,7 +105,45 @@ export default function HomePage() {
       const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
       return v?.slug && inRange(v);
     });
-    setRecentListings(filteredListings.slice(0, 8));
+    // Paid boosts for this town surface first, blended with the new items.
+    const { data: boosts } = await supabase
+      .from("featured_boosts")
+      .select("entity_type, entity_id")
+      .eq("placement", "homepage")
+      .eq("is_active", true)
+      .eq("city_slug", slug);
+    const boostedListingIds = (boosts ?? []).filter((b: any) => b.entity_type === "listing").map((b: any) => b.entity_id);
+    const boostedVendorIds = (boosts ?? []).filter((b: any) => b.entity_type === "vendor").map((b: any) => b.entity_id);
+
+    // Featured Gems — boosted products first, then recent ones.
+    let boostedListings: any[] = [];
+    if (boostedListingIds.length) {
+      const { data: bl } = await supabase
+        .from("listings")
+        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state, latitude, longitude)")
+        .in("id", boostedListingIds)
+        .eq("is_active", true);
+      boostedListings = (bl ?? [])
+        .filter((l: any) => (Array.isArray(l.vendor) ? l.vendor[0] : l.vendor)?.slug)
+        .map((l: any) => ({ ...l, boosted: true }));
+    }
+    const restListings = filteredListings.filter((l: any) => !boostedListingIds.includes(l.id));
+    setRecentListings([...boostedListings, ...restListings].slice(0, 8));
+
+    // Boosted businesses lead the New Businesses row.
+    let boostedVendors: any[] = [];
+    if (boostedVendorIds.length) {
+      const { data: bv } = await supabase
+        .from("vendors")
+        .select("id, business_name, slug, logo_url, category, city, state, rating")
+        .in("id", boostedVendorIds)
+        .eq("is_active", true);
+      boostedVendors = (bv ?? []).filter((v: any) => v.slug).map((v: any) => ({ ...v, boosted: true }));
+    }
+    const blendVendors = (list: any[]) => {
+      const rest = (list ?? []).filter((v: any) => !boostedVendorIds.includes(v.id));
+      setNewVendors([...boostedVendors, ...rest].slice(0, 6));
+    };
 
     // New vendors — use the radius RPC when we have a center, else exact-city
     if (center) {
@@ -116,7 +154,7 @@ export default function HomePage() {
         p_limit: 6,
         p_offset: 0,
       });
-      setNewVendors((data ?? []).filter((v: any) => v.slug));
+      blendVendors((data ?? []).filter((v: any) => v.slug));
     } else {
       let vQ = supabase
         .from("vendors")
@@ -127,7 +165,7 @@ export default function HomePage() {
         .limit(6);
       if (cityObj) vQ = vQ.ilike("city", cityObj.city);
       const { data } = await vQ;
-      setNewVendors(data ?? []);
+      blendVendors(data ?? []);
     }
   }
 
@@ -300,12 +338,12 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Recent listings */}
+          {/* Featured Gems — boosted products first, blended with recent */}
           {recentListings.length > 0 && (
             <div className="max-w-5xl mx-auto mt-14 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">
-                  {activeCity ? `Recent Gems in ${resolveCity(activeCity)?.label ?? activeCity}` : "Recent Gems"}
+                  {activeCity ? `Featured Gems in ${resolveCity(activeCity)?.label ?? activeCity}` : "Featured Gems"}
                 </h2>
                 <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} onClick={(e) => { if (gate(`/search${activeCity ? `?city=${activeCity}` : ""}`)) e.preventDefault(); }} className="text-sm text-green-600 hover:underline">View all →</Link>
               </div>
@@ -316,8 +354,9 @@ export default function HomePage() {
                   if (!slug) return null;
                   return (
                     <Link key={l.id} href={`/vendors/${slug}`}
-                      className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-green-200 transition-all">
-                      <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden">
+                      className={`bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-all ${l.boosted ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-100 hover:border-green-200"}`}>
+                      <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                        {l.boosted && <span className="absolute top-1.5 left-1.5 z-10 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★ Featured</span>}
                         {l.images?.[0]
                           ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
                           : <span className="text-3xl text-gray-300">{{ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" }[l.type as string] ?? "📦"}</span>}
@@ -348,7 +387,8 @@ export default function HomePage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {newVendors.map((v) => (
                   <Link key={v.id} href={`/vendors/${v.slug}`}
-                    className="bg-white rounded-2xl border border-gray-100 p-3 flex flex-col items-center text-center hover:shadow-md hover:border-green-200 transition-all">
+                    className={`relative bg-white rounded-2xl border p-3 flex flex-col items-center text-center hover:shadow-md transition-all ${v.boosted ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-100 hover:border-green-200"}`}>
+                    {v.boosted && <span className="absolute top-1.5 right-1.5 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★</span>}
                     <VendorLogo src={v.logo_url} name={v.business_name} className="w-12 h-12 mb-2" fallbackTextClass="text-base" />
                     <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">{v.business_name}</p>
                     <p className="text-xs text-gray-400 mt-0.5 truncate w-full">{v.category}</p>
