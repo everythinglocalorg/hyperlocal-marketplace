@@ -15,7 +15,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "myplaces";
 
 interface Props {
   vendor: {
@@ -121,6 +121,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
   { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
+  { id: "myplaces", label: "My Places", icon: "🌿" },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
   { id: "alllistings", label: "All Listings", icon: "🗂️", adminOnly: true },
 ];
@@ -942,6 +943,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           )}
 
           {/* ── ALL BUSINESSES (admin only) ── */}
+          {tab === "myplaces" && (
+            <MyPlacesTab userId={vendor.user_id} />
+          )}
+
           {tab === "businesses" && isAdmin && (
             <AdminBusinessesTab />
           )}
@@ -3190,6 +3195,108 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
           className={`mt-6 w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${saved ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}>
           {saving ? "Saving..." : saved ? "Saved! ✓" : "Save page blocks"}
         </button>
+      )}
+    </div>
+  );
+}
+
+/* ─── MY PLACES TAB ─────────────────────────────────────────────────────── */
+type MyPlace = { id: string; slug: string; name: string; type: string; city: string; state: string; is_active: boolean; images: string[] };
+
+const PLACE_TYPE_LABEL: Record<string, string> = {
+  park: "Park", campground: "Campground", attraction: "Attraction", thing_to_do: "Thing to Do", food_truck: "Food Truck",
+};
+const PLACE_TYPE_COLOR: Record<string, string> = {
+  park: "bg-green-100 text-green-700", campground: "bg-blue-100 text-blue-700",
+  attraction: "bg-purple-100 text-purple-700", thing_to_do: "bg-amber-100 text-amber-700", food_truck: "bg-orange-100 text-orange-700",
+};
+
+function MyPlacesTab({ userId }: { userId: string }) {
+  const supabase = createClient();
+  const [places, setPlaces] = useState<MyPlace[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.from("places").select("id,slug,name,type,city,state,is_active,images")
+      .eq("created_by", userId).order("created_at", { ascending: false })
+      .then(({ data }) => { setPlaces((data ?? []) as MyPlace[]); setLoading(false); });
+  }, [userId]);
+
+  async function handleDelete(place: MyPlace) {
+    if (!confirm(`Delete "${place.name}"? This cannot be undone.`)) return;
+    setDeleting(place.id);
+    const res = await fetch("/api/places/cancel", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ place_id: place.id }),
+    });
+    if (res.ok) {
+      setPlaces((prev) => prev.filter((p) => p.id !== place.id));
+    } else {
+      const out = await res.json();
+      alert(out.error ?? "Delete failed.");
+    }
+    setDeleting(null);
+  }
+
+  if (loading) return <div className="flex items-center justify-center h-40"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">🌿 My Places</h2>
+          <p className="text-sm text-gray-400">Parks, campgrounds, attractions, food trucks you&apos;ve added</p>
+        </div>
+        <a href="/places/add" className="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
+          + Add a place
+        </a>
+      </div>
+
+      {places.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
+          <p className="text-4xl mb-3">🌿</p>
+          <p className="font-semibold text-gray-700 mb-1">No places yet</p>
+          <p className="text-sm text-gray-400 mb-4">Add a park, campground, attraction, or food truck to get started.</p>
+          <a href="/places/add" className="inline-block bg-emerald-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-emerald-700 transition-colors">
+            Add your first place
+          </a>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {places.map((p) => (
+            <div key={p.id} className={`bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 ${!p.is_active ? "opacity-60" : ""}`}>
+              {p.images?.[0] ? (
+                <img src={p.images[0]} alt={p.name} className="w-16 h-16 rounded-xl object-cover shrink-0" />
+              ) : (
+                <div className="w-16 h-16 rounded-xl bg-emerald-50 flex items-center justify-center text-2xl shrink-0">🌿</div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <a href={`/places/${p.slug}`} target="_blank" rel="noreferrer"
+                    className="font-semibold text-gray-900 hover:text-emerald-700 hover:underline truncate">
+                    {p.name}
+                  </a>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${PLACE_TYPE_COLOR[p.type] ?? "bg-gray-100 text-gray-600"}`}>
+                    {PLACE_TYPE_LABEL[p.type] ?? p.type}
+                  </span>
+                  {!p.is_active && <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium shrink-0">Inactive</span>}
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{p.city}, {p.state}</p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={`/places/${p.slug}/edit`}
+                  className="text-xs text-blue-500 hover:text-blue-700 border border-blue-100 hover:border-blue-300 rounded-lg px-3 py-1.5 font-medium transition-colors">
+                  Edit
+                </a>
+                <button onClick={() => handleDelete(p)} disabled={deleting === p.id}
+                  className="text-xs text-red-400 hover:text-red-600 border border-red-100 hover:border-red-300 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-40">
+                  {deleting === p.id ? "…" : "Delete"}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
