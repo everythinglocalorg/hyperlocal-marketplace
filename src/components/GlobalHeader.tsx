@@ -91,6 +91,12 @@ export default function GlobalHeader() {
                 💼 Local Jobs
               </Link>
               <Link
+                href={`/explore/${activeCity}`}
+                className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block"
+              >
+                🌿 Explore
+              </Link>
+              <Link
                 href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
                 className="text-sm bg-green-600 text-white px-3 sm:px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap"
               >

@@ -136,3 +136,60 @@ export const CATEGORIES = [
 ] as const
 
 export type Category = typeof CATEGORIES[number]
+
+// ─── Places ──────────────────────────────────────────────────────────────────
+
+export type PlaceType = 'park' | 'campground' | 'attraction' | 'thing_to_do'
+export type PlaceFees = 'free' | 'day-use' | 'camping' | 'varies'
+
+export interface Place {
+  id: string
+  slug: string
+  name: string
+  type: PlaceType
+  subtype: string | null
+  description: string | null
+  address: string | null
+  city: string
+  state: string
+  zip: string | null
+  city_slug: string
+  latitude: number | null
+  longitude: number | null
+  images: string[]
+  tags: string[]
+  amenities: string[]
+  activities: string[]
+  hours: Record<string, string> | null
+  fees: PlaceFees
+  fee_details: string | null
+  website: string | null
+  phone: string | null
+  created_by: string
+  is_claimed: boolean
+  claimed_by: string | null
+  claimed_at: string | null
+  created_at: string
+  updated_at: string
+  // from places_nearby RPC
+  distance_miles?: number
+}
+
+export const PLACE_TYPES: { value: PlaceType; label: string }[] = [
+  { value: 'park',        label: 'Park' },
+  { value: 'campground',  label: 'Campground' },
+  { value: 'attraction',  label: 'Attraction' },
+  { value: 'thing_to_do', label: 'Thing to Do' },
+]
+
+export const PLACE_AMENITIES = [
+  'Restrooms', 'Parking', 'Trails', 'Water Access', 'Playground',
+  'Pet-Friendly', 'ADA Accessible', 'Picnic Areas', 'Fishing',
+  'Boat Launch', 'Campsites', 'RV Hookups', 'Showers', 'WiFi',
+] as const
+
+export const PLACE_ACTIVITIES = [
+  'Hiking', 'Swimming', 'Fishing', 'Camping', 'Biking',
+  'Birdwatching', 'Kayaking / Canoeing', 'Rock Climbing',
+  'Skiing / Snowshoeing', 'Disc Golf', 'Picnicking', 'Wildlife Viewing',
+] as const

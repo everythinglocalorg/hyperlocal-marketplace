@@ -428,6 +428,13 @@ export default function HomePage() {
               >
                 💼 Browse Local Jobs
               </Link>
+              <Link
+                href={`/explore/${activeCity}`}
+                onClick={(e) => { if (gate(`/explore/${activeCity}`)) e.preventDefault(); }}
+                className="inline-block bg-white border border-green-300 text-green-700 font-bold px-8 py-3.5 rounded-full hover:bg-green-50 transition-colors"
+              >
+                🌿 Explore Places
+              </Link>
             </div>
             <p className="text-xs text-gray-400 mt-3">Switch towns with the city selector above to browse other Local Pages</p>
           </div>
@@ -525,6 +532,7 @@ export default function HomePage() {
             <ul className="space-y-2">
               <li><Link href={`/community/${activeCity}`} className="hover:text-green-600">Local Pages</Link></li>
               <li><Link href={`/jobs/${activeCity}`} className="hover:text-green-600">Jobs Board</Link></li>
+              <li><Link href={`/explore/${activeCity}`} className="hover:text-green-600">Explore Places</Link></li>
               <li><Link href="/signup" className="hover:text-green-600">Join Free</Link></li>
             </ul>
           </div>
