@@ -7,6 +7,7 @@ import AccountSettingsModal from "@/components/AccountSettingsModal";
 import RentalSetup from "@/components/rental/RentalSetup";
 import { formatLocalBucks, formatPrice, slugify } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
+import BoostModal from "@/components/BoostModal";
 import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
@@ -14,7 +15,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings";
 
 interface Props {
   vendor: {
@@ -121,6 +122,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
   { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
+  { id: "alllistings", label: "All Listings", icon: "🗂️", adminOnly: true },
 ];
 
 export default function VendorDashboardClient({ vendor, profile, isPremium, features, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
@@ -944,6 +946,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             <AdminBusinessesTab />
           )}
 
+          {/* ── ALL LISTINGS (admin only) ── */}
+          {tab === "alllistings" && isAdmin && (
+            <AdminListingsTab />
+          )}
+
           {tab === "messages" && !can("messages") && (
             <PremiumGate feature="Messages" />
           )}
@@ -1127,6 +1134,7 @@ function ListingsTab({
   editingListing: Listing | null; onEdit: (l: Listing | null) => void;
 }) {
   const supabase = createClient();
+  const [boostListingId, setBoostListingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", type: "product", price: "", price_label: "", description: "",
     category: "Products", quantity: "", condition: "new", tags: "",
@@ -1361,6 +1369,15 @@ function ListingsTab({
 
   return (
     <div>
+      {boostListingId && (
+        <BoostModal
+          entityType="listing"
+          entityId={boostListingId}
+          homepageLabel="Featured Gems"
+          returnPath="/dashboard/vendor?tab=listings"
+          onClose={() => setBoostListingId(null)}
+        />
+      )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Listings</h1>
         <button
@@ -1772,6 +1789,7 @@ function ListingsTab({
               </div>
               <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
                 <button onClick={() => onEdit(l)} className="flex-1 text-sm bg-gray-900 text-white py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">✏️ Edit</button>
+                <button onClick={() => setBoostListingId(l.id)} className="flex-1 text-sm border border-amber-300 text-amber-700 py-2 rounded-xl font-semibold hover:bg-amber-50 transition-colors">🚀 Boost</button>
                 <button onClick={() => onDelete(l.id)} className="flex-1 text-sm border border-red-200 text-red-500 py-2 rounded-xl font-semibold hover:bg-red-50 transition-colors">🗑 Delete</button>
               </div>
             </div>
@@ -2625,6 +2643,7 @@ const CATEGORIES_LIST = [
 ];
 
 function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) {
+  const [showBoost, setShowBoost] = useState(false);
   const [businessName, setBusinessName] = useState(vendor.business_name ?? "");
   const [description, setDescription] = useState(vendor.description ?? "");
   const [category, setCategory] = useState(vendor.category ?? "");
@@ -2857,6 +2876,29 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       </form>
       <div className="mt-6 p-4 bg-gray-50 rounded-xl">
         <p className="text-xs text-gray-500">Your public storefront: <a href={`/vendors/${vendor.slug}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline font-medium">/vendors/{vendor.slug}</a></p>
+      </div>
+
+      {showBoost && (
+        <BoostModal
+          entityType="vendor"
+          entityId={vendor.id}
+          homepageLabel="New Businesses"
+          returnPath="/dashboard/vendor?tab=store"
+          onClose={() => setShowBoost(false)}
+        />
+      )}
+
+      {/* ── BOOST / FEATURE ─────────────────────────────────────── */}
+      <div className="mt-8 border-t border-gray-100 pt-8">
+        <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="font-bold text-gray-900 text-sm">🚀 Boost your business</p>
+            <p className="text-xs text-gray-500 mt-0.5">Feature in <strong>New Businesses</strong> on the homepage ($5/mo) or pin to your town's <strong>Local Pages</strong> ($10/mo). Cancel anytime.</p>
+          </div>
+          <button type="button" onClick={() => setShowBoost(true)} className="shrink-0 bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors">
+            Boost →
+          </button>
+        </div>
       </div>
 
       {/* ── STORE FEATURES ─────────────────────────────────────── */}
@@ -3367,6 +3409,159 @@ function AdminBusinessesTab() {
             <span className="text-xs text-blue-600 font-medium">
               {pendingCount} unsaved {pendingCount === 1 ? "change" : "changes"}
             </span>
+          )}
+          {savedAt && pendingCount === 0 && (
+            <span className="text-xs text-green-600 font-medium">✓ Saved</span>
+          )}
+          <button
+            onClick={saveChanges}
+            disabled={pendingCount === 0 || savingAll}
+            className="text-sm font-semibold bg-green-600 text-white rounded-xl px-5 py-2.5 hover:bg-green-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {savingAll ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Admin-only bulk manager for the green call-to-action button on every listing.
+// Mirrors AdminBusinessesTab: search, a per-row dropdown, staged edits, one Save.
+// "Auto" = no saved cta_type; the button falls back to the type-based default.
+function AdminListingsTab() {
+  const supabase = createClient();
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  // Staged cta_type edits, keyed by listing id. "" means Auto (null in the DB).
+  const [pending, setPending] = useState<Record<string, string>>({});
+  const [savingAll, setSavingAll] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    supabase
+      .from("listings")
+      .select("id,title,type,category,cta_type,is_active,vendor:vendors(business_name,slug,phone,menu_pdf_url)")
+      .order("created_at", { ascending: false })
+      .limit(2000)
+      .then(({ data }) => { setRows(data ?? []); setLoading(false); });
+  }, []);
+
+  function stage(id: string, value: string, savedValue: string) {
+    setSavedAt(null);
+    setPending((prev) => {
+      const next = { ...prev };
+      if (value === savedValue) delete next[id];
+      else next[id] = value;
+      return next;
+    });
+  }
+
+  async function saveChanges() {
+    const entries = Object.entries(pending);
+    if (entries.length === 0) return;
+    setSavingAll(true);
+    await Promise.all(
+      entries.map(([id, cta]) => supabase.from("listings").update({ cta_type: cta === "" ? null : cta }).eq("id", id))
+    );
+    setRows((prev) => prev.map((r) => (r.id in pending ? { ...r, cta_type: pending[r.id] === "" ? null : pending[r.id] } : r)));
+    setPending({});
+    setSavingAll(false);
+    setSavedAt(Date.now());
+  }
+
+  const pendingCount = Object.keys(pending).length;
+
+  // What the public button will actually show, given a chosen (or Auto) cta_type.
+  function effectiveLabel(r: any, chosen: string): string {
+    const v = Array.isArray(r.vendor) ? r.vendor[0] : r.vendor;
+    let cta: any = chosen !== "" && isListingCtaType(chosen) ? chosen : defaultCtaForListingType(r.type);
+    if (cta === "call" && !v?.phone) cta = "estimate";
+    if (cta === "menu" && !v?.menu_pdf_url) cta = v?.phone ? "call" : "estimate";
+    return LISTING_CTA_OPTIONS.find((o) => o.value === cta)?.label ?? cta;
+  }
+
+  const filtered = rows.filter((r) => {
+    if (!search) return true;
+    const v = Array.isArray(r.vendor) ? r.vendor[0] : r.vendor;
+    const hay = `${r.title} ${v?.business_name ?? ""} ${r.category}`.toLowerCase();
+    return hay.includes(search.toLowerCase());
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-xl font-black text-gray-900">All Listings</h2>
+          <p className="text-sm text-gray-400">{rows.length} listings · set the green button each one shows. Free Estimate is meant for services & trades.</p>
+        </div>
+        <a href="/admin" className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-50">Full Admin →</a>
+      </div>
+
+      <input
+        value={search} onChange={(e) => setSearch(e.target.value)}
+        placeholder="Search by listing, business, or category..."
+        className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 mb-4"
+      />
+
+      {loading ? (
+        <div className="flex items-center justify-center h-40">
+          <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Listing</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Button</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Shows</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => {
+                const v = Array.isArray(r.vendor) ? r.vendor[0] : r.vendor;
+                const current = pending[r.id] ?? (r.cta_type ?? "");
+                return (
+                  <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-semibold text-gray-900 truncate max-w-[160px] md:max-w-[240px]">{r.title}</p>
+                      <a href={v?.slug ? `/vendors/${v.slug}` : "#"} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-green-600 truncate block max-w-[160px] md:max-w-[240px]">{v?.business_name ?? "—"}</a>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 hidden md:table-cell">{r.category}</td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={current}
+                        onChange={(e) => stage(r.id, e.target.value, r.cta_type ?? "")}
+                        disabled={savingAll}
+                        className={`text-xs font-semibold border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40 cursor-pointer ${
+                          r.id in pending ? "bg-blue-50 border-blue-300 text-blue-700 ring-1 ring-blue-200" : "bg-gray-50 border-gray-200 text-gray-600"
+                        }`}
+                      >
+                        <option value="">Auto (by type)</option>
+                        {LISTING_CTA_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      <span className="text-xs text-gray-500">{effectiveLabel(r, current)}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {filtered.length === 0 && <p className="text-center text-gray-400 py-10 text-sm">No listings found</p>}
+        </div>
+      )}
+
+      {!loading && (
+        <div className="flex items-center justify-end gap-3 mt-4">
+          {pendingCount > 0 && (
+            <span className="text-xs text-blue-600 font-medium">{pendingCount} unsaved {pendingCount === 1 ? "change" : "changes"}</span>
           )}
           {savedAt && pendingCount === 0 && (
             <span className="text-xs text-green-600 font-medium">✓ Saved</span>
