@@ -38,9 +38,10 @@ export async function POST(req: NextRequest) {
       const session = event.data.object;
       const vendorId = session.metadata?.vendor_id;
       if (vendorId) {
+        // A real paid upgrade auto-grants the Local Verified badge.
         await supabase
           .from("vendors")
-          .update({ tier: "premium", stripe_subscription_id: session.subscription as string })
+          .update({ tier: "premium", is_verified: true, stripe_subscription_id: session.subscription as string })
           .eq("id", vendorId);
       }
       break;
@@ -51,9 +52,11 @@ export async function POST(req: NextRequest) {
       const vendorId = sub.metadata?.vendor_id;
       if (vendorId) {
         const isActive = sub.status === "active" || sub.status === "trialing";
+        // Grant Verified while a paid subscription is active; never auto-revoke
+        // (an admin may have verified them manually — only admins un-verify).
         await supabase
           .from("vendors")
-          .update({ tier: isActive ? "premium" : "free" })
+          .update(isActive ? { tier: "premium", is_verified: true } : { tier: "free" })
           .eq("id", vendorId);
       }
       break;

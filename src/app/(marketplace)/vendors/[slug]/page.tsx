@@ -107,6 +107,13 @@ export default async function VendorProfilePage({ params, searchParams }: Props)
     }
   }
 
+  // Founding Member — businesses that joined during the launch window wear a
+  // Founding Member badge; later signups won't qualify, so it stays meaningful.
+  const FOUNDING_MEMBER_CUTOFF = new Date("2027-01-01T00:00:00Z");
+  const isFoundingMember = vendor.created_at
+    ? new Date(vendor.created_at) < FOUNDING_MEMBER_CUTOFF
+    : false;
+
   // Get current user if logged in
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user
@@ -153,6 +160,7 @@ export default async function VendorProfilePage({ params, searchParams }: Props)
         currentUserReferralCode={profile?.referral_code ?? null}
         inboundRefCode={ref ?? null}
         localTop8Rank={localTop8Rank}
+        isFoundingMember={isFoundingMember}
       />
     </>
   );

@@ -89,9 +89,10 @@ interface Props {
   vendor: Vendor; listings: Listing[]; reviews: Review[];
   currentUserId: string | null; currentUserReferralCode: string | null; inboundRefCode: string | null;
   localTop8Rank?: number | null;
+  isFoundingMember?: boolean;
 }
 
-export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank }: Props) {
+export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank, isFoundingMember }: Props) {
   const supabase = createClient();
   const [activeSection, setActiveSection] = useState<Section>("services");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -566,28 +567,29 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
 
         <div className="max-w-6xl mx-auto px-4 pb-5">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-4 -mt-12">
-            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden shrink-0 flex items-center justify-center">
-              {vendor.logo_url
-                ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
-                : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
+          {/* Logo sits on top of the banner; the name + details sit uniformly
+              below it in the white area, never overlapping the banner. */}
+          <div className="w-20 h-20 sm:w-24 sm:h-24 -mt-12 sm:-mt-14 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
+            {vendor.logo_url
+              ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
+              : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
+          </div>
+          <div className="mt-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
+              {vendor.is_verified
+                ? <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>
+                : vendor.is_claimed
+                ? <span className="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Claimed</span>
+                : null}
+              {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
+              {isFoundingMember && <span title="One of the first businesses to launch on Everything Local" className="text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">🏅 Founding Member</span>}
             </div>
-            <div className="flex-1 min-w-0 sm:pb-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
-                {vendor.is_verified
-                  ? <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>
-                  : vendor.is_claimed
-                  ? <span className="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Claimed</span>
-                  : null}
-                {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
-              </div>
-              <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 flex-wrap">
-                <span className="text-amber-500 font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
-                <span className="text-gray-400">{vendor.review_count > 0 ? `(${vendor.review_count} reviews)` : "New"}</span>
-                <span>·</span>
-                <span>{vendor.city}, {vendor.state}</span>
-              </div>
+            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 flex-wrap">
+              <span className="text-amber-500 font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
+              <span className="text-gray-400">{vendor.review_count > 0 ? `(${vendor.review_count} reviews)` : "New"}</span>
+              <span>·</span>
+              <span>{vendor.city}, {vendor.state}</span>
             </div>
           </div>
 
