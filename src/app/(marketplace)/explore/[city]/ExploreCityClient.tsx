@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { MapPin, Plus, Search, Tent, Trees, Star, Compass } from "lucide-react";
+import { MapPin, Plus, Search, Tent, Trees, Star, Compass, Truck } from "lucide-react";
 import CitySelector from "@/components/CitySelector";
 import { LS_CITY_KEY } from "@/lib/cities";
 import { useRouter } from "next/navigation";
@@ -24,6 +24,7 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   campground:  <Tent className="w-4 h-4" />,
   attraction:  <Star className="w-4 h-4" />,
   thing_to_do: <Compass className="w-4 h-4" />,
+  food_truck:  <Truck className="w-4 h-4" />,
 };
 
 export default function ExploreCityClient({

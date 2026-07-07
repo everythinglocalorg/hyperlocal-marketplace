@@ -23,6 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
   campground: "Campground",
   attraction: "Attraction",
   thing_to_do: "Thing to Do",
+  food_truck: "Food Truck",
 };
 
 const FEES_LABELS: Record<string, string> = {

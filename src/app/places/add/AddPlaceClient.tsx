@@ -6,9 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/utils";
 import { geocodeQuery, getBrowserLocation, reverseGeocode } from "@/lib/geocode";
 import ImageUpload from "@/components/ui/ImageUpload";
-import { PLACE_TYPES, PLACE_AMENITIES, PLACE_ACTIVITIES } from "@/types";
+import { PLACE_TYPES, PLACE_AMENITIES, PLACE_ACTIVITIES, PAID_PLACE_TYPES } from "@/types";
 import type { PlaceType, PlaceFees } from "@/types";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, DollarSign } from "lucide-react";
 
 const STEPS = [
   { id: 1, label: "Basic Info" },
@@ -51,7 +51,13 @@ const INITIAL: FormData = {
   phone: "",
 };
 
-export default function AddPlaceClient({ userId }: { userId: string }) {
+interface Props {
+  userId: string;
+  vendorId?: string | null;      // if user has a vendor account
+  vendorName?: string | null;
+}
+
+export default function AddPlaceClient({ userId, vendorId, vendorName }: Props) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -66,8 +72,12 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [linkVendor, setLinkVendor] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isPaid = PAID_PLACE_TYPES.includes(form.type);
+  const isFoodTruck = form.type === "food_truck";
 
   function set(key: keyof FormData, val: string) {
     setForm((f) => ({ ...f, [key]: val }));
@@ -125,16 +135,14 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
     setSaving(true);
     setError(null);
     try {
-      const citySlug = `${form.address || geo.city}-${geo.state}`
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "");
-      // Build city_slug from city+state like makeSlug in cities.ts
       const makeSlug = (city: string, state: string) =>
         `${city}-${state}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const slug = `${slugify(form.name)}-${makeSlug(geo.city, geo.state)}`;
 
-      const payload = {
+      // Paid types start inactive; free types go live immediately.
+      const isActive = !isPaid;
+
+      const payload: Record<string, unknown> = {
         slug,
         name: form.name.trim(),
         type: form.type,
@@ -156,18 +164,35 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
         website: form.website.trim() || null,
         phone: form.phone.trim() || null,
         created_by: userId,
+        is_active: isActive,
+        vendor_id: (isFoodTruck && linkVendor && vendorId) ? vendorId : null,
       };
 
       const { data, error: insertError } = await supabase
         .from("places")
         .insert(payload)
-        .select("slug")
+        .select("id, slug")
         .single();
 
       if (insertError) throw insertError;
+
+      if (isPaid) {
+        // Send to Stripe checkout — webhook will flip is_active once paid.
+        const res = await fetch("/api/places/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ place_id: data.id }),
+        });
+        const out = await res.json();
+        if (out.url) { window.location.href = out.url; return; }
+        // Checkout failed — clean up the draft
+        await supabase.from("places").delete().eq("id", data.id);
+        throw new Error(out.error ?? "Could not start checkout. Please try again.");
+      }
+
       router.push(`/places/${data.slug}`);
-    } catch (err: any) {
-      setError(err.message ?? "Something went wrong.");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSaving(false);
     }
@@ -208,21 +233,32 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {PLACE_TYPES.map(({ value, label }) => (
+                  {PLACE_TYPES.map(({ value, label, paid }) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => set("type", value)}
-                      className={`text-sm py-2.5 rounded-xl border font-medium transition-colors ${
+                      className={`relative text-sm py-2.5 rounded-xl border font-medium transition-colors ${
                         form.type === value
                           ? "bg-emerald-600 text-white border-emerald-600"
                           : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"
                       }`}
                     >
                       {label}
+                      {paid && (
+                        <span className={`absolute top-1 right-1.5 text-[9px] font-bold ${form.type === value ? "text-emerald-200" : "text-emerald-500"}`}>
+                          $5/mo
+                        </span>
+                      )}
                     </button>
                   ))}
                 </div>
+                {isPaid && (
+                  <p className="text-xs text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2 flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 shrink-0" />
+                    {form.type === "food_truck" ? "Food Truck" : form.type === "attraction" ? "Attraction" : "Thing to Do"} listings are $5/month to keep your place featured on Everything Local.
+                  </p>
+                )}
               </div>
 
               <div>
@@ -232,7 +268,7 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
                 <input
                   value={form.subtype}
                   onChange={(e) => set("subtype", e.target.value)}
-                  placeholder="e.g. State Park, Waterfall, Disc Golf Course"
+                  placeholder={isFoodTruck ? "e.g. BBQ, Tacos, Ice Cream" : "e.g. State Park, Waterfall, Disc Golf Course"}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 />
               </div>
@@ -243,10 +279,26 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
                   value={form.description}
                   onChange={(e) => set("description", e.target.value)}
                   rows={4}
-                  placeholder="What makes this place worth visiting?"
+                  placeholder={isFoodTruck ? "What do you serve? What makes you unique?" : "What makes this place worth visiting?"}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 resize-none"
                 />
               </div>
+
+              {/* Food truck: link to vendor account */}
+              {isFoodTruck && vendorId && (
+                <div className="flex items-center gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3">
+                  <input
+                    id="link-vendor"
+                    type="checkbox"
+                    checked={linkVendor}
+                    onChange={(e) => setLinkVendor(e.target.checked)}
+                    className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-400"
+                  />
+                  <label htmlFor="link-vendor" className="text-sm text-emerald-800">
+                    Link to my <strong>{vendorName}</strong> storefront on Everything Local
+                  </label>
+                </div>
+              )}
             </>
           )}
 
@@ -297,7 +349,7 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
                 <input
                   value={form.address}
                   onChange={(e) => set("address", e.target.value)}
-                  placeholder="123 Park Rd"
+                  placeholder={isFoodTruck ? "Regular location or parking spot" : "123 Park Rd"}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                 />
               </div>
@@ -317,75 +369,99 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
           {/* ── Step 3: Details ── */}
           {step === 3 && (
             <>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Amenities</label>
-                <div className="flex flex-wrap gap-2">
-                  {PLACE_AMENITIES.map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => toggleArr(amenities, setAmenities, a)}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                        amenities.includes(a)
-                          ? "bg-emerald-600 text-white border-emerald-600"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400"
-                      }`}
-                    >
-                      {a}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Activities</label>
-                <div className="flex flex-wrap gap-2">
-                  {PLACE_ACTIVITIES.map((a) => (
-                    <button
-                      key={a}
-                      type="button"
-                      onClick={() => toggleArr(activities, setActivities, a)}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                        activities.includes(a)
-                          ? "bg-emerald-600 text-white border-emerald-600"
-                          : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400"
-                      }`}
-                    >
-                      {a}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fees</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["free", "day-use", "camping", "varies"] as PlaceFees[]).map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      onClick={() => set("fees", f)}
-                      className={`text-sm py-2 rounded-xl border font-medium transition-colors capitalize ${
-                        form.fees === f
-                          ? "bg-emerald-600 text-white border-emerald-600"
-                          : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"
-                      }`}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {form.fees !== "free" && (
+              {!isFoodTruck && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fee details</label>
-                  <input
-                    value={form.fee_details}
-                    onChange={(e) => set("fee_details", e.target.value)}
-                    placeholder="e.g. $5/vehicle, $25/night camping"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Amenities</label>
+                  <div className="flex flex-wrap gap-2">
+                    {PLACE_AMENITIES.filter(a => !['Outdoor Seating','Card Accepted','Cash Only','Drive-Through'].includes(a)).map((a) => (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleArr(amenities, setAmenities, a)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                          amenities.includes(a)
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400"
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {isFoodTruck && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Service options</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Outdoor Seating','Card Accepted','Cash Only','Drive-Through','Pet-Friendly','ADA Accessible'].map((a) => (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleArr(amenities, setAmenities, a)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                          amenities.includes(a)
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400"
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!isFoodTruck && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Activities</label>
+                  <div className="flex flex-wrap gap-2">
+                    {PLACE_ACTIVITIES.map((a) => (
+                      <button
+                        key={a}
+                        type="button"
+                        onClick={() => toggleArr(activities, setActivities, a)}
+                        className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                          activities.includes(a)
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-white text-gray-600 border-gray-200 hover:border-emerald-400"
+                        }`}
+                      >
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {!isFoodTruck && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fees</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["free", "day-use", "camping", "varies"] as PlaceFees[]).map((f) => (
+                      <button
+                        key={f}
+                        type="button"
+                        onClick={() => set("fees", f)}
+                        className={`text-sm py-2 rounded-xl border font-medium transition-colors capitalize ${
+                          form.fees === f
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"
+                        }`}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                  {form.fees !== "free" && (
+                    <input
+                      value={form.fee_details}
+                      onChange={(e) => set("fee_details", e.target.value)}
+                      placeholder="e.g. $5/vehicle, $25/night camping"
+                      className="mt-2 w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                    />
+                  )}
                 </div>
               )}
 
@@ -439,13 +515,7 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
                     placeholder="Add a tag and press Enter"
                     className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
                   />
-                  <button
-                    type="button"
-                    onClick={addTag}
-                    className="px-4 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm"
-                  >
-                    Add
-                  </button>
+                  <button type="button" onClick={addTag} className="px-4 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm">Add</button>
                 </div>
                 {tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 mt-2">
@@ -459,6 +529,14 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
                 )}
               </div>
 
+              {/* Paid type summary */}
+              {isPaid && (
+                <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3 text-sm text-amber-800">
+                  <p className="font-semibold mb-0.5">$5/month after you submit</p>
+                  <p className="text-xs text-amber-600">You&apos;ll be taken to a secure Stripe checkout. Your listing goes live once payment is confirmed.</p>
+                </div>
+              )}
+
               {error && <p className="text-sm text-red-600">{error}</p>}
             </>
           )}
@@ -467,11 +545,7 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
         {/* Navigation */}
         <div className="flex justify-between mt-5">
           {step > 1 ? (
-            <button
-              type="button"
-              onClick={() => setStep(step - 1)}
-              className="text-sm text-gray-500 hover:text-gray-800 px-4 py-2"
-            >
+            <button type="button" onClick={() => setStep(step - 1)} className="text-sm text-gray-500 hover:text-gray-800 px-4 py-2">
               Back
             </button>
           ) : <div />}
@@ -497,7 +571,7 @@ export default function AddPlaceClient({ userId }: { userId: string }) {
               className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-medium px-6 py-2.5 rounded-xl flex items-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Add place
+              {isPaid ? "Continue to payment →" : "Add place"}
             </button>
           )}
         </div>

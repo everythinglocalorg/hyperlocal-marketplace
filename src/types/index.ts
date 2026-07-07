@@ -139,7 +139,7 @@ export type Category = typeof CATEGORIES[number]
 
 // ─── Places ──────────────────────────────────────────────────────────────────
 
-export type PlaceType = 'park' | 'campground' | 'attraction' | 'thing_to_do'
+export type PlaceType = 'park' | 'campground' | 'attraction' | 'thing_to_do' | 'food_truck'
 export type PlaceFees = 'free' | 'day-use' | 'camping' | 'varies'
 
 export interface Place {
@@ -171,21 +171,29 @@ export interface Place {
   claimed_at: string | null
   created_at: string
   updated_at: string
+  is_active: boolean
+  vendor_id: string | null
+  stripe_subscription_id: string | null
   // from places_nearby RPC
   distance_miles?: number
 }
 
-export const PLACE_TYPES: { value: PlaceType; label: string }[] = [
+export const PLACE_TYPES: { value: PlaceType; label: string; paid?: boolean }[] = [
   { value: 'park',        label: 'Park' },
   { value: 'campground',  label: 'Campground' },
-  { value: 'attraction',  label: 'Attraction' },
-  { value: 'thing_to_do', label: 'Thing to Do' },
+  { value: 'attraction',  label: 'Attraction',   paid: true },
+  { value: 'thing_to_do', label: 'Thing to Do',  paid: true },
+  { value: 'food_truck',  label: 'Food Truck',   paid: true },
 ]
+
+export const PAID_PLACE_TYPES: PlaceType[] = ['attraction', 'thing_to_do', 'food_truck']
 
 export const PLACE_AMENITIES = [
   'Restrooms', 'Parking', 'Trails', 'Water Access', 'Playground',
   'Pet-Friendly', 'ADA Accessible', 'Picnic Areas', 'Fishing',
   'Boat Launch', 'Campsites', 'RV Hookups', 'Showers', 'WiFi',
+  // Food truck specific
+  'Outdoor Seating', 'Card Accepted', 'Cash Only', 'Drive-Through',
 ] as const
 
 export const PLACE_ACTIVITIES = [

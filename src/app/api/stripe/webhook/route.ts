@@ -36,6 +36,30 @@ export async function POST(req: NextRequest) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object;
+      // Job listing paid → publish it and store its subscription.
+      if (session.metadata?.type === "job_post" && session.metadata?.job_id) {
+        await supabase
+          .from("jobs")
+          .update({ is_active: true, stripe_subscription_id: session.subscription as string })
+          .eq("id", session.metadata.job_id);
+        break;
+      }
+      // Place listing paid (attraction / thing_to_do / food_truck) → publish.
+      if (session.metadata?.type === "place_post" && session.metadata?.place_id) {
+        await supabase
+          .from("places")
+          .update({ is_active: true, stripe_subscription_id: session.subscription as string })
+          .eq("id", session.metadata.place_id);
+        break;
+      }
+      // Boost paid → activate the feature placement.
+      if (session.metadata?.type === "boost" && session.metadata?.boost_id) {
+        await supabase
+          .from("boosts")
+          .update({ is_active: true, stripe_subscription_id: session.subscription as string })
+          .eq("id", session.metadata.boost_id);
+        break;
+      }
       const vendorId = session.metadata?.vendor_id;
       if (vendorId) {
         // A real paid upgrade auto-grants the Local Verified badge.
@@ -64,6 +88,30 @@ export async function POST(req: NextRequest) {
 
     case "customer.subscription.deleted": {
       const sub = event.data.object;
+      // Job listing subscription ended (canceled or lapsed) → take the job down.
+      if (sub.metadata?.type === "job_post" && sub.metadata?.job_id) {
+        await supabase
+          .from("jobs")
+          .update({ is_active: false })
+          .eq("id", sub.metadata.job_id);
+        break;
+      }
+      // Place listing subscription ended → take the place down.
+      if (sub.metadata?.type === "place_post" && sub.metadata?.place_id) {
+        await supabase
+          .from("places")
+          .update({ is_active: false })
+          .eq("id", sub.metadata.place_id);
+        break;
+      }
+      // Boost subscription ended → drop the feature placement.
+      if (sub.metadata?.type === "boost" && sub.metadata?.boost_id) {
+        await supabase
+          .from("boosts")
+          .update({ is_active: false })
+          .eq("id", sub.metadata.boost_id);
+        break;
+      }
       const vendorId = sub.metadata?.vendor_id;
       if (vendorId) {
         await supabase
