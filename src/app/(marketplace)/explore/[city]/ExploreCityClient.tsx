@@ -172,7 +172,7 @@ export default function ExploreCityClient({
 
 function PlaceCard({ place }: { place: Place & { distance_miles?: number } }) {
   const TYPE_LABELS: Record<string, string> = {
-    park: "Park", campground: "Campground", attraction: "Attraction", thing_to_do: "Thing to Do",
+    park: "Park", campground: "Campground", attraction: "Attraction", thing_to_do: "Thing to Do", food_truck: "Food Truck",
   };
 
   return (
