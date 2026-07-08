@@ -95,9 +95,11 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   // One dominant, oversized primary CTA — the decision should be obvious at a glance.
   const primaryCta = "flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-black py-4 rounded-2xl text-base hover:bg-green-700 active:scale-[0.99] transition-all shadow-lg shadow-green-600/30";
   // Attach the price to buy/book actions so value + action land in one look.
-  // Only append an actual price (has a number) — never descriptive text like
-  // "See full menu" or "Order now", which would read as a confusing double CTA.
-  const showPriceInCta = !!priceLabel && /\d/.test(priceLabel) && (ctaAction === "buy" || ctaAction === "book");
+  // A price is only shown when it's an actual amount (has a number). Descriptive
+  // text like "See menu" / "Order now" / "Free estimate" just echoes the button,
+  // so it's never rendered as a price line or appended to the CTA.
+  const hasNumericPrice = !!priceLabel && /\d/.test(priceLabel);
+  const showPriceInCta = hasNumericPrice && (ctaAction === "buy" || ctaAction === "book");
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
@@ -160,13 +162,13 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
             </div>
             <h3 className="text-xl font-black text-gray-900 leading-tight">{listing.title}</h3>
             {vendorName && vendorSlug && (
-              <Link href={`/vendors/${vendorSlug}`} className="inline-block mt-1 text-xs font-medium text-gray-500 hover:text-green-700 transition-colors">
+              <Link href={`/vendors/${vendorSlug}`} className="inline-flex items-center gap-1 mt-1.5 text-base font-bold text-green-700 hover:text-green-800 hover:underline transition-colors">
                 🏪 {vendorName} · View business →
               </Link>
             )}
-            {(priceLabel || listing.condition) && (
+            {(hasNumericPrice || listing.condition) && (
               <p className="mt-1.5 text-lg font-black text-green-700">
-                {priceLabel}
+                {hasNumericPrice && priceLabel}
                 {listing.condition && <span className="text-gray-400 text-xs font-normal ml-2 capitalize">{listing.condition}</span>}
               </p>
             )}
