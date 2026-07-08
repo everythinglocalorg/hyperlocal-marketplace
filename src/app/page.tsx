@@ -42,6 +42,17 @@ export default function HomePage() {
   const [newVendors, setNewVendors] = useState<any[]>([]);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [radius, setRadius] = useState(50);
+  const [blogPosts, setBlogPosts] = useState<any[]>([]);
+
+  useEffect(() => {
+    createClient()
+      .from("blog_posts")
+      .select("slug, title, excerpt, cover_image_url, category, author_name, published_at")
+      .eq("is_published", true)
+      .order("published_at", { ascending: false })
+      .limit(3)
+      .then(({ data }) => setBlogPosts(data ?? []));
+  }, []);
   // Soft signup gate: guests see the welcome modal before searching/browsing.
   const [gateNext, setGateNext] = useState<string | null>(null);
 
@@ -543,6 +554,35 @@ export default function HomePage() {
             </Link>
           </div>
         </section>
+
+        {/* From the blog */}
+        {blogPosts.length > 0 && (
+          <section className="py-16 px-4 bg-white border-t border-gray-100">
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-end justify-between mb-6">
+                <div>
+                  <p className="text-green-600 font-semibold text-sm uppercase tracking-widest mb-1">From the blog</p>
+                  <h2 className="text-2xl sm:text-3xl font-black text-gray-900">Local news, tips &amp; highlights</h2>
+                </div>
+                <Link href="/blog" className="text-sm text-green-600 hover:underline font-semibold shrink-0">View all →</Link>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                {blogPosts.map((p) => (
+                  <Link key={p.slug} href={`/blog/${p.slug}`} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-green-200 transition-all">
+                    <div className="h-40 bg-gray-100">
+                      {p.cover_image_url && <img src={p.cover_image_url} alt={p.title} className="w-full h-full object-cover" />}
+                    </div>
+                    <div className="p-5">
+                      <span className="text-xs font-bold uppercase tracking-wide text-green-700">{({ news: "News", tips: "Tips", highlight: "Highlight", guide: "Guide", other: "Post" } as Record<string, string>)[p.category] ?? "Post"}</span>
+                      <h3 className="font-bold text-gray-900 mt-1.5 mb-1 leading-snug group-hover:text-green-700 transition-colors line-clamp-2">{p.title}</h3>
+                      {p.excerpt && <p className="text-sm text-gray-500 line-clamp-2">{p.excerpt}</p>}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
       <footer className="border-t border-gray-100 py-12 px-6 bg-white">
@@ -580,6 +620,7 @@ export default function HomePage() {
             <p className="font-bold text-gray-900 mb-3">Company</p>
             <ul className="space-y-2">
               <li><Link href="/about" className="hover:text-green-600">About</Link></li>
+              <li><Link href="/blog" className="hover:text-green-600">Blog</Link></li>
               <li><Link href="/contact" className="hover:text-green-600">Contact</Link></li>
               <li><Link href="/privacy" className="hover:text-green-600">Privacy</Link></li>
               <li><Link href="/terms" className="hover:text-green-600">Terms</Link></li>

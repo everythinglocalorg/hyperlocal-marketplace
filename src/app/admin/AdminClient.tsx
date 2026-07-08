@@ -37,7 +37,10 @@ export default function AdminClient({ adminId }: Props) {
             <p className="text-xs text-gray-400">Everything Local</p>
           </div>
         </div>
-        <a href="/dashboard/vendor" className="text-sm text-gray-500 hover:text-green-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-green-50 transition-colors">← Vendor Dashboard</a>
+        <div className="flex items-center gap-2">
+          <a href="/admin/blog" className="text-sm font-semibold text-green-700 border border-green-300 px-3 py-1.5 rounded-xl hover:bg-green-50 transition-colors">✍️ Blog</a>
+          <a href="/dashboard/vendor" className="text-sm text-gray-500 hover:text-green-600 border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-green-50 transition-colors">← Vendor Dashboard</a>
+        </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
