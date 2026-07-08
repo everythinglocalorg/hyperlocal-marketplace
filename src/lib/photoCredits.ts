@@ -50,6 +50,29 @@ export const PHOTO_CREDITS: Record<string, PhotoCredit> = {
   'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Lake_Wissota_State_Park_02.jpg/1280px-Lake_Wissota_State_Park_02.jpg': { author: 'TheFugeni', license: 'CC BY-SA 4.0' },
   'https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Lake_Wissota_State_Park_01.jpg/1280px-Lake_Wissota_State_Park_01.jpg': { author: 'TheFugeni', license: 'CC BY-SA 4.0' },
   'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Lake_Wissota_State_Park_05.jpg/1280px-Lake_Wissota_State_Park_05.jpg': { author: 'TheFugeni', license: 'CC BY-SA 4.0' },
+
+  // ── Eau Claire, WI ──
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/CarsonParkBaseballStadium2009.JPG/1280px-CarsonParkBaseballStadium2009.JPG': { author: '1986q', license: 'Public domain' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Carson_Park_Exterior_Eau_Claire_Wisconsin.jpg/1280px-Carson_Park_Exterior_Eau_Claire_Wisconsin.jpg': { author: 'Royalbroil', license: 'CC BY-SA 3.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f4/Carson_Park_summer_football.JPG/1280px-Carson_Park_summer_football.JPG': { author: 'Libertyernie2', license: 'CC BY-SA 4.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Phoenix_Park_Trail_Bridge_-_Chippewa_River_State_Trail%2C_Eau_Claire%2C_Wisconsin_%2841062369002%29.jpg/1280px-Phoenix_Park_Trail_Bridge_-_Chippewa_River_State_Trail%2C_Eau_Claire%2C_Wisconsin_%2841062369002%29.jpg': { author: 'Tony Webster', license: 'CC BY 2.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a9/Phoenix_Park_-_pedestrian_bridge_Eau_Claire%2C_Wisconsin.jpg/1280px-Phoenix_Park_-_pedestrian_bridge_Eau_Claire%2C_Wisconsin.jpg': { author: 'TessTalks', license: 'CC BY-SA 4.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/Peony_and_Labyrinth_in_Phoenix_Park._Eau_Claire%2C_WIsconsin.jpg/1280px-Peony_and_Labyrinth_in_Phoenix_Park._Eau_Claire%2C_WIsconsin.jpg': { author: 'TessTalks', license: 'CC BY-SA 4.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/8/89/SargeBoydBandshellInOwenPark%2C_Eau_Claire.jpg/1280px-SargeBoydBandshellInOwenPark%2C_Eau_Claire.jpg': { author: 'Villwock', license: 'Public domain' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Sarge_Boyd_Bandshell_in_Owen_Park.jpg/1280px-Sarge_Boyd_Bandshell_in_Owen_Park.jpg': { author: 'Villwock', license: 'Public domain' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/5Aug2010-EauClaireMunicipalBandbyVernBarber_at_Bandshell_in_Owen_Park%2C_Eau_Claire.jpg/1280px-5Aug2010-EauClaireMunicipalBandbyVernBarber_at_Bandshell_in_Owen_Park%2C_Eau_Claire.jpg': { author: 'Villwock', license: 'CC BY-SA 3.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/2/25/Eau_Claire_-_Chippewa_River_looking_south_east.jpg/1280px-Eau_Claire_-_Chippewa_River_looking_south_east.jpg': { author: 'Autoshade (Wikimedia Commons)', license: 'Public domain' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f2/Chippewa_River_Eau_Claire_Wisconsin.jpg/1280px-Chippewa_River_Eau_Claire_Wisconsin.jpg': { author: 'Tim Kiser', license: 'CC BY-SA 3.0 US' },
+  'https://upload.wikimedia.org/wikipedia/commons/2/2a/Big_Falls_County_Park_Eau_Caire_WI_A.jpg': { author: 'Unknown', license: 'CC BY-SA 3.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Big_Falls_County_Park_Eau_Caire_WI_B.jpg/1280px-Big_Falls_County_Park_Eau_Caire_WI_B.jpg': { author: 'Unknown', license: 'CC BY-SA 3.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Eau_Claire_River_Wisconsin_A.jpg/1280px-Eau_Claire_River_Wisconsin_A.jpg': { author: 'Unknown', license: 'CC BY-SA 3.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Lake_Altoona_Resovoir_from_Road.jpg/1280px-Lake_Altoona_Resovoir_from_Road.jpg': { author: 'Bonnachoven', license: 'CC0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6f/Lake_Altoona_Resevoir_another_view.jpg/1280px-Lake_Altoona_Resevoir_another_view.jpg': { author: 'Bonnachoven', license: 'CC0' },
+  'https://upload.wikimedia.org/wikipedia/commons/2/25/Chippewa_Valley_Museum%2C_WI_Ojibwe_carrying_child_in_tiginaagan_or_traditional_cradleboard.jpg': { author: 'Unknown', license: 'Public domain' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/The_Pablo_Center_-_Eau_Claire%2C_Wisconsin.jpg/1280px-The_Pablo_Center_-_Eau_Claire%2C_Wisconsin.jpg': { author: 'TessTalks', license: 'CC BY-SA 4.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/3/36/CSS_vs._UWEC_at_Hobbs_%281%29.jpg/1280px-CSS_vs._UWEC_at_Hobbs_%281%29.jpg': { author: 'Libertyernie2', license: 'CC BY-SA 3.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/CSS_vs._UWEC_at_Hobbs_%282%29.jpg/1280px-CSS_vs._UWEC_at_Hobbs_%282%29.jpg': { author: 'Libertyernie2', license: 'CC BY-SA 3.0' },
+  'https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/CSS_vs._UWEC_at_Hobbs_%283%29.jpg/1280px-CSS_vs._UWEC_at_Hobbs_%283%29.jpg': { author: 'Libertyernie2', license: 'CC BY-SA 3.0' },
 };
 
 export function creditFor(url: string | undefined | null): PhotoCredit | null {
