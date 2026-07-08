@@ -1012,6 +1012,11 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
   const priceLabel = derivePriceLabel(listing);
   const { ctaLabel, ctaAction } = resolveListingCta(listing, vendorPhone, menuPdfUrl);
 
+  // Don't repeat the price label when it just restates the CTA button
+  // (e.g. a "Free estimate" price label next to a "Free Estimate" button).
+  const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase();
+  const showPrice = !!priceLabel && norm(priceLabel) !== norm(ctaLabel);
+
   // The green CTA acts directly; clicking anywhere else on the card opens the
   // detail popup (photos, full description, sticky action bar).
   function runCta() {
@@ -1079,8 +1084,8 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
 
         <div className="flex items-end justify-between gap-3 mt-2">
           {/* Price */}
-          {priceLabel && (
-            <span className="text-white font-black text-lg drop-shadow">{priceLabel}{listing.condition ? <span className="text-white/60 text-xs font-normal ml-1.5 capitalize">{listing.condition}</span> : null}</span>
+          {showPrice && (
+            <span className="text-white font-black text-lg drop-shadow min-w-0 truncate">{priceLabel}{listing.condition ? <span className="text-white/60 text-xs font-normal ml-1.5 capitalize">{listing.condition}</span> : null}</span>
           )}
 
           {/* CTA — dial the phone for "Call Now", open the menu PDF for "View Menu", otherwise open the matching form */}
