@@ -11,6 +11,7 @@ import MessageModal from "@/components/MessageModal";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import FollowButton from "@/components/FollowButton";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
+import ReferModal from "@/components/ReferModal";
 import LocalTop8Badge from "@/components/LocalTop8Badge";
 
 type PageBlock = {
@@ -147,6 +148,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [estimateListing, setEstimateListing] = useState<Listing | null>(null);
   const [messageListing, setMessageListing] = useState<Listing | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
+  const [showRefer, setShowRefer] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showContactDropdown, setShowContactDropdown] = useState(false);
@@ -445,6 +447,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     )}
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
     {estimateListing && <BuyNowModal listing={{ id: estimateListing.id, title: estimateListing.title, price: estimateListing.price, price_label: estimateListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="estimate" onClose={() => setEstimateListing(null)} />}
+    {showRefer && <ReferModal vendorId={vendor.id} vendorName={vendor.business_name} currentUserId={currentUserId} onClose={() => setShowRefer(false)} />}
     {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
 
     {/* Listing detail popup — full photos/details; its sticky action bar reuses the same CTA handlers */}
@@ -608,7 +611,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           <div className="flex flex-wrap gap-2 mt-4">
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">📍 Serves {vendor.city} + {vendor.service_radius_miles} mi</span>
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">🏡 Locally owned</span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-3 py-1.5">🪙 Earn Local Bucks on referrals</span>
+            <button onClick={() => setShowRefer(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 hover:bg-amber-100 transition-colors">🪙 Earn Local Bucks on referrals →</button>
           </div>
 
           {/* Obvious primary CTA — desktop only; mobile uses the sticky bottom bar */}

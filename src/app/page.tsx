@@ -273,12 +273,8 @@ export default function HomePage() {
           <div className="relative max-w-3xl mx-auto text-center">
             {/* trust chip */}
             <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-6 shadow-sm">
-              <span className="flex -space-x-1.5">
-                <span className="w-5 h-5 rounded-full bg-green-500 border-2 border-white" />
-                <span className="w-5 h-5 rounded-full bg-emerald-400 border-2 border-white" />
-                <span className="w-5 h-5 rounded-full bg-amber-400 border-2 border-white" />
-              </span>
-              <span className="text-xs font-semibold text-gray-600">Over 150 locals already on Everything Local</span>
+              <span className="text-sm leading-none">🇺🇸</span>
+              <span className="text-xs font-semibold text-gray-600">Now live in <span className="text-green-700">4,000+ cities</span> nationwide</span>
             </div>
 
             <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 mb-4 leading-[1.1] tracking-tight">

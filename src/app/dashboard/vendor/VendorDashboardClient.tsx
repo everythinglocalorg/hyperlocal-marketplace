@@ -3549,11 +3549,44 @@ function AdminListingsTab() {
   useEffect(() => {
     supabase
       .from("listings")
-      .select("id,title,type,category,cta_type,is_active,vendor:vendors(business_name,slug,phone,menu_pdf_url)")
+      .select("id,title,type,category,cta_type,is_active,is_featured,vendor:vendors(id,business_name,slug,phone,menu_pdf_url,logo_url)")
       .order("created_at", { ascending: false })
       .limit(2000)
       .then(({ data }) => { setRows(data ?? []); setLoading(false); });
   }, []);
+
+  // Change a business's profile photo (logo) right from this table.
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadTarget = useRef<string | null>(null);
+  const [uploadingVendor, setUploadingVendor] = useState<string | null>(null);
+
+  function pickLogo(vendorId: string) {
+    uploadTarget.current = vendorId;
+    logoInputRef.current?.click();
+  }
+
+  async function onLogoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const vendorId = uploadTarget.current;
+    e.target.value = "";
+    if (!file || !vendorId) return;
+    setUploadingVendor(vendorId);
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${vendorId}/logo.${ext}`;
+    const { error } = await supabase.storage.from("vendor-logos").upload(path, file, { upsert: true });
+    if (!error) {
+      const base = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
+      const url = `${base}?t=${Date.now()}`; // cache-bust so the new logo shows everywhere
+      await supabase.from("vendors").update({ logo_url: url, banner_url: url }).eq("id", vendorId);
+      setRows((prev) => prev.map((r) => {
+        const rv = Array.isArray(r.vendor) ? r.vendor[0] : r.vendor;
+        if (rv?.id !== vendorId) return r;
+        const nv = { ...rv, logo_url: url };
+        return { ...r, vendor: Array.isArray(r.vendor) ? [nv] : nv };
+      }));
+    }
+    setUploadingVendor(null);
+  }
 
   function stage(id: string, value: string, savedValue: string) {
     setSavedAt(null);
@@ -3580,13 +3613,29 @@ function AdminListingsTab() {
 
   const pendingCount = Object.keys(pending).length;
 
-  // What the public button will actually show, given a chosen (or Auto) cta_type.
-  function effectiveLabel(r: any, chosen: string): string {
-    const v = Array.isArray(r.vendor) ? r.vendor[0] : r.vendor;
-    let cta: any = chosen !== "" && isListingCtaType(chosen) ? chosen : defaultCtaForListingType(r.type);
-    if (cta === "call" && !v?.phone) cta = "estimate";
-    if (cta === "menu" && !v?.menu_pdf_url) cta = v?.phone ? "call" : "estimate";
-    return LISTING_CTA_OPTIONS.find((o) => o.value === cta)?.label ?? cta;
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
+
+  async function togglePause(id: string, nextActive: boolean) {
+    setRowBusy(id);
+    await supabase.from("listings").update({ is_active: nextActive }).eq("id", id);
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, is_active: nextActive } : r));
+    setRowBusy(null);
+  }
+
+  async function toggleFeature(id: string, nextFeatured: boolean) {
+    setRowBusy(id);
+    await supabase.from("listings").update({ is_featured: nextFeatured }).eq("id", id);
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, is_featured: nextFeatured } : r));
+    setRowBusy(null);
+  }
+
+  async function deleteListing(r: any) {
+    if (!confirm(`Permanently delete "${r.title}"? This cannot be undone.`)) return;
+    setRowBusy(r.id);
+    const { error } = await supabase.from("listings").delete().eq("id", r.id);
+    if (error) { alert(`Could not delete: ${error.message}`); setRowBusy(null); return; }
+    setRows((prev) => prev.filter((x) => x.id !== r.id));
+    setRowBusy(null);
   }
 
   const filtered = rows.filter((r) => {
@@ -3606,6 +3655,8 @@ function AdminListingsTab() {
         <a href="/admin" className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-50">Full Admin →</a>
       </div>
 
+      <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={onLogoFile} />
+
       <input
         value={search} onChange={(e) => setSearch(e.target.value)}
         placeholder="Search by listing, business, or category..."
@@ -3624,7 +3675,7 @@ function AdminListingsTab() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Listing</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Category</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Button</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide hidden sm:table-cell">Shows</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -3634,8 +3685,25 @@ function AdminListingsTab() {
                 return (
                   <tr key={r.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3">
-                      <p className="text-sm font-semibold text-gray-900 truncate max-w-[160px] md:max-w-[240px]">{r.title}</p>
-                      <a href={v?.slug ? `/vendors/${v.slug}` : "#"} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-green-600 truncate block max-w-[160px] md:max-w-[240px]">{v?.business_name ?? "—"}</a>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => v?.id && pickLogo(v.id)}
+                          title="Change business logo"
+                          className="relative w-9 h-9 rounded-lg border border-gray-200 bg-white overflow-hidden shrink-0 group"
+                        >
+                          {v?.logo_url
+                            ? <img src={v.logo_url} alt="" className="w-full h-full object-contain" />
+                            : <span className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-400">{v?.business_name?.[0] ?? "?"}</span>}
+                          <span className="absolute inset-0 bg-black/50 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            {uploadingVendor === v?.id ? "…" : "Edit"}
+                          </span>
+                        </button>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 truncate max-w-[140px] md:max-w-[220px]">{r.title}</p>
+                          <a href={v?.slug ? `/vendors/${v.slug}` : "#"} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-400 hover:text-green-600 truncate block max-w-[140px] md:max-w-[220px]">{v?.business_name ?? "—"}</a>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500 hidden md:table-cell">{r.category}</td>
                     <td className="px-4 py-3">
@@ -3653,8 +3721,33 @@ function AdminListingsTab() {
                         ))}
                       </select>
                     </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <span className="text-xs text-gray-500">{effectiveLabel(r, current)}</span>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => toggleFeature(r.id, !r.is_featured)}
+                          disabled={rowBusy === r.id}
+                          title={r.is_featured ? "Unfeature" : "Feature this listing"}
+                          className={`text-xs font-semibold border rounded-lg px-2 py-1.5 transition-colors disabled:opacity-40 ${r.is_featured ? "bg-amber-50 border-amber-300 text-amber-700" : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"}`}
+                        >
+                          {r.is_featured ? "★ Featured" : "☆ Feature"}
+                        </button>
+                        <button
+                          onClick={() => togglePause(r.id, r.is_active === false)}
+                          disabled={rowBusy === r.id}
+                          title={r.is_active === false ? "Show on site" : "Hide from site"}
+                          className={`text-xs font-semibold border rounded-lg px-2.5 py-1.5 transition-colors disabled:opacity-40 ${r.is_active === false ? "bg-green-50 border-green-300 text-green-700 hover:bg-green-100" : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"}`}
+                        >
+                          {r.is_active === false ? "▶ Activate" : "⏸ Pause"}
+                        </button>
+                        <button
+                          onClick={() => deleteListing(r)}
+                          disabled={rowBusy === r.id}
+                          title="Delete listing"
+                          className="text-xs font-semibold border border-red-200 bg-red-50 text-red-600 rounded-lg px-2.5 py-1.5 hover:bg-red-100 transition-colors disabled:opacity-40"
+                        >
+                          🗑
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
