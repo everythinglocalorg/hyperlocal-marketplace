@@ -178,6 +178,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const isServiceBased = SERVICE_CATEGORIES.has(vendor.category);
   const inquiryHeading = isServiceBased ? "Request A Free Estimate" : "Get in Touch";
   const inquirySubmitLabel = isServiceBased ? "Request Free Estimate →" : "Send Message →";
+  // Effective CTA: fall back to "estimate" for service businesses that haven't set
+  // an explicit CTA, so the primary button opens the free-estimate form.
+  const effectiveCta = ctaAction ?? (isServiceBased ? "estimate" : null);
 
   // Hero cover: the vendor's own banner if they set one, otherwise default to
   // their first product/listing photo, else fall back to a branded gradient.
@@ -236,7 +239,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       buyer_email: ctaFormEmail,
       buyer_phone: ctaFormPhone || null,
       message: ctaFormMessage,
-      inquiry_type: ctaAction ?? "cta",
+      inquiry_type: effectiveCta ?? "cta",
     });
     fetch("/api/inquiry-email", {
       method: "POST",
@@ -247,7 +250,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         buyerEmail: ctaFormEmail,
         buyerPhone: ctaFormPhone || null,
         message: ctaFormMessage,
-        inquiryType: ctaAction ?? "cta",
+        inquiryType: effectiveCta ?? "cta",
       }),
     }).catch(() => {});
     setCtaFormSubmitting(false); setCtaFormDone(true);
@@ -395,10 +398,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     {/* Sticky mobile CTA bar — conversion stays one tap away while scrolling */}
     <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 flex gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
       <button
-        onClick={() => { if (requireAccount()) return; if (ctaAction && ctaAction !== "call") setShowCtaForm(true); else setShowMessageModal(true); }}
+        onClick={() => { if (requireAccount()) return; if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true); }}
         className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors text-sm"
       >
-        {ctaAction ? CTA_LABELS[ctaAction] : isServiceBased ? "Request Free Estimate" : "Message"} →
+        {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"} →
       </button>
       {vendor.phone && (
         <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-5 py-3 rounded-xl text-sm">
@@ -409,7 +412,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     {showMessageModal && <MessageModal listing={{ id: vendor.id, title: `Contact ${vendor.business_name}` }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
 
     {/* CTA built-in form modal */}
-    {showCtaForm && (ctaAction === "estimate" || ctaAction === "order") && (
+    {showCtaForm && (effectiveCta === "estimate" || effectiveCta === "order") && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowCtaForm(false)}>
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
           {ctaFormDone ? (
@@ -422,7 +425,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           ) : (
             <>
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900">{ctaAction ? CTA_LABELS[ctaAction] : "Contact Us"}</h3>
+                <h3 className="text-lg font-bold text-gray-900">{effectiveCta ? CTA_LABELS[effectiveCta] : "Contact Us"}</h3>
                 <button onClick={() => setShowCtaForm(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
               </div>
               <form onSubmit={submitCtaForm} className="space-y-3">
@@ -620,10 +623,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               </a>
             ) : (
               <button
-                onClick={() => { if (requireAccount()) return; if (ctaAction && ctaAction !== "call") setShowCtaForm(true); else setShowMessageModal(true); }}
+                onClick={() => { if (requireAccount()) return; if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true); }}
                 className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
               >
-                {ctaAction ? CTA_LABELS[ctaAction] : isServiceBased ? "Request Free Estimate" : `Contact ${vendor.business_name.split(" ")[0]}`} →
+                {effectiveCta ? CTA_LABELS[effectiveCta] : `Contact ${vendor.business_name.split(" ")[0]}`} →
               </button>
             )}
             {vendor.phone && ctaAction !== "call" && (
