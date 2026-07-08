@@ -14,7 +14,7 @@ export default function ReferModal({ vendorId, vendorName, currentUserId, onClos
   const [q, setQ] = useState("");
   const [results, setResults] = useState<Person[]>([]);
   const [sending, setSending] = useState(false);
-  const [done, setDone] = useState<null | "ok" | "already">(null);
+  const [done, setDone] = useState<null | "ok" | "already" | "sent_unrewarded">(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function ReferModal({ vendorId, vendorName, currentUserId, onClos
     const { data, error: err } = await supabase.rpc("refer_to_vendor", { p_vendor_id: vendorId, p_referred_user_id: personId });
     setSending(false);
     if (err) { setError(err.message ?? "Could not send that referral."); return; }
-    setDone(data === "already" ? "already" : "ok");
+    setDone(data === "already" ? "already" : data === "sent_unrewarded" ? "sent_unrewarded" : "ok");
   }
 
   return (
@@ -58,7 +58,9 @@ export default function ReferModal({ vendorId, vendorName, currentUserId, onClos
             <p className="text-sm text-gray-500 mt-1">
               {done === "already"
                 ? `You've already referred them to ${vendorName}.`
-                : `They'll get a notification and ${vendorName} gets a new lead — you earned 🪙 10 Local Bucks.`}
+                : done === "sent_unrewarded"
+                ? `They'll get a notification and ${vendorName} gets a new lead. You've hit today's earning limit (5 rewarded referrals per day), so no Local Bucks for this one.`
+                : `They'll get a notification and ${vendorName} gets a new lead — you earned 🪙 5 Local Bucks.`}
             </p>
             <button onClick={onClose} className="mt-5 bg-green-600 text-white font-semibold px-6 py-2.5 rounded-full hover:bg-green-700 transition-colors">Done</button>
           </div>
@@ -67,7 +69,7 @@ export default function ReferModal({ vendorId, vendorName, currentUserId, onClos
         ) : (
           <>
             <p className="text-sm text-gray-500 mb-3">
-              @-tag a neighbor to recommend <strong>{vendorName}</strong>. They get a heads-up, the business gets a new lead, and you earn 🪙 10 Local Bucks.
+              @-tag a neighbor to recommend <strong>{vendorName}</strong>. They get a heads-up, the business gets a new lead, and you earn 🪙 5 Local Bucks.
             </p>
             <input
               autoFocus

@@ -11,11 +11,12 @@ import BoostModal from "@/components/BoostModal";
 import CrmBoard from "@/components/vendor/CrmBoard";
 import EstimateCreator from "@/components/vendor/EstimateCreator";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
+import PlacesManager from "@/components/admin/PlacesManager";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "myplaces";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
 
 interface Props {
   vendor: {
@@ -124,6 +125,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "myplaces", label: "My Places", icon: "🌿" },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
   { id: "alllistings", label: "All Listings", icon: "🗂️", adminOnly: true },
+  { id: "allplaces", label: "All Places", icon: "🌿", adminOnly: true },
 ];
 
 export default function VendorDashboardClient({ vendor, profile, isPremium, features, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
@@ -954,6 +956,17 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           {/* ── ALL LISTINGS (admin only) ── */}
           {tab === "alllistings" && isAdmin && (
             <AdminListingsTab />
+          )}
+
+          {/* ── ALL PLACES (admin only) ── */}
+          {tab === "allplaces" && isAdmin && (
+            <div>
+              <div className="mb-5">
+                <h2 className="text-xl font-black text-gray-900">All Places</h2>
+                <p className="text-sm text-gray-400">Community places — parks, campgrounds, attractions, and food trucks.</p>
+              </div>
+              <PlacesManager adminId={vendor.user_id} />
+            </div>
           )}
 
           {tab === "messages" && !can("messages") && (

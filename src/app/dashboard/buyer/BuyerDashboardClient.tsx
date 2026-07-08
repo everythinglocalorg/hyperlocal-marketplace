@@ -109,6 +109,7 @@ const REASON_LABELS: Record<string, string> = {
   referral_signup: "Referral signed up",
   connect_stripe: "Connected Stripe payouts",
   connect_domain: "Connected a custom domain",
+  refer_business: "Recommended a business to a neighbor",
 };
 
 const STATUS_STYLES: Record<string, string> = {

@@ -3,6 +3,15 @@
 -- friend's notifications, and rewards the referrer with Local Bucks.
 -- SECURITY DEFINER so the referrer (who doesn't own the vendor) can create the
 -- CRM lead; the referrer is taken from auth.uid(), never trusted from a param.
+--
+-- Anti-abuse rules (mirrors the once-only guards on other earn events):
+--   * never rewarded twice for the same person+business (ever)
+--   * at most 5 REWARDED tag-referrals per rolling 24h; further referrals
+--     still deliver (lead + notification) but pay nothing
+--   * at most 15 SENT tag-referrals per rolling 24h; beyond that the send is
+--     blocked entirely (notification spam guard)
+--   * hitting either cap files a spam_flags row for admin review (deduped to
+--     one open flag per type per user per 24h)
 
 create or replace function refer_to_vendor(p_vendor_id uuid, p_referred_user_id uuid)
 returns text as $$
@@ -15,6 +24,9 @@ declare
   v_slug text;
   v_col uuid;
   v_link text;
+  v_sends_24h integer;
+  v_rewards_24h integer;
+  v_rewarded boolean := false;
 begin
   if v_referrer is null then raise exception 'Not authenticated'; end if;
   if v_referrer = p_referred_user_id then raise exception 'You cannot refer yourself'; end if;
@@ -32,6 +44,43 @@ begin
     where actor_id = v_referrer and user_id = p_referred_user_id and type = 'referral' and link = v_link
   ) then
     return 'already';
+  end if;
+
+  -- Hard send cap: 15 tag-referrals per rolling 24h, then block outright.
+  select count(*) into v_sends_24h
+  from public.notifications
+  where actor_id = v_referrer and type = 'referral'
+    and created_at > now() - interval '24 hours';
+
+  if v_sends_24h >= 15 then
+    if not exists (
+      select 1 from public.spam_flags
+      where flagged_user_id = v_referrer and type = 'referral_rate_limit'
+        and status = 'open' and created_at > now() - interval '24 hours'
+    ) then
+      insert into public.spam_flags (type, flagged_user_id, vendor_id, details)
+      values ('referral_rate_limit', v_referrer, p_vendor_id,
+              jsonb_build_object('sends_24h', v_sends_24h, 'blocked_referred_user', p_referred_user_id));
+    end if;
+    raise exception 'Daily referral limit reached. Try again tomorrow.';
+  end if;
+
+  -- Reward cap: only the first 5 tag-referrals per rolling 24h pay out.
+  select count(*) into v_rewards_24h
+  from public.local_bucks_transactions
+  where user_id = v_referrer and reason = 'refer_business'
+    and created_at > now() - interval '24 hours';
+
+  v_rewarded := v_rewards_24h < 5;
+
+  if not v_rewarded and not exists (
+    select 1 from public.spam_flags
+    where flagged_user_id = v_referrer and type = 'referral_reward_cap'
+      and status = 'open' and created_at > now() - interval '24 hours'
+  ) then
+    insert into public.spam_flags (type, flagged_user_id, vendor_id, details)
+    values ('referral_reward_cap', v_referrer, p_vendor_id,
+            jsonb_build_object('rewards_24h', v_rewards_24h, 'sends_24h', v_sends_24h));
   end if;
 
   -- New Lead → the vendor's first pipeline column. Seed the default pipeline
@@ -54,8 +103,11 @@ begin
           coalesce(nullif(v_referrer_name, ''), 'Someone') || ' thinks you''d love ' || v_biz,
           'Check out ' || v_biz || ' on Everything Local.', v_link);
 
-  perform award_local_bucks(v_referrer, 10, 'refer_business', p_vendor_id, 'vendor');
+  if v_rewarded then
+    perform award_local_bucks(v_referrer, 5, 'refer_business', p_vendor_id, 'vendor');
+    return 'ok';
+  end if;
 
-  return 'ok';
+  return 'sent_unrewarded';
 end;
 $$ language plpgsql security definer;

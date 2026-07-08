@@ -23,6 +23,7 @@ export default function LocalBucksPage() {
             { icon: "📱", action: "Add your phone", bucks: "+5 LB", sub: "During onboarding — helps vendors reach you" },
             { icon: "⭐", action: "Leave a review", bucks: "+5 LB", sub: "Tell the community about a local business" },
             { icon: "🤝", action: "Refer a friend", bucks: "+20 LB", sub: "Earned the moment they sign up with your link" },
+            { icon: "💬", action: "Recommend to a neighbor", bucks: "+5 LB", sub: "@-tag a friend to a business — up to 5 rewarded a day" },
             { icon: "🏪", action: "Set up your storefront", bucks: "+25 LB", sub: "Vendors: complete your business profile" },
             { icon: "💳", action: "Connect Stripe", bucks: "+10 LB", sub: "Vendors: set up payouts and get paid online" },
             { icon: "🌐", action: "Connect your domain", bucks: "+10 LB", sub: "Vendors: point your own domain at your storefront" },

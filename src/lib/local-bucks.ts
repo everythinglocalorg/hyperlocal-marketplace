@@ -24,6 +24,8 @@ export const LOCAL_BUCKS_REWARDS = {
   HOST_EVENT: 200,
   CONNECT_STRIPE: 10,
   CONNECT_DOMAIN: 10,
+  // @-tag a neighbor to a business (max 5 rewarded / rolling 24h, enforced in refer_to_vendor.sql)
+  REFER_TO_BUSINESS: 5,
 } as const
 
 export const LOCAL_BUCKS_COSTS = {
