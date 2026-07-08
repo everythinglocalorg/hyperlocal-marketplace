@@ -58,7 +58,8 @@ export function resolveListingCta(listing: DetailListing, vendorPhone: string | 
   const saved = isListingCtaType(listing.cta_type) ? listing.cta_type : null;
   let cta: ListingCtaType = saved ?? defaultCtaForListingType(listing.type);
   if (cta === "call" && !vendorPhone) cta = "estimate";
-  if (cta === "menu" && !menuPdfUrl) cta = vendorPhone ? "call" : "estimate";
+  // "See Menu" never degrades to Call/Free Estimate — the click opens the menu
+  // PDF when present, otherwise the vendor's storefront (handled by callers).
   return { ctaLabel: LISTING_CTAS[cta].label, ctaAction: LISTING_CTAS[cta].action };
 }
 
@@ -83,14 +84,20 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   function runCta() {
     if (ctaAction === "book") onBook();
     else if (ctaAction === "buy") onBuy();
-    else if (ctaAction === "menu" && menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
+    else if (ctaAction === "menu") {
+      if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
+      else if (vendorSlug) window.location.href = `/vendors/${vendorSlug}`;
+      else onMessage();
+    }
     else onMessage();
   }
 
   // One dominant, oversized primary CTA — the decision should be obvious at a glance.
   const primaryCta = "flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-black py-4 rounded-2xl text-base hover:bg-green-700 active:scale-[0.99] transition-all shadow-lg shadow-green-600/30";
   // Attach the price to buy/book actions so value + action land in one look.
-  const showPriceInCta = !!priceLabel && (ctaAction === "buy" || ctaAction === "book");
+  // Only append an actual price (has a number) — never descriptive text like
+  // "See full menu" or "Order now", which would read as a confusing double CTA.
+  const showPriceInCta = !!priceLabel && /\d/.test(priceLabel) && (ctaAction === "buy" || ctaAction === "book");
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
@@ -245,8 +252,12 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
               <a href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`} className={primaryCta}>
                 📞 {ctaLabel}
               </a>
-            ) : ctaAction === "menu" && menuPdfUrl ? (
-              <a href={menuPdfUrl} target="_blank" rel="noopener noreferrer" className={primaryCta}>
+            ) : ctaAction === "menu" ? (
+              <a
+                href={menuPdfUrl || (vendorSlug ? `/vendors/${vendorSlug}` : "#")}
+                {...(menuPdfUrl ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                className={primaryCta}
+              >
                 🍽️ {ctaLabel}
               </a>
             ) : (

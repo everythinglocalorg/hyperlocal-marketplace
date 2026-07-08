@@ -11,7 +11,7 @@ export const LISTING_CTAS = {
   book: { label: "Book Now", action: "book" },
   estimate: { label: "Free Estimate", action: "message" },
   call: { label: "Call Now", action: "call" },
-  menu: { label: "View Menu", action: "menu" },
+  menu: { label: "See Menu", action: "menu" },
   buy: { label: "Buy Now", action: "buy" },
   rent: { label: "Rent Now", action: "book" },
 } as const;

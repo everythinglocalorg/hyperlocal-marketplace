@@ -1009,7 +1009,11 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
   function runCta() {
     if (ctaAction === "book") onBook();
     else if (ctaAction === "buy") onBuy();
-    else if (ctaAction === "menu" && menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
+    else if (ctaAction === "menu") {
+      // On the storefront itself: open the menu PDF if any, else the item detail.
+      if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
+      else onOpen();
+    }
     else onMessage();
   }
 
