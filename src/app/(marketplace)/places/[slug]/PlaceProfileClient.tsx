@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Globe, Phone, DollarSign, Clock, Tag, Tent, ChevronLeft } from "lucide-react";
 import type { Place } from "@/types";
+import { creditFor } from "@/lib/photoCredits";
 
 interface Profile {
   id: string;
@@ -99,6 +100,15 @@ export default function PlaceProfileClient({ place, creator, currentUserId }: Pr
                 ))}
               </div>
             )}
+            {(() => {
+              const credit = creditFor(place.images[photoIndex]);
+              if (!credit) return null;
+              return (
+                <div className="absolute bottom-2 right-2 text-[10px] leading-tight text-white/90 bg-black/40 rounded px-1.5 py-0.5 max-w-[70%] truncate">
+                  📷 {credit.author} · {credit.license} · Wikimedia Commons
+                </div>
+              );
+            })()}
           </div>
         </div>
       ) : (
