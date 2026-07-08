@@ -14,6 +14,7 @@ export const LISTING_CTAS = {
   menu: { label: "See Menu", action: "menu" },
   buy: { label: "Buy Now", action: "buy" },
   rent: { label: "Rent Now", action: "book" },
+  order: { label: "Order Now", action: "order" },
 } as const;
 
 export type ListingCtaType = keyof typeof LISTING_CTAS;
