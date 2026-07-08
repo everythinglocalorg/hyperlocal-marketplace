@@ -144,6 +144,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [bookingListing, setBookingListing] = useState<Listing | null>(null);
   const [bookingDurations, setBookingDurations] = useState<any[]>([]);
   const [buyListing, setBuyListing] = useState<Listing | null>(null);
+  const [estimateListing, setEstimateListing] = useState<Listing | null>(null);
   const [messageListing, setMessageListing] = useState<Listing | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
@@ -440,6 +441,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       </div>
     )}
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
+    {estimateListing && <BuyNowModal listing={{ id: estimateListing.id, title: estimateListing.title, price: estimateListing.price, price_label: estimateListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="estimate" onClose={() => setEstimateListing(null)} />}
     {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
 
     {/* Listing detail popup — full photos/details; its sticky action bar reuses the same CTA handlers */}
@@ -451,6 +453,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         onClose={() => setDetailListing(null)}
         onBook={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); openBooking(l); }}
         onBuy={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}
+        onEstimate={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setEstimateListing(l); }}
         onMessage={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setMessageListing(l); }}
       />
     )}
@@ -695,6 +698,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                       onOpen={() => setDetailListing(listing)}
                       onBook={() => { if (requireAccount()) return; openBooking(listing); }}
                       onBuy={() => { if (requireAccount()) return; trackClick(listing.id); setBuyListing(listing); }}
+                      onEstimate={() => { if (requireAccount()) return; trackClick(listing.id); setEstimateListing(listing); }}
                       onMessage={() => { if (requireAccount()) return; trackClick(listing.id); setMessageListing(listing); }}
                     />
                   ))}
@@ -718,6 +722,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                         onOpen={() => setDetailListing(listing)}
                         onBook={() => openBooking(listing)}
                         onBuy={() => { trackClick(listing.id); setBuyListing(listing); }}
+                        onEstimate={() => { trackClick(listing.id); setEstimateListing(listing); }}
                         onMessage={() => { trackClick(listing.id); setMessageListing(listing); }}
                       />
                     ))}
@@ -995,9 +1000,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 }
 
 /* ─── LISTING CARD ────────────────────────────────────────────────── */
-function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onBook, onBuy, onMessage }: {
+function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onBook, onBuy, onEstimate, onMessage }: {
   listing: Listing; vendorName: string; vendorPhone: string | null; menuPdfUrl: string | null;
-  onOpen: () => void; onBook: () => void; onBuy: () => void; onMessage: () => void;
+  onOpen: () => void; onBook: () => void; onBuy: () => void; onEstimate: () => void; onMessage: () => void;
 }) {
   const housingData = parseHousing(listing);
   const thriftData = parseThrift(listing);
@@ -1009,6 +1014,7 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
   function runCta() {
     if (ctaAction === "book") onBook();
     else if (ctaAction === "buy") onBuy();
+    else if (ctaAction === "estimate") onEstimate();
     else if (ctaAction === "menu") {
       // On the storefront itself: open the menu PDF if any, else the item detail.
       if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");

@@ -202,6 +202,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
   const [detailCtx, setDetailCtx] = useState<ListingCtx | null>(null);
   const [buyCtx, setBuyCtx] = useState<ListingCtx | null>(null);
+  const [estimateCtx, setEstimateCtx] = useState<ListingCtx | null>(null);
   const [bookCtx, setBookCtx] = useState<ListingCtx | null>(null);
   const [bookDurations, setBookDurations] = useState<any[]>([]);
   const [msgCtx, setMsgCtx] = useState<ListingCtx | null>(null);
@@ -515,6 +516,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           onClose={() => setDetailCtx(null)}
           onBook={() => { const ctx = detailCtx; setDetailCtx(null); openBooking(ctx); }}
           onBuy={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setBuyCtx(ctx); }}
+          onEstimate={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setEstimateCtx(ctx); }}
           onMessage={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setMsgCtx(ctx); }}
         />
       )}
@@ -525,6 +527,15 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           currentUser={currentUser}
           inquiryType="buy"
           onClose={() => setBuyCtx(null)}
+        />
+      )}
+      {estimateCtx && (
+        <BuyNowModal
+          listing={{ id: estimateCtx.listing.id, title: estimateCtx.listing.title, price: estimateCtx.listing.price, price_label: estimateCtx.listing.price_label }}
+          vendor={{ id: estimateCtx.vendor.id, business_name: estimateCtx.vendor.business_name }}
+          currentUser={currentUser}
+          inquiryType="estimate"
+          onClose={() => setEstimateCtx(null)}
         />
       )}
       {bookCtx && (

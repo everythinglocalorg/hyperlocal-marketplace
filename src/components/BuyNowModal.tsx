@@ -7,9 +7,15 @@ interface Props {
   listing: { id: string; title: string; price: number | null; price_label: string | null };
   vendor: { id: string; business_name: string };
   currentUser: { id: string; full_name: string | null; email?: string } | null;
-  inquiryType: "buy" | "book";
+  inquiryType: "buy" | "book" | "estimate";
   onClose: () => void;
 }
+
+const INQUIRY_COPY = {
+  buy: { heading: "Buy Now", cta: "Send Buy Request", done: "will contact you directly to complete the purchase." },
+  book: { heading: "Book Now", cta: "Send Book Request", done: "will contact you directly to complete the booking." },
+  estimate: { heading: "Request a Free Estimate", cta: "Request Free Estimate", done: "will get back to you with a free estimate." },
+} as const;
 
 export default function BuyNowModal({ listing, vendor, currentUser, inquiryType, onClose }: Props) {
   const supabase = createClient();
@@ -44,14 +50,14 @@ export default function BuyNowModal({ listing, vendor, currentUser, inquiryType,
     setSubmitting(false);
   }
 
-  const label = inquiryType === "buy" ? "Buy" : "Book";
+  const copy = INQUIRY_COPY[inquiryType];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="font-bold text-gray-900">{label} Now</h2>
+            <h2 className="font-bold text-gray-900">{copy.heading}</h2>
             <p className="text-xs text-gray-400">{listing.title} · {vendor.business_name}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -110,9 +116,9 @@ export default function BuyNowModal({ listing, vendor, currentUser, inquiryType,
 
             <button onClick={submit} disabled={submitting}
               className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl hover:bg-green-700 disabled:opacity-40 transition-colors">
-              {submitting ? "Sending..." : `Send ${label} Request`}
+              {submitting ? "Sending..." : copy.cta}
             </button>
-            <p className="text-xs text-gray-400 text-center">{vendor.business_name} will contact you directly to complete the {label === "Buy" ? "purchase" : "booking"}.</p>
+            <p className="text-xs text-gray-400 text-center">{vendor.business_name} {copy.done}</p>
           </div>
         )}
       </div>

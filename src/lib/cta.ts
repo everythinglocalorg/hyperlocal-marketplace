@@ -2,14 +2,14 @@
 // public listing card so labels and behavior never drift.
 //
 // `action` is what the public listing card does when clicked:
-//   book    → booking modal (Rent Now is the rental variant of the same modal)
-//   message → lead-gen / estimate inquiry form
-//   call    → tel: link to the vendor's phone
-//   menu    → vendor's saved menu PDF (vendors.menu_pdf_url) in a new tab
-//   buy     → purchase modal
+//   book     → booking modal (Rent Now is the rental variant of the same modal)
+//   estimate → "Request a free estimate" lead form (NOT the messenger)
+//   call     → tel: link to the vendor's phone
+//   menu     → vendor's saved menu PDF (vendors.menu_pdf_url) in a new tab
+//   buy      → purchase modal
 export const LISTING_CTAS = {
   book: { label: "Book Now", action: "book" },
-  estimate: { label: "Free Estimate", action: "message" },
+  estimate: { label: "Free Estimate", action: "estimate" },
   call: { label: "Call Now", action: "call" },
   menu: { label: "See Menu", action: "menu" },
   buy: { label: "Buy Now", action: "buy" },

@@ -68,10 +68,10 @@ export function resolveListingCta(listing: DetailListing, vendorPhone: string | 
 // gallery and details with a sticky action bar. Pass vendorName + vendorSlug
 // (e.g. from search) to render a "view business" link; omit on the vendor's
 // own profile page where it would be redundant.
-export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, onClose, onBook, onBuy, onMessage }: {
+export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, onClose, onBook, onBuy, onMessage, onEstimate }: {
   listing: DetailListing; vendorPhone: string | null; menuPdfUrl: string | null;
   vendorName?: string | null; vendorSlug?: string | null;
-  onClose: () => void; onBook: () => void; onBuy: () => void; onMessage: () => void;
+  onClose: () => void; onBook: () => void; onBuy: () => void; onMessage: () => void; onEstimate: () => void;
 }) {
   const [imgIdx, setImgIdx] = useState(0);
   const housingData = parseHousing(listing);
@@ -84,6 +84,7 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   function runCta() {
     if (ctaAction === "book") onBook();
     else if (ctaAction === "buy") onBuy();
+    else if (ctaAction === "estimate") onEstimate();
     else if (ctaAction === "menu") {
       if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
       else if (vendorSlug) window.location.href = `/vendors/${vendorSlug}`;
@@ -240,16 +241,14 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
             <span>🪙 Earn Local Bucks</span>
           </div>
           <div className="flex items-stretch gap-2">
-            {ctaAction !== "message" && (
-              <button
-                onClick={onMessage}
-                aria-label="Message the business"
-                className="shrink-0 w-16 flex flex-col items-center justify-center gap-0.5 border border-gray-200 text-gray-600 rounded-2xl hover:border-gray-400 hover:text-gray-800 transition-colors"
-              >
-                <span className="text-lg leading-none">💬</span>
-                <span className="text-[10px] font-medium">Message</span>
-              </button>
-            )}
+            <button
+              onClick={onMessage}
+              aria-label="Message the business"
+              className="shrink-0 w-16 flex flex-col items-center justify-center gap-0.5 border border-gray-200 text-gray-600 rounded-2xl hover:border-gray-400 hover:text-gray-800 transition-colors"
+            >
+              <span className="text-lg leading-none">💬</span>
+              <span className="text-[10px] font-medium">Message</span>
+            </button>
             {ctaAction === "call" && vendorPhone ? (
               <a href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`} className={primaryCta}>
                 📞 {ctaLabel}
