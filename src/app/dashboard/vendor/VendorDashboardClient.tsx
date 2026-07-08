@@ -3549,7 +3549,7 @@ function AdminListingsTab() {
   useEffect(() => {
     supabase
       .from("listings")
-      .select("id,title,type,category,cta_type,is_active,is_featured,vendor:vendors(id,business_name,slug,phone,menu_pdf_url,logo_url)")
+      .select("id,title,type,category,cta_type,is_active,is_featured,images,vendor:vendors(id,business_name,slug,phone,menu_pdf_url,logo_url)")
       .order("created_at", { ascending: false })
       .limit(2000)
       .then(({ data }) => { setRows(data ?? []); setLoading(false); });
@@ -3613,6 +3613,33 @@ function AdminListingsTab() {
 
   const pendingCount = Object.keys(pending).length;
 
+  // Change a listing's own primary photo (separate from the business logo).
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
+  const photoTarget = useRef<{ listingId: string; vendorId: string; images: string[] } | null>(null);
+
+  function pickListingPhoto(listingId: string, vendorId: string, images: string[]) {
+    photoTarget.current = { listingId, vendorId, images: images ?? [] };
+    photoInputRef.current?.click();
+  }
+
+  async function onListingPhotoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const t = photoTarget.current;
+    e.target.value = "";
+    if (!file || !t) return;
+    setRowBusy(t.listingId);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${t.vendorId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await supabase.storage.from("listing-images").upload(path, file, { upsert: true });
+    if (!error) {
+      const url = supabase.storage.from("listing-images").getPublicUrl(path).data.publicUrl;
+      const nextImages = [url, ...(t.images ?? []).slice(1)]; // replace the primary photo
+      await supabase.from("listings").update({ images: nextImages }).eq("id", t.listingId);
+      setRows((prev) => prev.map((r) => r.id === t.listingId ? { ...r, images: nextImages } : r));
+    }
+    setRowBusy(null);
+  }
+
   const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   async function togglePause(id: string, nextActive: boolean) {
@@ -3656,6 +3683,7 @@ function AdminListingsTab() {
       </div>
 
       <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={onLogoFile} />
+      <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={onListingPhotoFile} />
 
       <input
         value={search} onChange={(e) => setSearch(e.target.value)}
@@ -3723,6 +3751,14 @@ function AdminListingsTab() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => v?.id && pickListingPhoto(r.id, v.id, r.images ?? [])}
+                          disabled={rowBusy === r.id}
+                          title="Change listing photo"
+                          className="text-xs font-semibold border border-gray-200 bg-white text-gray-500 rounded-lg px-2.5 py-1.5 hover:bg-gray-50 transition-colors disabled:opacity-40"
+                        >
+                          📷
+                        </button>
                         <button
                           onClick={() => toggleFeature(r.id, !r.is_featured)}
                           disabled={rowBusy === r.id}

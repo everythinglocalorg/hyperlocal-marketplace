@@ -1043,60 +1043,37 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer aspect-[4/3]"
+      className="rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group cursor-pointer bg-white border border-gray-100"
       onClick={onOpen}
     >
-      {/* Full-bleed image */}
-      {hasImage
-        ? <img src={listing.images[0]} alt={listing.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        : <div className="absolute inset-0 bg-gray-800 flex items-center justify-center text-6xl">{TYPE_ICON[listing.type] ?? "📦"}</div>}
+      {/* Photo — kept clean; only the CTA (and badges) sit on it */}
+      <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
+        {hasImage
+          ? <img src={listing.images[0]} alt={listing.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          : <div className="absolute inset-0 bg-gray-800 flex items-center justify-center text-6xl">{TYPE_ICON[listing.type] ?? "📦"}</div>}
 
-      {/* Gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/10" />
+        {/* Soft bottom scrim so the CTA stays legible on any photo */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/30 to-transparent" />
 
-      {/* Out of stock badge */}
-      {listing.quantity === 0 && (
-        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-          <span className="bg-red-500 text-white text-sm font-bold px-4 py-1.5 rounded-full">Out of Stock</span>
-        </div>
-      )}
-
-      {/* Top chips */}
-      <div className="absolute top-4 left-4 flex items-center gap-2 z-10">
-        <span className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm text-white text-[11px] font-bold tracking-wider px-3 py-1.5 rounded-full border border-white/20">
-          {TYPE_ICON[listing.type] ?? "📦"} {chipText}
-        </span>
-        {listing.is_featured && <span className="bg-amber-400 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-full">⭐ Featured</span>}
-      </div>
-
-      {/* Bottom overlay content */}
-      <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
-        <h3 className="text-white font-black text-base sm:text-xl leading-tight mb-1 drop-shadow line-clamp-2">{listing.title}</h3>
-
-        {/* Housing quick stats */}
-        {housingData && (
-          <p className="text-white/70 text-xs mb-1.5">
-            {[housingData.bedrooms && `${housingData.bedrooms} bd`, housingData.bathrooms && `${housingData.bathrooms} ba`, housingData.sqft && `${housingData.sqft} sqft`].filter(Boolean).join(" · ")}
-          </p>
+        {/* Out of stock badge */}
+        {listing.quantity === 0 && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+            <span className="bg-red-500 text-white text-sm font-bold px-4 py-1.5 rounded-full">Out of Stock</span>
+          </div>
         )}
 
-        {/* Thrift hours */}
-        {thriftData?.openDays.length ? (
-          <p className="text-white/70 text-xs mb-1.5">{thriftData.openDays.slice(0, 2).map((h) => `${h.day.slice(0,3)} ${h.open}–${h.close}`).join(" · ")}</p>
-        ) : null}
+        {/* Featured badge */}
+        {listing.is_featured && (
+          <span className="absolute top-3 right-3 z-10 bg-amber-400 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-full">⭐ Featured</span>
+        )}
 
-        <div className="flex items-end justify-between gap-3 mt-2">
-          {/* Price */}
-          {showPrice && (
-            <span className="text-white font-black text-lg drop-shadow min-w-0 truncate">{priceLabel}{listing.condition ? <span className="text-white/60 text-xs font-normal ml-1.5 capitalize">{listing.condition}</span> : null}</span>
-          )}
-
-          {/* CTA — dial the phone for "Call Now", open the menu PDF for "View Menu", otherwise open the matching form */}
+        {/* CTA — stays on the photo. Dial for "Call Now", open menu for "View Menu", else the matching form */}
+        <div className="absolute bottom-3 right-3 z-10">
           {ctaAction === "call" && vendorPhone ? (
             <a
               href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`}
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors shrink-0"
+              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors"
             >
               {ctaLabel} <span className="text-base">→</span>
             </a>
@@ -1106,19 +1083,39 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors shrink-0"
+              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors"
             >
               {ctaLabel} <span className="text-base">→</span>
             </a>
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); runCta(); }}
-              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors shrink-0"
+              className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white text-xs font-black tracking-wide uppercase px-3.5 py-2 rounded-full shadow-lg shadow-black/25 transition-colors"
             >
               {ctaLabel} <span className="text-base">→</span>
             </button>
           )}
         </div>
+      </div>
+
+      {/* Below the photo — category bubble, title, price */}
+      <div className="p-4">
+        <span className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-600 text-[11px] font-bold tracking-wider px-2.5 py-1 rounded-full uppercase">
+          {TYPE_ICON[listing.type] ?? "📦"} {chipText}
+        </span>
+        <h3 className="text-gray-900 font-black text-base sm:text-lg leading-tight line-clamp-2 mt-2">{listing.title}</h3>
+
+        {housingData && (
+          <p className="text-gray-500 text-xs mt-1">
+            {[housingData.bedrooms && `${housingData.bedrooms} bd`, housingData.bathrooms && `${housingData.bathrooms} ba`, housingData.sqft && `${housingData.sqft} sqft`].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        {thriftData?.openDays.length ? (
+          <p className="text-gray-500 text-xs mt-1">{thriftData.openDays.slice(0, 2).map((h) => `${h.day.slice(0,3)} ${h.open}–${h.close}`).join(" · ")}</p>
+        ) : null}
+        {showPrice && (
+          <p className="text-green-700 font-black text-lg mt-1.5">{priceLabel}{listing.condition ? <span className="text-gray-400 text-xs font-normal ml-1.5 capitalize">{listing.condition}</span> : null}</p>
+        )}
       </div>
     </div>
   );
