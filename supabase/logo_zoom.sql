@@ -82,3 +82,35 @@ begin
   offset p_offset;
 end;
 $$ language plpgsql security definer;
+
+-- search_vendors_nearby also returns logo_zoom for the nearby-browse cards.
+drop function if exists search_vendors_nearby(double precision, double precision, integer, text, integer, integer);
+create or replace function search_vendors_nearby(
+  p_latitude double precision,
+  p_longitude double precision,
+  p_radius_miles integer default 25,
+  p_category text default null,
+  p_limit integer default 20,
+  p_offset integer default 0
+)
+returns table (
+  id uuid, business_name text, slug text, description text, category text,
+  city text, state text, logo_url text, banner_url text, logo_zoom real,
+  tier text, is_verified boolean, rating numeric, review_count integer,
+  local_bucks_earned integer, distance_miles double precision
+) as $$
+begin
+  return query
+  select
+    v.id, v.business_name, v.slug, v.description, v.category, v.city, v.state,
+    v.logo_url, v.banner_url, v.logo_zoom, v.tier, v.is_verified, v.rating,
+    v.review_count, v.local_bucks_earned,
+    st_distance(v.location, st_point(p_longitude, p_latitude)::geography) / 1609.34 as distance_miles
+  from public.vendors v
+  where v.is_active = true
+    and st_dwithin(v.location, st_point(p_longitude, p_latitude)::geography, p_radius_miles * 1609.34)
+    and (p_category is null or v.category = p_category)
+  order by distance_miles asc
+  limit p_limit offset p_offset;
+end;
+$$ language plpgsql security definer;

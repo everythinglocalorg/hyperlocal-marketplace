@@ -57,6 +57,7 @@ type SearchResult = {
   rating: number;
   tier: string;
   is_verified: boolean;
+  logo_zoom?: number | null;
   rank: number;
 };
 
@@ -136,9 +137,9 @@ function KeywordVendorCard({ r, onClick }: { r: SearchResult; onClick?: () => vo
       onClick={onClick}
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100"
     >
-      <div className="h-36 bg-gray-100 relative">
+      <div className="h-36 bg-white relative">
         {r.image_url ? (
-          <img src={r.image_url} alt={r.title} className="w-full h-full object-cover" />
+          <img src={r.image_url} alt={r.title} className="w-full h-full object-contain p-2 transition-transform" style={{ transform: `scale(${r.logo_zoom ?? 1})` }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">🏪</div>
         )}

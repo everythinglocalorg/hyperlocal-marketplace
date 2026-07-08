@@ -2667,6 +2667,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(vendor.banner_url);
   const [bannerPosition, setBannerPosition] = useState<number>(vendor.banner_position ?? 50);
+  const [logoZoom, setLogoZoom] = useState<number>(vendor.logo_zoom ?? 1);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -2767,6 +2768,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       logo_url: logoUrl,
       banner_url: bannerUrl,
       banner_position: bannerPosition,
+      logo_zoom: logoZoom,
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
       setSaved(true); setTimeout(() => setSaved(false), 3000);
@@ -2807,12 +2809,27 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           )}
         </div>
         <div className="flex items-center gap-4">
-          <div onClick={() => logoRef.current?.click()} className="w-20 h-20 rounded-2xl bg-green-100 flex items-center justify-center font-bold text-2xl text-green-700 overflow-hidden cursor-pointer ring-2 ring-green-100 hover:ring-green-400 transition-all shrink-0">
-            {logoPreview ? <img src={logoPreview} alt="" className="w-full h-full object-cover" /> : businessName[0]}
+          <div onClick={() => logoRef.current?.click()} className={`w-20 h-20 rounded-2xl flex items-center justify-center font-bold text-2xl text-green-700 overflow-hidden cursor-pointer ring-2 ring-green-100 hover:ring-green-400 transition-all shrink-0 ${logoPreview ? "bg-white" : "bg-green-100"}`}>
+            {logoPreview
+              ? <img src={logoPreview} alt="" className="w-full h-full object-contain transition-transform" style={{ transform: `scale(${logoZoom})` }} />
+              : businessName[0]}
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <button type="button" onClick={() => logoRef.current?.click()} className="text-sm text-green-600 font-medium hover:underline">Change logo</button>
-            <p className="text-xs text-gray-400 mt-0.5">Square image, at least 200x200px</p>
+            <p className="text-xs text-gray-400 mt-0.5">Square image works best — use zoom to make it fit.</p>
+            {logoPreview && (
+              <div className="mt-2">
+                <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+                  <span>🔍 Zoom to fit</span>
+                  <span className="text-gray-400">{Math.round(logoZoom * 100)}%</span>
+                </label>
+                <input
+                  type="range" min={0.5} max={2} step={0.05} value={logoZoom}
+                  onChange={(e) => setLogoZoom(Number(e.target.value))}
+                  className="w-full accent-green-600"
+                />
+              </div>
+            )}
           </div>
           <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={onLogoChange} />
         </div>

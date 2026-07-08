@@ -12,6 +12,7 @@ interface VendorCardProps {
     state: string;
     logo_url: string | null;
     banner_url: string | null;
+    logo_zoom?: number | null;
     tier: string;
     is_verified: boolean;
     rating: number;
@@ -33,7 +34,8 @@ export default function VendorCard({ vendor }: VendorCardProps) {
           <img
             src={vendor.banner_url}
             alt={vendor.business_name}
-            className="w-full h-full object-contain p-3 group-hover:scale-105 transition-transform duration-300"
+            className="w-full h-full object-contain p-3 transition-transform duration-300"
+            style={{ transform: `scale(${vendor.logo_zoom ?? 1})` }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-5xl opacity-20">
