@@ -611,11 +611,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
           <div className="mt-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
-              {vendor.is_verified
-                ? <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>
-                : vendor.is_claimed
-                ? <span className="text-[11px] font-bold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">✓ Claimed</span>
-                : null}
+              {vendor.is_verified && <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>}
               {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
               {isFoundingMember && <span title="One of the first businesses to launch on Everything Local" className="text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">🏅 Founding Member</span>}
             </div>
@@ -632,11 +628,20 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             <FollowButton targetType="vendor" targetId={vendor.id} />
           </div>
 
-          {/* Trust chips */}
-          <div className="flex flex-wrap gap-2 mt-4">
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">📍 Serves {vendor.city} + {vendor.service_radius_miles} mi</span>
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-100 rounded-full px-3 py-1.5">🏡 Locally owned</span>
-            <button onClick={() => setShowRefer(true)} className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1.5 hover:bg-amber-100 transition-colors">🪙 Earn Local Bucks on referrals →</button>
+          {/* Trust points — clean icon + text, no bubbles */}
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mt-4 text-sm text-gray-600">
+            <span className="inline-flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
+              Serves {vendor.city} + {vendor.service_radius_miles} mi
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" /></svg>
+              Locally owned
+            </span>
+            <button onClick={() => setShowRefer(true)} className="inline-flex items-center gap-1.5 font-semibold text-amber-600 hover:text-amber-700 transition-colors">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+              Earn Local Bucks on referrals →
+            </button>
           </div>
 
           {/* Obvious primary CTA — desktop only; mobile uses the sticky bottom bar */}
