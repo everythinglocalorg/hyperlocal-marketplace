@@ -98,9 +98,11 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [activeSection, setActiveSection] = useState<Section>("services");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  // "menu" only appears when the vendor has a saved menu PDF.
+  // "menu" only appears when the vendor has a saved menu PDF. Restaurants get
+  // the menu up top (right after About), since it's the main thing diners want.
+  const isRestaurant = vendor.category === "Restaurants & Food";
   const navSections: Section[] = vendor.menu_pdf_url
-    ? ["about", "services", "menu", "reviews"]
+    ? (isRestaurant ? ["about", "menu", "services", "reviews"] : ["about", "services", "menu", "reviews"])
     : ["about", "services", "reviews"];
 
   const scrollToSection = useCallback((s: Section) => {
@@ -392,6 +394,29 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     </div>
   );
 
+  // Menu block — placed after About for restaurants, otherwise after Services.
+  const menuSection = vendor.menu_pdf_url ? (
+    <div id="menu" ref={(el) => { sectionRefs.current.menu = el; }} className="mt-16 pt-8 border-t border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+        <h2 className="text-xl font-black text-gray-900">🍽️ Menu</h2>
+        <a
+          href={vendor.menu_pdf_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-gray-700 transition-colors"
+        >
+          View Menu!
+        </a>
+      </div>
+      {/* PDF embeds are unreliable on mobile browsers — the button above covers small screens */}
+      <iframe
+        src={vendor.menu_pdf_url}
+        title={`${vendor.business_name} menu`}
+        className="hidden sm:block w-full h-[600px] rounded-2xl border border-gray-200"
+      />
+    </div>
+  ) : null;
+
   return (<>
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
@@ -678,6 +703,9 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             : <p className="text-gray-400">No description provided yet.</p>}
         </div>
 
+        {/* Restaurants: menu up top, right after About */}
+        {isRestaurant && menuSection}
+
         {/* ── SERVICES & PRODUCTS ───────────────────────────────── */}
         <div id="services" ref={(el) => { sectionRefs.current.services = el; }}>
             {orderedListings.length === 0 ? (
@@ -738,28 +766,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             )}
         </div>
 
-        {/* ── MENU (only when a menu PDF is saved) ──────────────── */}
-        {vendor.menu_pdf_url && (
-          <div id="menu" ref={(el) => { sectionRefs.current.menu = el; }} className="mt-16 pt-8 border-t border-gray-100">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-              <h2 className="text-xl font-black text-gray-900">🍽️ Menu</h2>
-              <a
-                href={vendor.menu_pdf_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-gray-700 transition-colors"
-              >
-                Open Menu (PDF) →
-              </a>
-            </div>
-            {/* PDF embeds are unreliable on mobile browsers — the button above covers small screens */}
-            <iframe
-              src={vendor.menu_pdf_url}
-              title={`${vendor.business_name} menu`}
-              className="hidden sm:block w-full h-[600px] rounded-2xl border border-gray-200"
-            />
-          </div>
-        )}
+        {/* ── MENU (non-restaurants: after Services) ────────────── */}
+        {!isRestaurant && menuSection}
 
         {/* ── CONTACT & LOCATION ────────────────────────────────── */}
         <div className="max-w-2xl mt-16 pt-8 border-t border-gray-100 space-y-4">
