@@ -2689,6 +2689,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [menuPdfUrl, setMenuPdfUrl] = useState<string | null>(vendor.menu_pdf_url ?? null);
   const [menuPdfFile, setMenuPdfFile] = useState<File | null>(null);
   const [menuUploading, setMenuUploading] = useState(false);
+  const [menuError, setMenuError] = useState<string | null>(null);
   const menuPdfRef = useRef<HTMLInputElement>(null);
 
   const initCta = vendor.cta_button ?? {};
@@ -2699,15 +2700,26 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [featureSaved, setFeatureSaved] = useState(false);
 
   async function uploadMenuPdf(file: File) {
+    setMenuError(null);
+    // Validate (phones sometimes report an empty MIME type — fall back to the name).
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) { setMenuError("Please choose a PDF file."); return; }
+    if (file.size > 15 * 1024 * 1024) { setMenuError("That PDF is over 15MB — please upload a smaller file."); return; }
+
     setMenuUploading(true);
-    const ext = file.name.split(".").pop();
-    const path = `${vendor.id}/menu.${ext}`;
-    const { error } = await supabase.storage.from("vendor-logos").upload(path, file, { upsert: true, contentType: "application/pdf" });
-    if (!error) {
-      const url = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
-      setMenuPdfUrl(url);
-      await supabase.from("vendors").update({ menu_pdf_url: url }).eq("id", vendor.id);
-    }
+    // Unique filename → always an INSERT. (Re-uploading to a fixed path is a
+    // storage UPDATE, which RLS blocks because the folder is the vendor id, not
+    // the user id — that's why "Replace PDF" silently failed.)
+    const path = `${vendor.id}/menu-${Date.now()}.pdf`;
+    const { error } = await supabase.storage.from("vendor-logos").upload(path, file, { contentType: "application/pdf", cacheControl: "3600" });
+    if (error) { setMenuError("Upload failed: " + error.message); setMenuUploading(false); return; }
+
+    const url = supabase.storage.from("vendor-logos").getPublicUrl(path).data.publicUrl;
+    const { error: dbErr } = await supabase.from("vendors").update({ menu_pdf_url: url }).eq("id", vendor.id);
+    if (dbErr) { setMenuError("Uploaded, but couldn't save it to your store: " + dbErr.message); setMenuUploading(false); return; }
+
+    setMenuPdfUrl(url);
+    setMenuEnabled(true);
     setMenuUploading(false);
   }
 
@@ -2745,16 +2757,21 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
     let logoUrl = vendor.logo_url;
     let bannerUrl = vendor.banner_url;
     if (logoFile) {
-      const ext = logoFile.name.split(".").pop();
-      const { error: err } = await supabase.storage.from("vendor-logos").upload(`${vendor.id}/logo.${ext}`, logoFile, { upsert: true });
+      // Unique filename → always an INSERT. A fixed-path re-upload is a storage
+      // UPDATE, which RLS blocks (the folder is the vendor id, not auth.uid()),
+      // so "Change logo" silently failed on replace. Insert-only sidesteps that.
+      const ext = (logoFile.name.split(".").pop() || "png").toLowerCase();
+      const logoPath = `${vendor.id}/logo-${Date.now()}.${ext}`;
+      const { error: err } = await supabase.storage.from("vendor-logos").upload(logoPath, logoFile, { cacheControl: "3600" });
       if (err) { setError("Logo upload failed: " + err.message); setSaving(false); return; }
-      logoUrl = supabase.storage.from("vendor-logos").getPublicUrl(`${vendor.id}/logo.${ext}`).data.publicUrl;
+      logoUrl = supabase.storage.from("vendor-logos").getPublicUrl(logoPath).data.publicUrl;
     }
     if (bannerFile) {
-      const ext = bannerFile.name.split(".").pop();
-      const { error: err } = await supabase.storage.from("vendor-banners").upload(`${vendor.id}/banner.${ext}`, bannerFile, { upsert: true });
+      const ext = (bannerFile.name.split(".").pop() || "jpg").toLowerCase();
+      const bannerPath = `${vendor.id}/banner-${Date.now()}.${ext}`;
+      const { error: err } = await supabase.storage.from("vendor-banners").upload(bannerPath, bannerFile, { cacheControl: "3600" });
       if (err) { setError("Banner upload failed: " + err.message); setSaving(false); return; }
-      bannerUrl = supabase.storage.from("vendor-banners").getPublicUrl(`${vendor.id}/banner.${ext}`).data.publicUrl;
+      bannerUrl = supabase.storage.from("vendor-banners").getPublicUrl(bannerPath).data.publicUrl;
     }
     // Regenerate slug if business name changed
     let newSlug = vendor.slug;
@@ -2967,11 +2984,12 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
                 </div>
               )}
               <div>
-                <input ref={menuPdfRef} type="file" accept="application/pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setMenuPdfFile(f); uploadMenuPdf(f); } }} />
-                <button type="button" onClick={() => menuPdfRef.current?.click()} className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors">
+                <input ref={menuPdfRef} type="file" accept="application/pdf,.pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setMenuPdfFile(f); uploadMenuPdf(f); } e.target.value = ""; }} />
+                <button type="button" disabled={menuUploading} onClick={() => menuPdfRef.current?.click()} className="text-sm border border-gray-300 text-gray-700 px-4 py-2 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50">
                   {menuUploading ? "Uploading…" : menuPdfUrl ? "Replace PDF" : "Upload PDF"}
                 </button>
-                <p className="text-xs text-gray-400 mt-1">PDF format, max 10MB</p>
+                <p className="text-xs text-gray-400 mt-1">PDF format, max 15MB · saves instantly</p>
+                {menuError && <p className="text-xs text-red-500 mt-1.5">{menuError}</p>}
               </div>
             </div>
           )}
