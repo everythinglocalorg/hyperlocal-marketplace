@@ -548,8 +548,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             ))}
           </nav>
 
-          {/* Right actions */}
-          <div className="flex items-center gap-1.5 ml-auto shrink-0">
+          {/* Right actions — desktop only; mobile/tablet use the sticky bottom bar so the header stays a clean single header */}
+          <div className="hidden lg:flex items-center gap-1.5 ml-auto shrink-0">
             {vendor.phone && (
               <a href={`tel:${vendor.phone}`} className="hidden lg:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors border border-gray-200 rounded-lg px-3 py-2 font-medium">
                 📞 {vendor.phone}
