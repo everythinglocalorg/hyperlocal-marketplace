@@ -22,7 +22,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     place.description ||
     `${place.name} · ${place.type.replace("_", " ")} in ${place.city}, ${place.state}. Discover local parks, trails & attractions on Everything Local.`;
-  const image = place.images?.[0] ?? undefined;
+  // Share preview: the place's own main photo when it has one, otherwise a
+  // branded placeholder card so the text/Messenger preview is never blank.
+  const image =
+    place.images?.[0] ??
+    `/api/og?title=${encodeURIComponent(place.name)}&subtitle=${encodeURIComponent(`${place.city}, ${place.state}`)}`;
 
   return {
     title,
@@ -30,13 +34,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title,
       description,
-      images: image ? [{ url: image, alt: place.name }] : undefined,
+      images: [{ url: image, width: 1200, height: 630, alt: place.name }],
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : undefined,
+      images: [image],
     },
   };
 }
