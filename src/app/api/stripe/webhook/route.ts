@@ -91,6 +91,44 @@ export async function POST(req: NextRequest) {
         await spendLb(supabase, session.metadata.user_id, session.metadata.lb, session.metadata.boost_id, "boost");
         break;
       }
+      // Paid Local Pages business post (Hiring / Offer) → publish it.
+      if (session.metadata?.type === "local_pages_post" && session.metadata?.post_id) {
+        const postId = session.metadata.post_id as string;
+        const { data: post } = await supabase
+          .from("community_posts")
+          .select("id, type, title, body, city, state, city_slug, user_id")
+          .eq("id", postId)
+          .single();
+        await supabase
+          .from("community_posts")
+          .update({ is_active: true, stripe_subscription_id: session.subscription as string })
+          .eq("id", postId);
+        // A Hiring post cross-posts to the Local Jobs board (one posting, both places).
+        if (post?.type === "hiring") {
+          const { data: v } = await supabase
+            .from("vendors").select("id").eq("user_id", post.user_id).limit(1).maybeSingle();
+          const { data: job } = await supabase
+            .from("jobs")
+            .insert({
+              user_id: post.user_id,
+              vendor_id: v?.id ?? null,
+              title: post.title,
+              description: post.body,
+              city: post.city,
+              state: post.state,
+              city_slug: post.city_slug,
+              is_active: true,
+              stripe_subscription_id: session.subscription as string,
+            })
+            .select("id")
+            .single();
+          if (job?.id) {
+            await supabase.from("community_posts").update({ linked_job_id: job.id }).eq("id", postId);
+          }
+        }
+        await spendLb(supabase, session.metadata.user_id, session.metadata.lb, postId, "local_pages_post");
+        break;
+      }
       const vendorId = session.metadata?.vendor_id;
       if (vendorId) {
         // A real paid upgrade auto-grants the Local Verified badge.
@@ -126,6 +164,17 @@ export async function POST(req: NextRequest) {
           .from("jobs")
           .update({ is_active: false })
           .eq("id", sub.metadata.job_id);
+        break;
+      }
+      // Paid Local Pages post subscription ended → unpublish it (and its job).
+      if (sub.metadata?.type === "local_pages_post" && sub.metadata?.post_id) {
+        const postId = sub.metadata.post_id as string;
+        const { data: p } = await supabase
+          .from("community_posts").select("linked_job_id").eq("id", postId).single();
+        await supabase.from("community_posts").update({ is_active: false }).eq("id", postId);
+        if (p?.linked_job_id) {
+          await supabase.from("jobs").update({ is_active: false }).eq("id", p.linked_job_id);
+        }
         break;
       }
       // Place listing subscription ended → take the place down.

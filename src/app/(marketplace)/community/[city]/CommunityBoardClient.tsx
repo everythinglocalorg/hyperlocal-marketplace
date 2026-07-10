@@ -12,7 +12,19 @@ const TYPE_CONFIG = {
   help:     { label: "Need Help",        icon: "🙋", color: "bg-blue-100 text-blue-700" },
   product:  { label: "Looking for Item", icon: "📦", color: "bg-amber-100 text-amber-700" },
   service:  { label: "Need a Service",   icon: "🔧", color: "bg-purple-100 text-purple-700" },
+  hiring:   { label: "Hiring",           icon: "💼", color: "bg-green-100 text-green-700" },
+  offer:    { label: "Offer",            icon: "🎟️", color: "bg-amber-100 text-amber-800" },
 };
+
+// Business-only post types, billed $5/mo via Stripe (same fee as Local Jobs).
+const PAID_TYPES = ["hiring", "offer"];
+
+// The reply action doubles as "apply" on hiring posts and "claim" on offers.
+function replyLabel(type: string, count: number): string {
+  if (type === "hiring") return count > 0 ? `${count} ${count === 1 ? "Applicant" : "Applicants"}` : "Apply";
+  if (type === "offer") return count > 0 ? `${count} Claimed` : "Claim offer";
+  return `${count} ${count === 1 ? "Reply" : "Replies"}`;
+}
 
 const FLAG_REASONS = ["Spam", "Inappropriate", "Wrong location", "Duplicate", "Other"];
 
@@ -42,18 +54,31 @@ interface Props {
   posts: Post[];
   vendors: Vendor[];
   currentUser: { id: string; full_name: string | null; avatar_url: string | null; role: string } | null;
+  currentVendor: { id: string; business_name: string; slug: string } | null;
   myHighfives: string[];
   flaggedIds: { post_id: string | null; response_id: string | null }[];
 }
 
 export default function CommunityBoardClient({
   citySlug, cityName, stateCode,
-  posts: initialPosts, vendors, currentUser,
+  posts: initialPosts, vendors, currentUser, currentVendor,
   myHighfives: initialHighfives, flaggedIds,
 }: Props) {
   const supabase = createClient();
   const router = useRouter();
   const isAdmin = currentUser?.role === "admin";
+  const canPostPaid = !!currentVendor;
+  const [postError, setPostError] = useState<string | null>(null);
+  // Post-payment return banner (Stripe redirects back with ?posted / ?post_cancelled).
+  const [payToast, setPayToast] = useState<null | "posted" | "cancelled">(null);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("posted") === "1") setPayToast("posted");
+    else if (p.has("post_cancelled")) setPayToast("cancelled");
+    if (p.has("posted") || p.has("post_cancelled")) {
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   // Switch towns — browse any town's board (travelers, nearby areas)
   function switchCity(slug: string) {
@@ -270,6 +295,22 @@ export default function CommunityBoardClient({
   // ── Admin Delete ──────────────────────────────────────────────
   async function adminDeletePost(postId: string) {
     if (!confirm("Delete this post and all its replies?")) return;
+    const post = posts.find((p) => p.id === postId);
+    // Paid posts (Hiring / Offer) go through the server so the $5/mo sub is canceled.
+    if (post && PAID_TYPES.includes(post.type)) {
+      try {
+        const res = await fetch("/api/local-pages/cancel", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ post_id: postId }),
+        });
+        if (res.ok) setPosts((prev) => prev.filter((p) => p.id !== postId));
+        else alert("Could not delete post. Please try again.");
+      } catch {
+        alert("Could not delete post. Please try again.");
+      }
+      return;
+    }
     const { error } = await supabase.from("community_posts").delete().eq("id", postId);
     if (!error) {
       setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -290,6 +331,9 @@ export default function CommunityBoardClient({
     if (!currentUser) { router.push("/login"); return; }
     const text = postText.trim();
     if (!text) return;
+    const isPaid = PAID_TYPES.includes(postType);
+    if (isPaid && !currentVendor) { setPostError("Only businesses can post this."); return; }
+    setPostError(null);
     setSubmitting(true);
 
     // Only keep mentions whose @label still appears in the final text.
@@ -304,10 +348,31 @@ export default function CommunityBoardClient({
       title: text.slice(0, 120),
       body: text,
       type: postType,
+      is_active: !isPaid, // paid posts stay hidden until the $5/mo checkout clears
       mentions: mentionsJson,
     }).select("id, title, body, type, city, state, created_at, user_id, mentions").single();
 
     if (!error && data) {
+      // Business Hiring / Offer: draft created inactive — send to Stripe to publish.
+      if (isPaid) {
+        try {
+          const res = await fetch("/api/local-pages/checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ post_id: data.id }),
+          });
+          const out = await res.json();
+          if (out.url) { window.location.href = out.url; return; }
+          setPostError(out.error ?? "Could not start checkout. Please try again.");
+        } catch {
+          setPostError("Could not reach checkout. Please try again.");
+        }
+        // Checkout didn't start — clean up the orphaned draft so it doesn't linger.
+        await supabase.from("community_posts").delete().eq("id", data.id);
+        setSubmitting(false);
+        return;
+      }
+
       // Record the mention graph + notify tagged parties (best-effort).
       if (finalMentions.length) {
         supabase.from("community_mentions").insert(
@@ -465,6 +530,18 @@ export default function CommunityBoardClient({
 
       <div className="max-w-2xl mx-auto px-4 py-6">
 
+        {/* Return from Stripe Checkout */}
+        {payToast === "posted" && (
+          <div className="mb-5 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 text-sm text-green-800">
+            🎉 Your post is live on Local Pages. Thanks for supporting local.
+          </div>
+        )}
+        {payToast === "cancelled" && (
+          <div className="mb-5 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 text-sm text-gray-600">
+            Checkout cancelled — your post wasn&apos;t published and you weren&apos;t charged.
+          </div>
+        )}
+
         {/* Board tabs — siblings: Local Pages, Local Jobs, Explore */}
         <div className="flex gap-2 mb-4">
           <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
@@ -542,9 +619,11 @@ export default function CommunityBoardClient({
                   )}
 
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                    {/* Type pills */}
+                    {/* Type pills — Hiring / Offer are business-only paid posts */}
                     <div className="flex gap-1.5 flex-wrap">
-                      {Object.entries(TYPE_CONFIG).map(([key, cfg]) => (
+                      {Object.entries(TYPE_CONFIG)
+                        .filter(([key]) => canPostPaid || !PAID_TYPES.includes(key))
+                        .map(([key, cfg]) => (
                         <button key={key} type="button" onClick={() => setPostType(key)}
                           className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
                             postType === key ? "bg-green-100 text-green-800 border border-green-300" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
@@ -554,10 +633,20 @@ export default function CommunityBoardClient({
                       ))}
                     </div>
                     <button type="submit" disabled={submitting || !postText.trim()}
-                      className="ml-3 shrink-0 bg-green-600 text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-green-700 disabled:opacity-40 transition-colors">
-                      {submitting ? "Posting..." : "Post"}
+                      className="ml-3 shrink-0 bg-green-600 text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-green-700 disabled:opacity-40 transition-colors whitespace-nowrap">
+                      {submitting
+                        ? (PAID_TYPES.includes(postType) ? "Starting checkout…" : "Posting...")
+                        : (PAID_TYPES.includes(postType) ? "Continue — $5/mo →" : "Post")}
                     </button>
                   </div>
+                  {PAID_TYPES.includes(postType) && (
+                    <p className="text-xs text-gray-500 mt-2">
+                      {postType === "hiring"
+                        ? "Business post · $5/mo · goes live after payment and also posts to Local Jobs."
+                        : "Business post · $5/mo · goes live after payment. Cancel anytime by deleting it."}
+                    </p>
+                  )}
+                  {postError && <p className="text-xs text-red-600 mt-2">{postError}</p>}
                 </div>
               </div>
             </form>
@@ -604,7 +693,7 @@ export default function CommunityBoardClient({
               const vendorSuggestions = getVendorSuggestions(vendorSearch);
 
               return (
-                <div key={post.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${isFlagged && isAdmin ? "border-red-200" : "border-gray-100"}`}>
+                <div key={post.id} className={`bg-white rounded-2xl shadow-sm overflow-hidden ${isFlagged && isAdmin ? "border border-red-200" : post.type === "offer" ? "border-2 border-amber-200 ring-1 ring-amber-100" : "border border-gray-100"}`}>
                   <div className="p-4">
                     {isAdmin && isFlagged && (
                       <div className="text-xs text-red-600 font-semibold bg-red-50 rounded-lg px-3 py-1.5 mb-3">🚩 Flagged by community</div>
@@ -632,8 +721,12 @@ export default function CommunityBoardClient({
                       </button>
 
                       <button onClick={() => loadResponses(post.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium text-gray-500 bg-gray-100 hover:bg-green-50 hover:text-green-700 transition-colors">
-                        💬 {replyCount} {replyCount === 1 ? "Reply" : "Replies"}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                          post.type === "hiring" || post.type === "offer"
+                            ? "bg-green-600 text-white hover:bg-green-700"
+                            : "text-gray-500 bg-gray-100 hover:bg-green-50 hover:text-green-700"
+                        }`}>
+                        {post.type === "hiring" ? "💼" : post.type === "offer" ? "🎟️" : "💬"} {replyLabel(post.type, replyCount)}
                       </button>
 
                       <div className="ml-auto flex items-center gap-2">

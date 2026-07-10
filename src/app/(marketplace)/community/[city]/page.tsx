@@ -16,6 +16,11 @@ export default async function CommunityBoardPage({ params }: { params: Promise<{
       ? await supabase.from("profiles").select("id, full_name, avatar_url, role").eq("id", user.id).single()
       : { data: null };
 
+    // A business (vendor owner) may post paid Hiring / Offer posts.
+    const { data: currentVendor } = user
+      ? await supabase.from("vendors").select("id, business_name, slug").eq("user_id", user.id).limit(1).maybeSingle()
+      : { data: null };
+
     const { data: posts, error: postsError } = await supabase
       .from("community_posts")
       .select("id, title, body, type, city, state, created_at, user_id, tagged_vendor_id, mentions")
@@ -91,6 +96,7 @@ export default async function CommunityBoardPage({ params }: { params: Promise<{
         posts={enrichedPosts}
         vendors={vendors ?? []}
         currentUser={profile ?? null}
+        currentVendor={currentVendor ?? null}
         myHighfives={myHighfives}
         flaggedIds={flaggedIds}
       />
@@ -105,6 +111,7 @@ export default async function CommunityBoardPage({ params }: { params: Promise<{
         posts={[]}
         vendors={[]}
         currentUser={null}
+        currentVendor={null}
         myHighfives={[]}
         flaggedIds={[]}
       />
