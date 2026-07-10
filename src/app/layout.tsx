@@ -10,8 +10,8 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://every1local.com"),
-  title: "Everything Local Marketplace — Support Local, Earn Local Bucks",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://everythinglocal.shop"),
+  title: "Rent, Shop, Sell and Discover Everything in Your Town!",
   description:
     "The #1 community-driven hyper-local marketplace. Discover local vendors, earn Local Bucks, and support your community.",
   openGraph: {
