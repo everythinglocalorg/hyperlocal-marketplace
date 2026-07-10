@@ -317,7 +317,7 @@ export default function HomePage() {
             </form>
 
             {/* Friction-killer trust line */}
-            <p className="text-xs text-gray-400 mb-5">100% free · No credit card needed · Now Live in Your Neighborhood</p>
+            <p className="text-xs text-gray-400 mb-5">100% FREE Until Launch! · No credit card needed · Now Live in Your Neighborhood</p>
 
             {/* Value chips — reasons to keep reading */}
             <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-gray-500 mb-6">
