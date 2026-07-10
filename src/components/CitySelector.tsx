@@ -29,35 +29,41 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
 
   const citiesInState = cities.filter(c => c.state === selectedState);
 
-  // Fetch distinct cities from active vendors and merge with seed cities
+  // Build the town list from: seed cities + the registered `cities` table
+  // (canonical towns, even without a vendor yet) + any town with an active
+  // vendor. This keeps every launched town selectable.
   useEffect(() => {
     const supabase = createClient();
-    supabase
-      .from("vendors")
-      .select("city, state")
-      .eq("is_active", true)
-      .not("city", "is", null)
-      .not("state", "is", null)
-      .then(({ data }) => {
-        const seen = new Set(SEED_CITIES.map(c => c.slug));
-        const merged: CityOption[] = [...SEED_CITIES];
-        for (const row of (data ?? [])) {
-          if (!row.city?.trim() || !row.state?.trim()) continue;
-          const stateAbbr = normalizeState(row.state.trim());
-          const slug = makeSlug(row.city.trim(), stateAbbr);
-          if (!seen.has(slug)) {
-            seen.add(slug);
-            merged.push({
-              slug,
-              label: `${row.city.trim()}, ${stateAbbr}`,
-              city: row.city.trim(),
-              state: stateAbbr,
-            });
-          }
+    Promise.all([
+      supabase.from("cities").select("slug, city, state, latitude, longitude"),
+      supabase.from("vendors").select("city, state").eq("is_active", true).not("city", "is", null).not("state", "is", null),
+    ]).then(([citiesRes, vendorsRes]) => {
+      const seen = new Set(SEED_CITIES.map(c => c.slug));
+      const merged: CityOption[] = [...SEED_CITIES];
+      for (const row of (citiesRes.data ?? [])) {
+        if (!row.slug || !row.city?.trim() || !row.state?.trim() || seen.has(row.slug)) continue;
+        seen.add(row.slug);
+        merged.push({
+          slug: row.slug,
+          label: `${row.city.trim()}, ${row.state.trim()}`,
+          city: row.city.trim(),
+          state: row.state.trim(),
+          latitude: row.latitude ?? undefined,
+          longitude: row.longitude ?? undefined,
+        });
+      }
+      for (const row of (vendorsRes.data ?? [])) {
+        if (!row.city?.trim() || !row.state?.trim()) continue;
+        const stateAbbr = normalizeState(row.state.trim());
+        const slug = makeSlug(row.city.trim(), stateAbbr);
+        if (!seen.has(slug)) {
+          seen.add(slug);
+          merged.push({ slug, label: `${row.city.trim()}, ${stateAbbr}`, city: row.city.trim(), state: stateAbbr });
         }
-        merged.sort((a, b) => a.state.localeCompare(b.state) || a.city.localeCompare(b.city));
-        setCities(merged);
-      });
+      }
+      merged.sort((a, b) => a.state.localeCompare(b.state) || a.city.localeCompare(b.city));
+      setCities(merged);
+    });
   }, []);
 
   // Keep selectedState in sync if value changes externally
