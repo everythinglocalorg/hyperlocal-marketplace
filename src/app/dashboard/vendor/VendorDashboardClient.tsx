@@ -13,6 +13,7 @@ import ProposalBuilder from "@/components/vendor/ProposalBuilder";
 import EstimatorTools from "@/components/vendor/EstimatorTools";
 import JobMetrics from "@/components/vendor/JobMetrics";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
+import ProductCategoriesManager, { ListingCategory } from "@/components/vendor/ProductCategoriesManager";
 import PlacesManager from "@/components/admin/PlacesManager";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
@@ -72,6 +73,7 @@ type Listing = {
   tags: string[];
   category: string;
   categories: string[];
+  listing_category_id?: string | null;
   waiver_url?: string | null;
   waiver_filename?: string | null;
   cta_type?: string | null;
@@ -1189,6 +1191,14 @@ function ListingsTab({
 }) {
   const supabase = createClient();
   const activeCount = listings.filter((l) => l.is_active).length;
+  const [cats, setCats] = useState<ListingCategory[]>([]);
+  const [categoryId, setCategoryId] = useState<string>("");
+  const loadCats = useCallback(async () => {
+    const { data } = await supabase.from("listing_categories").select("id, name, position").eq("vendor_id", vendorId).order("position");
+    setCats(data ?? []);
+  }, [supabase, vendorId]);
+  useEffect(() => { loadCats(); }, [loadCats]);
+  const catName = (id?: string | null) => cats.find((c) => c.id === id)?.name ?? null;
   const [boostListingId, setBoostListingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", type: "product", price: "", price_label: "", description: "",
@@ -1237,6 +1247,7 @@ function ListingsTab({
           : [editingListing.category]
       );
       setCtaType(isListingCtaType(editingListing.cta_type) ? editingListing.cta_type : defaultCtaForListingType(editingListing.type));
+      setCategoryId(editingListing.listing_category_id ?? "");
       setImages(editingListing.images ?? []);
       if (editingListing.type === "thrift") {
         setThriftAddress(editingListing.price_label ?? "");
@@ -1294,6 +1305,25 @@ function ListingsTab({
   }
 
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+
+  // Clone a listing. Copies every field; the copy starts paused so the vendor
+  // can tweak it (and it doesn't immediately count against the active cap).
+  async function duplicateListing(l: Listing) {
+    setDuplicatingId(l.id);
+    const { data: full } = await supabase.from("listings").select("*").eq("id", l.id).single();
+    if (!full) { setDuplicatingId(null); return; }
+    const { id, view_count, click_count, created_at, updated_at, search_vector, ...rest } = full as any;
+    const { error } = await supabase.from("listings").insert({
+      ...rest,
+      title: `${full.title} (Copy)`,
+      is_active: false,
+      is_featured: false,
+    });
+    setDuplicatingId(null);
+    if (error) { alert("Couldn't duplicate this listing: " + error.message); return; }
+    onRefresh();
+  }
 
   async function saveListing() {
     setSaving(true);
@@ -1340,6 +1370,7 @@ function ListingsTab({
       tags: isThrift ? thriftTags : isHousing ? housingTags : regularTags,
       images,
       is_active: true,
+      listing_category_id: categoryId || null,
     };
 
     // Try with waiver/CTA columns first; fall back without them if columns don't exist yet
@@ -1385,6 +1416,7 @@ function ListingsTab({
     }
 
     setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "" });
+    setCategoryId("");
     setSelectedCategories(["Products"]);
     setCtaType(defaultCtaForListingType("product"));
     setImages([]);
@@ -1459,6 +1491,8 @@ function ListingsTab({
         )}
       </div>
 
+      <ProductCategoriesManager vendorId={vendorId} categories={cats} onChange={loadCats} />
+
       {/* New / Edit form */}
       {showNew && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
@@ -1484,6 +1518,19 @@ function ListingsTab({
                 {LISTING_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
+            {cats.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Product category <span className="font-normal text-gray-400">(groups it on your page)</span></label>
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="">Uncategorized</option>
+                  {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Button <span className="font-normal text-gray-400">(shown on your listing)</span></label>
               <select
@@ -1843,7 +1890,7 @@ function ListingsTab({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-gray-900 truncate">{l.title}</p>
-                  <p className="text-xs text-gray-400 capitalize">{l.type} · {l.category}</p>
+                  <p className="text-xs text-gray-400 capitalize">{l.type} · {catName(l.listing_category_id) ?? l.category}</p>
                 </div>
                 <button
                   onClick={() => onToggle(l.id, l.is_active)}
@@ -1860,6 +1907,7 @@ function ListingsTab({
               </div>
               <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
                 <button onClick={() => onEdit(l)} className="flex-1 text-sm bg-gray-900 text-white py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">✏️ Edit</button>
+                <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="flex-1 text-sm border border-gray-200 text-gray-600 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50">{duplicatingId === l.id ? "…" : "⧉ Copy"}</button>
                 <button onClick={() => setBoostListingId(l.id)} className="flex-1 text-sm border border-amber-300 text-amber-700 py-2 rounded-xl font-semibold hover:bg-amber-50 transition-colors">🚀 Boost</button>
                 <button onClick={() => onDelete(l.id)} className="flex-1 text-sm border border-red-200 text-red-500 py-2 rounded-xl font-semibold hover:bg-red-50 transition-colors">🗑 Delete</button>
               </div>
@@ -1887,7 +1935,7 @@ function ListingsTab({
                 <tr key={l.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-3">
                     <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">{l.title}</p>
-                    <p className="text-xs text-gray-400">{l.category}</p>
+                    <p className="text-xs text-gray-400">{catName(l.listing_category_id) ?? l.category}</p>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs capitalize text-gray-500">{l.type}</span>
@@ -1917,6 +1965,7 @@ function ListingsTab({
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-2 justify-end">
                       <button onClick={() => onEdit(l)} className="text-xs text-blue-500 hover:underline">Edit</button>
+                      <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="text-xs text-gray-500 hover:underline disabled:opacity-50">{duplicatingId === l.id ? "…" : "Copy"}</button>
                       <button onClick={() => onDelete(l.id)} className="text-xs text-red-400 hover:underline">Delete</button>
                     </div>
                   </td>

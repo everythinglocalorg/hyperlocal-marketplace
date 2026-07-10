@@ -75,6 +75,13 @@ export default async function VendorProfilePage({ params, searchParams }: Props)
     .order("is_featured", { ascending: false })
     .order("created_at", { ascending: false });
 
+  // Vendor-defined product categories (sections) for the filter nav.
+  const { data: listingCategories } = await supabase
+    .from("listing_categories")
+    .select("id, name, position")
+    .eq("vendor_id", vendor.id)
+    .order("position");
+
   // Fetch reviews
   const { data: reviews } = await supabase
     .from("reviews")
@@ -156,6 +163,7 @@ export default async function VendorProfilePage({ params, searchParams }: Props)
       <VendorProfileClient
         vendor={vendor}
         listings={listings ?? []}
+        listingCategories={listingCategories ?? []}
         reviews={reviews ?? []}
         currentUserId={user?.id ?? null}
         currentUserReferralCode={profile?.referral_code ?? null}

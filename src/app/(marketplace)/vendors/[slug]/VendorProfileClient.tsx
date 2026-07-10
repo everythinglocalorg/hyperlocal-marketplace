@@ -77,8 +77,10 @@ type Listing = {
   quantity: number | null; images: string[]; category: string;
   tags: string[] | null; is_featured: boolean; view_count: number;
   waiver_url: string | null; waiver_filename: string | null;
-  cta_type?: string | null;
+  cta_type?: string | null; listing_category_id?: string | null;
 };
+
+type ListingCategory = { id: string; name: string; position: number };
 
 type Review = {
   id: string; rating: number; comment: string | null; created_at: string;
@@ -89,15 +91,16 @@ type Review = {
 type Section = "about" | "services" | "menu" | "reviews";
 
 interface Props {
-  vendor: Vendor; listings: Listing[]; reviews: Review[];
+  vendor: Vendor; listings: Listing[]; listingCategories?: ListingCategory[]; reviews: Review[];
   currentUserId: string | null; currentUserReferralCode: string | null; inboundRefCode: string | null;
   localTop8Rank?: number | null;
   isFoundingMember?: boolean;
 }
 
-export default function VendorProfileClient({ vendor, listings, reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank, isFoundingMember }: Props) {
+export default function VendorProfileClient({ vendor, listings, listingCategories = [], reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank, isFoundingMember }: Props) {
   const supabase = createClient();
   const [activeSection, setActiveSection] = useState<Section>("services");
+  const [activeProductCat, setActiveProductCat] = useState<string | null>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   // "menu" only appears when the vendor has a saved menu PDF. Restaurants get
@@ -784,9 +787,31 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             ) : (
               <>
                 <p className="text-[11px] font-bold tracking-[0.2em] text-gray-400 uppercase mb-5">{isRestaurant ? "Popular" : "Services & Products"}</p>
+
+                {/* Vendor-defined product categories — filter nav over the grid */}
+                {listingCategories.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 mb-6 border-b border-gray-100 pb-3">
+                    <button
+                      onClick={() => setActiveProductCat(null)}
+                      className={`text-sm font-semibold transition-colors ${activeProductCat === null ? "text-gray-900" : "text-gray-400 hover:text-gray-700"}`}
+                    >
+                      All
+                    </button>
+                    {listingCategories.map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => setActiveProductCat(c.id)}
+                        className={`text-sm font-semibold transition-colors ${activeProductCat === c.id ? "text-gray-900 border-b-2 border-gray-900 -mb-[13px] pb-[11px]" : "text-gray-400 hover:text-gray-700"}`}
+                      >
+                        {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Clean minimal product grid — square image + name; click opens the detail popup (Buy/Book/Message live there) */}
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-6">
-                  {orderedListings.map((listing) => (
+                  {(activeProductCat ? orderedListings.filter((l) => l.listing_category_id === activeProductCat) : orderedListings).map((listing) => (
                     <button key={listing.id} onClick={() => setDetailListing(listing)} className="text-left group">
                       <div className="relative aspect-square rounded-xl bg-gray-100 overflow-hidden mb-2 flex items-center justify-center">
                         {listing.images?.[0]
