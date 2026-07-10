@@ -9,7 +9,8 @@ import { formatLocalBucks, formatPrice, slugify } from "@/lib/utils";
 import PremiumGate from "@/components/vendor/PremiumGate";
 import BoostModal from "@/components/BoostModal";
 import CrmBoard from "@/components/vendor/CrmBoard";
-import EstimateCreator from "@/components/vendor/EstimateCreator";
+import ProposalBuilder from "@/components/vendor/ProposalBuilder";
+import EstimatorTools from "@/components/vendor/EstimatorTools";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
 import PlacesManager from "@/components/admin/PlacesManager";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
@@ -148,7 +149,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   function awardScore(action: "login" | "message" | "listing" | "sale") {
     fetch("/api/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, vendor_id: vendor.id }) }).catch(() => {});
   }
-  const [crmView, setCrmView] = useState<"board" | "estimates">("board");
+  const [crmView, setCrmView] = useState<"board" | "estimates" | "tools">("board");
   const [estimateContact, setEstimateContact] = useState<any>(null);
   const [showUpgradedToast, setShowUpgradedToast] = useState(
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("upgraded") === "1"
@@ -900,15 +901,24 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   >
                     📋 Estimates
                   </button>
+                  <button
+                    onClick={() => { setCrmView("tools"); setEstimateContact(null); }}
+                    className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "tools" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    🧰 Estimator Tools
+                  </button>
                 </div>
                 {crmView === "board" ? (
                   <CrmBoard
                     vendorId={vendor.id}
                     onCreateEstimate={(contact) => { setEstimateContact(contact); setCrmView("estimates"); }}
                   />
+                ) : crmView === "tools" ? (
+                  <EstimatorTools vendorId={vendor.id} />
                 ) : (
-                  <EstimateCreator
+                  <ProposalBuilder
                     vendorId={vendor.id}
+                    userId={vendor.user_id}
                     defaultContact={estimateContact}
                     onBack={() => { setCrmView("board"); setEstimateContact(null); }}
                   />

@@ -44,6 +44,16 @@ export async function POST(req: NextRequest) {
   const total = lineItems.reduce((s, li) => s + (Number(li.qty) || 0) * (Number(li.unit_price) || 0), 0);
   const customerName = est.customer_name ?? "there";
 
+  // Ensure a public share token so the recipient can open the live proposal
+  // (view, toggle options, accept, and pay the deposit).
+  let shareToken: string = est.share_token ?? "";
+  if (!shareToken) {
+    shareToken = crypto.randomUUID().replace(/-/g, "");
+    await admin.from("estimates").update({ share_token: shareToken }).eq("id", est.id);
+  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://every1local.com";
+  const proposalUrl = `${appUrl}/proposal/${shareToken}`;
+
   // ── EMAIL THE CUSTOMER ────────────────────────────────────────────────
   if (channel === "email") {
     if (!est.customer_email) {
@@ -80,6 +90,10 @@ export async function POST(req: NextRequest) {
               ${rows}
             </table>
             <p style="text-align:right;font-size:18px;font-weight:700;color:#16a34a;">Total: ${money(total)}</p>
+            <div style="text-align:center;margin:20px 0 4px;">
+              <a href="${proposalUrl}" style="display:inline-block;background:#16a34a;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:12px 28px;border-radius:10px;">View &amp; Accept Proposal →</a>
+            </div>
+            <p style="text-align:center;font-size:12px;color:#9ca3af;margin-top:6px;">Review the full proposal, choose any options, and pay your deposit online.</p>
             ${est.notes ? `<div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;margin-top:16px;font-size:13px;color:#374151;white-space:pre-line;">${est.notes}</div>` : ""}
           </div>
           <p style="text-align:center;font-size:11px;color:#9ca3af;margin-top:16px;">EverythingLocal · Connecting your neighborhood</p>
@@ -126,7 +140,7 @@ export async function POST(req: NextRequest) {
   if (!conversationId) return NextResponse.json({ error: "Could not open conversation" }, { status: 500 });
 
   const lines = lineItems.map((li) => `• ${li.description || "—"} × ${li.qty} @ ${money(Number(li.unit_price) || 0)}`).join("\n");
-  const body = `📋 Estimate: ${est.title}\n\n${lines}\n\nTotal: ${money(total)}${est.notes ? `\n\nNotes: ${est.notes}` : ""}`;
+  const body = `📋 Estimate: ${est.title}\n\n${lines}\n\nTotal: ${money(total)}${est.notes ? `\n\nNotes: ${est.notes}` : ""}\n\nView & accept your proposal: ${proposalUrl}`;
 
   await admin.from("messages").insert({ conversation_id: conversationId, sender_id: user.id, body });
   await admin.from("estimates").update({ status: "sent", sent_at: new Date().toISOString() }).eq("id", est.id);

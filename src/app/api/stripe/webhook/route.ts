@@ -68,6 +68,20 @@ export async function POST(req: NextRequest) {
           .eq("id", session.metadata.place_id);
         break;
       }
+      // Proposal deposit paid → mark accepted + record payment.
+      if (session.metadata?.type === "proposal_deposit" && session.metadata?.estimate_id) {
+        await supabase
+          .from("estimates")
+          .update({
+            status: "accepted",
+            accepted_at: new Date().toISOString(),
+            accepted_payment_method: "card",
+            deposit_paid_at: new Date().toISOString(),
+            deposit_payment_intent: (session.payment_intent as string) ?? null,
+          })
+          .eq("id", session.metadata.estimate_id);
+        break;
+      }
       // Boost paid → activate the feature placement.
       if (session.metadata?.type === "boost" && session.metadata?.boost_id) {
         await supabase
