@@ -396,25 +396,20 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   );
 
   // Menu block — placed after About for restaurants, otherwise after Services.
+  // Just a button that opens the menu PDF in a new browser tab (no embedded viewer).
   const menuSection = vendor.menu_pdf_url ? (
     <div id="menu" ref={(el) => { sectionRefs.current.menu = el; }} className="mt-16 pt-8 border-t border-gray-100">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-xl font-black text-gray-900">🍽️ Menu</h2>
         <a
           href={vendor.menu_pdf_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-gray-700 transition-colors"
+          className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors"
         >
           View Menu!
         </a>
       </div>
-      {/* PDF embeds are unreliable on mobile browsers — the button above covers small screens */}
-      <iframe
-        src={vendor.menu_pdf_url}
-        title={`${vendor.business_name} menu`}
-        className="hidden sm:block w-full h-[600px] rounded-2xl border border-gray-200"
-      />
     </div>
   ) : null;
 
