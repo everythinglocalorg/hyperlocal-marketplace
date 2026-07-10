@@ -5,6 +5,7 @@ import GlobalHeader from "@/components/GlobalHeader";
 import CartDrawer from "@/components/CartDrawer";
 import CartButton from "@/components/CartButton";
 import { CartProvider } from "@/lib/cart";
+import { FavoritesProvider } from "@/lib/favorites";
 import "./globals.css";
 
 const geist = Geist({ subsets: ["latin"] });
@@ -32,12 +33,14 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className={`${geist.className} min-h-full flex flex-col bg-white text-gray-900`}>
         <AnalyticsListener />
-        <CartProvider>
-          <GlobalHeader />
-          {children}
-          <CartButton />
-          <CartDrawer />
-        </CartProvider>
+        <FavoritesProvider>
+          <CartProvider>
+            <GlobalHeader />
+            {children}
+            <CartButton />
+            <CartDrawer />
+          </CartProvider>
+        </FavoritesProvider>
       </body>
     </html>
   );

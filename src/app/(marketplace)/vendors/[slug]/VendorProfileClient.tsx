@@ -10,6 +10,8 @@ import BuyNowModal from "@/components/BuyNowModal";
 import MessageModal from "@/components/MessageModal";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import FollowButton from "@/components/FollowButton";
+import Top8Button from "@/components/Top8Button";
+import { useFavorites } from "@/lib/favorites";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
 import ReferModal from "@/components/ReferModal";
 import LocalTop8Badge from "@/components/LocalTop8Badge";
@@ -99,6 +101,7 @@ interface Props {
 
 export default function VendorProfileClient({ vendor, listings, listingCategories = [], reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank, isFoundingMember }: Props) {
   const supabase = createClient();
+  const favorites = useFavorites();
   const [activeSection, setActiveSection] = useState<Section>("services");
   const [activeProductCat, setActiveProductCat] = useState<string | null>(null);
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -615,6 +618,28 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                   <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
                   <Link href={`/jobs/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
                   <Link href={`/explore/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
+                  {currentUserId && (
+                    <>
+                      <div className="border-t border-gray-100 my-1" />
+                      <Link href="/wishlist" onClick={() => setSiteMenuOpen(false)} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        <span>💚 Wish List</span>
+                        {favorites.wishlistCount > 0 && <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold">{favorites.wishlistCount}</span>}
+                      </Link>
+                      <p className="px-4 pt-2 pb-1 text-[11px] font-bold tracking-wider text-gray-400 uppercase">⭐ Your Top 8</p>
+                      {favorites.top8.length > 0 ? (
+                        favorites.top8.map((v) => (
+                          <Link key={v.vendorId} href={`/vendors/${v.slug}`} onClick={() => setSiteMenuOpen(false)} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                            <span className="w-6 h-6 rounded-full bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                              {v.logoUrl ? <img src={v.logoUrl} alt="" className="w-full h-full object-contain" /> : "🏪"}
+                            </span>
+                            <span className="truncate">{v.name}</span>
+                          </Link>
+                        ))
+                      ) : (
+                        <p className="px-4 pb-2 text-xs text-gray-400">Tap “Add to Top 8” on a business to save it here.</p>
+                      )}
+                    </>
+                  )}
                   <div className="border-t border-gray-100 my-1" />
                   {currentUserId ? (
                     <Link href={currentUser?.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">Dashboard →</Link>
@@ -685,9 +710,10 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
             </div>
           )}
 
-          {/* Follow — live follower count */}
-          <div className="mt-4">
+          {/* Follow + Top 8 favorite */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <FollowButton targetType="vendor" targetId={vendor.id} />
+            <Top8Button vendor={{ vendorId: vendor.id, name: vendor.business_name, slug: vendor.slug, logoUrl: vendor.logo_url }} />
           </div>
 
           {/* Trust points — clean icon + text, no bubbles */}
