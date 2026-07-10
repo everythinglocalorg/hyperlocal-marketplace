@@ -15,7 +15,7 @@ import JobMetrics from "@/components/vendor/JobMetrics";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
 import PlacesManager from "@/components/admin/PlacesManager";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
-import { hasFeature, FeatureKey } from "@/lib/features";
+import { hasFeature, FeatureKey, featuresForTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
@@ -49,6 +49,7 @@ interface Props {
   profile: { local_bucks: number; full_name: string | null; referral_code: string; email?: string | null; avatar_url: string | null; phone: string | null; is_admin?: boolean } | null;
   isPremium: boolean;
   features: Record<string, boolean>;
+  activeListingCap: number | null;
   isAdmin: boolean;
   connectEnabled: boolean;
   connectAccountId: string | null;
@@ -130,7 +131,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "allplaces", label: "All Places", icon: "🌿", adminOnly: true },
 ];
 
-export default function VendorDashboardClient({ vendor, profile, isPremium, features, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
+export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
   const can = (f: FeatureKey) => hasFeature(features, f) || isPremium;
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>((initialTab as Tab) || "overview");
@@ -853,6 +854,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               listings={listings}
               loading={loadingListings}
               vendorId={vendor.id}
+              cap={activeListingCap}
               menuPdfUrl={vendor.menu_pdf_url ?? null}
               onGoToStore={() => goToTab("store")}
               showNew={showNewListing}
@@ -1160,10 +1162,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
 // ── LISTINGS TAB ──────────────────────────────────────────────
 function ListingsTab({
-  listings, loading, vendorId, menuPdfUrl, onGoToStore, showNew, onShowNew,
+  listings, loading, vendorId, cap, menuPdfUrl, onGoToStore, showNew, onShowNew,
   onToggle, onDelete, onRefresh, editingListing, onEdit,
 }: {
-  listings: Listing[]; loading: boolean; vendorId: string;
+  listings: Listing[]; loading: boolean; vendorId: string; cap: number | null;
   menuPdfUrl: string | null; onGoToStore: () => void;
   showNew: boolean; onShowNew: (v: boolean) => void;
   onToggle: (id: string, active: boolean) => void;
@@ -1171,6 +1173,7 @@ function ListingsTab({
   editingListing: Listing | null; onEdit: (l: Listing | null) => void;
 }) {
   const supabase = createClient();
+  const activeCount = listings.filter((l) => l.is_active).length;
   const [boostListingId, setBoostListingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", type: "product", price: "", price_label: "", description: "",
@@ -1416,13 +1419,29 @@ function ListingsTab({
         />
       )}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Listings</h1>
-        <button
-          onClick={() => { onEdit(null); onShowNew(true); }}
-          className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
-        >
-          + New Listing
-        </button>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Listings</h1>
+          {cap != null && (
+            <p className={`text-xs mt-0.5 ${activeCount >= cap ? "text-amber-600 font-medium" : "text-gray-400"}`}>
+              {activeCount} of {cap} active listings used{activeCount >= cap ? " — upgrade for more" : ""}
+            </p>
+          )}
+        </div>
+        {cap != null && activeCount >= cap ? (
+          <a
+            href="/pricing"
+            className="bg-amber-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors whitespace-nowrap"
+          >
+            Upgrade to add more →
+          </a>
+        ) : (
+          <button
+            onClick={() => { onEdit(null); onShowNew(true); }}
+            className="bg-green-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
+          >
+            + New Listing
+          </button>
+        )}
       </div>
 
       {/* New / Edit form */}
@@ -3402,12 +3421,6 @@ function AdminBusinessesTab() {
       return next;
     });
   }
-
-  // Paid tiers get all features on; free turns them off.
-  const featuresForTier = (tier: string) =>
-    tier === "free"
-      ? { messages: false, analytics: false, bookings: false, crm: false, estimates: false }
-      : { messages: true, analytics: true, bookings: true, crm: true, estimates: true };
 
   async function saveChanges() {
     const entries = Object.entries(pendingTiers);

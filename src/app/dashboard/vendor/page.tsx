@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import VendorDashboardClient from "./VendorDashboardClient";
-import { allFeaturesOn, isPaidTier } from "@/lib/features";
+import { allFeaturesOn, isPaidTier, listingCap } from "@/lib/features";
 
 export default async function VendorDashboardPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab: initialTab } = await searchParams;
@@ -28,6 +28,9 @@ export default async function VendorDashboardPage({ searchParams }: { searchPara
   // Admins get all features for free
   const features = isAdmin ? allFeaturesOn() : (vendor.features ?? {});
   const isPremium = isAdmin || isPaidTier(vendor.tier);
+  // Active-listing cap for the tier; null = unlimited (Infinity isn't JSON-serializable).
+  const cap = isAdmin ? Infinity : listingCap(vendor.tier);
+  const activeListingCap = Number.isFinite(cap) ? cap : null;
 
   return (
     <VendorDashboardClient
@@ -35,6 +38,7 @@ export default async function VendorDashboardPage({ searchParams }: { searchPara
       profile={profile}
       isPremium={isPremium}
       features={features}
+      activeListingCap={activeListingCap}
       isAdmin={isAdmin}
       connectEnabled={vendor.stripe_connect_enabled ?? false}
       connectAccountId={vendor.stripe_connect_account_id ?? null}

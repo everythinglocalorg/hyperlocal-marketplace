@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { ALL_FEATURES, FeatureKey, allFeaturesOn, allFeaturesOff } from "@/lib/features";
+import { ALL_FEATURES, FeatureKey, featuresForTier } from "@/lib/features";
 import PlacesManager from "@/components/admin/PlacesManager";
 
 type AdminTab = "vendors" | "claims" | "users" | "listings" | "places" | "logs" | "security";
@@ -130,7 +130,7 @@ function VendorsTab({ adminId }: { adminId: string }) {
   }
 
   async function changeTier(vendor: Vendor, newTier: "free" | "premium" | "premium_plus") {
-    const features = newTier === "free" ? allFeaturesOff() : allFeaturesOn();
+    const features = featuresForTier(newTier);
     setSaving(true);
     await supabase.from("vendors").update({ tier: newTier, features }).eq("id", vendor.id);
     await log(newTier === "free" ? "revoke_pro" : `set_${newTier}`, vendor.id, vendor.business_name);
