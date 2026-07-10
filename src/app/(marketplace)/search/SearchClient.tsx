@@ -9,6 +9,7 @@ import { CITIES, CATEGORIES } from "@/types";
 import { cityFromSlug, resolveCity, makeSlug, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CITY_SLUG, LS_CITY_KEY, type CityOption, type CityCenter } from "@/lib/cities";
 import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
+import SearchSuggestions from "@/components/SearchSuggestions";
 import CitySelector from "@/components/CitySelector";
 import Link from "next/link";
 import ListingDetailModal, { DetailListing } from "@/components/ListingDetailModal";
@@ -570,7 +571,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                   updateURL({ q: v });
                 }}
                 onSearch={runSearch}
-                placeholder="Search products, services, businesses..."
+                placeholder="Ask Mike — plumber, fresh eggs, haircut…"
               />
             </div>
             {/* City selector: hidden on mobile (shown in row 2), visible on sm+ */}
@@ -645,6 +646,20 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           )}
         </div>
       </div>
+
+      {/* Ask Mike suggestions — shown before the shopper has typed anything */}
+      {!query.trim() && (
+        <div className="bg-white border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+            <SearchSuggestions
+              citySlug={citySlug}
+              cityLabel={resolveCity(citySlug)?.label}
+              align="start"
+              onPick={(term) => { setQuery(term); updateURL({ q: term }); }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Category pills */}
       <div className="bg-white border-b border-gray-100">

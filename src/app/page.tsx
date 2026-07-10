@@ -13,6 +13,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import VendorLogo from "@/components/vendor/VendorLogo";
 import TypedText from "@/components/TypedText";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
+import SearchSuggestions from "@/components/SearchSuggestions";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -296,6 +297,12 @@ export default function HomePage() {
               />
             </div>
 
+            {/* Ask Mike — concierge framing for the primary search */}
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold shrink-0">M</span>
+              <span className="text-sm font-semibold text-gray-700">Ask Mike, your local guide — what do you need today?</span>
+            </div>
+
             {/* Search bar — the obvious primary action */}
             <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-3 flex gap-2 mb-4">
               <div className="relative flex-1">
@@ -312,9 +319,25 @@ export default function HomePage() {
                 type="submit"
                 className="bg-green-600 text-white px-7 py-3.5 rounded-xl text-base font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20 whitespace-nowrap"
               >
-                Search →
+                Ask Mike →
               </button>
             </form>
+
+            {/* Ask Mike — location-aware + learned search suggestions */}
+            <SearchSuggestions
+              citySlug={activeCity}
+              cityLabel={resolveCity(activeCity)?.label ?? cityName}
+              onPick={(term) => {
+                setQuery(term);
+                const params = new URLSearchParams();
+                params.set("q", term);
+                if (activeCity) params.set("city", activeCity);
+                const url = `/search?${params.toString()}`;
+                if (gate(url)) return;
+                router.push(url);
+              }}
+              className="mb-5"
+            />
 
             {/* Friction-killer trust line */}
             <p className="text-xs text-gray-400 mb-5">100% FREE Until Launch! · No credit card needed · Now Live in Your Neighborhood</p>
