@@ -283,7 +283,7 @@ export default function HomePage() {
             </h1>
             <p className="text-lg sm:text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
               One search for every local business, product, and service near you —
-              and every dollar you spend earns <span className="font-semibold text-amber-600">🪙 Local Bucks</span> to spend around town.
+              plus <span className="font-semibold text-amber-600">🪙 Local Bucks</span> rewards for supporting local.
             </p>
 
             {/* City selector */}
