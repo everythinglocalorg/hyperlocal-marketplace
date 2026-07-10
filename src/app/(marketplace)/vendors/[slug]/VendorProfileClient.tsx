@@ -710,10 +710,9 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
             </div>
           )}
 
-          {/* Follow + Top 8 favorite */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          {/* Follow — live follower count */}
+          <div className="mt-4">
             <FollowButton targetType="vendor" targetId={vendor.id} />
-            <Top8Button vendor={{ vendorId: vendor.id, name: vendor.business_name, slug: vendor.slug, logoUrl: vendor.logo_url }} />
           </div>
 
           {/* Trust points — clean icon + text, no bubbles */}
@@ -955,6 +954,12 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 </div>
               )}
             </div>
+        </div>
+
+        {/* Top 8 favorite — save this business for quick access */}
+        <div className="max-w-2xl mt-10 flex flex-wrap items-center gap-3">
+          <Top8Button vendor={{ vendorId: vendor.id, name: vendor.business_name, slug: vendor.slug, logoUrl: vendor.logo_url }} />
+          <span className="text-sm text-gray-400">Save {vendor.business_name} to your Top 8 for quick access.</span>
         </div>
 
         {/* ── CONTACT & LOCATION (bottom of page) ────────────────── */}
