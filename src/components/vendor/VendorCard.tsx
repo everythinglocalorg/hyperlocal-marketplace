@@ -28,11 +28,12 @@ export default function VendorCard({ vendor }: VendorCardProps) {
       href={`/vendors/${vendor.slug}`}
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all border border-gray-100 group"
     >
-      {/* Banner */}
+      {/* Logo (falls back to banner for vendors without a logo). The card shows
+          the brand mark, not the wide cover photo — those can differ now. */}
       <div className="h-36 bg-white relative overflow-hidden flex items-center justify-center">
-        {vendor.banner_url ? (
+        {(vendor.logo_url ?? vendor.banner_url) ? (
           <img
-            src={vendor.banner_url}
+            src={vendor.logo_url ?? vendor.banner_url ?? undefined}
             alt={vendor.business_name}
             className="w-full h-full object-contain p-3 transition-transform duration-300"
             style={{ transform: `scale(${vendor.logo_zoom ?? 1})` }}
