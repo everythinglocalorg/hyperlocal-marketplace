@@ -29,7 +29,7 @@ export const PRO_FEATURES: ProFeature[] = [
     icon: "💬",
     title: "Internal messaging",
     desc: "Chat directly with customers inside Everything Local. Every conversation lands in one inbox — no personal phone number required.",
-    plan: "pro",
+    plan: "plus",
   },
   {
     icon: "🔔",
