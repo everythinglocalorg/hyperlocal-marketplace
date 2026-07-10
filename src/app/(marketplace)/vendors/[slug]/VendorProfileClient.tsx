@@ -400,7 +400,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const menuSection = vendor.menu_pdf_url ? (
     <div id="menu" ref={(el) => { sectionRefs.current.menu = el; }} className="mt-16 pt-8 border-t border-gray-100">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-xl font-black text-gray-900">🍽️ Menu</h2>
+        <h2 className="font-serif text-xl font-black text-gray-900">🍽️ Menu</h2>
         <a
           href={vendor.menu_pdf_url}
           target="_blank"
@@ -594,42 +594,45 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
       {/* ── BUSINESS HERO ─────────────────────────────────────────── */}
       <section className="bg-white border-b border-gray-100">
-        {/* Cover — real banner if the vendor has one, else a branded gradient */}
-        <div className="relative h-28 sm:h-40 overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700">
+        {/* Editorial cover — the business name sits over the image for a high-end feel */}
+        <div className="relative h-52 sm:h-72 overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700">
           {heroCover && (
             <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `center ${vendor.banner_position ?? 50}%`, transform: `scale(${vendor.banner_zoom ?? 1})` }} />
           )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-          <span className="absolute top-3 left-4 text-[11px] font-bold tracking-wider text-white bg-black/30 backdrop-blur px-3 py-1 rounded-full uppercase">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          <span className="absolute top-4 left-4 text-[11px] font-bold tracking-[0.2em] text-white/90 uppercase">
             {vendor.category}
           </span>
+          {/* Title block over the cover: logo + name + rating */}
+          <div className="absolute inset-x-0 bottom-0">
+            <div className="max-w-6xl mx-auto px-4 pb-5 flex items-end gap-3">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white border-2 border-white shadow-lg overflow-hidden flex items-center justify-center shrink-0">
+                {vendor.logo_url
+                  ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
+                  : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
+              </div>
+              <div className="min-w-0 pb-0.5">
+                <h1 className="font-serif text-2xl sm:text-4xl font-black text-white leading-tight drop-shadow">{vendor.business_name}</h1>
+                <div className="flex items-center gap-2 mt-1 text-sm text-white/90 flex-wrap">
+                  <span className="font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
+                  <span className="text-white/70">{vendor.review_count > 0 ? `(${vendor.review_count} reviews)` : "New"}</span>
+                  <span>·</span>
+                  <span>{vendor.city}, {vendor.state}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 pb-5">
-          {/* Logo sits on top of the banner; the name + details sit uniformly
-              below it in the white area, never overlapping the banner. */}
-          <div className="relative z-10 w-20 h-20 sm:w-24 sm:h-24 -mt-12 sm:-mt-14 rounded-2xl bg-white border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
-            {vendor.logo_url
-              ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />
-              : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
-          </div>
-          <div className="mt-3">
-            <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
-            <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 flex-wrap">
-              <span className="text-amber-500 font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
-              <span className="text-gray-400">{vendor.review_count > 0 ? `(${vendor.review_count} reviews)` : "New"}</span>
-              <span>·</span>
-              <span>{vendor.city}, {vendor.state}</span>
+        <div className="max-w-6xl mx-auto px-4 py-5">
+          {/* Badges row — recognition pills grouped on their own line for prominence */}
+          {(vendor.is_verified || localTop8Rank || isFoundingMember) && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {vendor.is_verified && <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>}
+              {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
+              {isFoundingMember && <span title="One of the first businesses to launch on Everything Local" className="text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">🏅 Founding Member</span>}
             </div>
-            {/* Badges row — recognition pills grouped on their own line for prominence */}
-            {(vendor.is_verified || localTop8Rank || isFoundingMember) && (
-              <div className="flex items-center gap-2 flex-wrap mt-3">
-                {vendor.is_verified && <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>}
-                {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
-                {isFoundingMember && <span title="One of the first businesses to launch on Everything Local" className="text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">🏅 Founding Member</span>}
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Follow — live follower count */}
           <div className="mt-4">
@@ -710,7 +713,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
         {/* ── ABOUT ─────────────────────────────────────────────── */}
         <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className="max-w-2xl mb-12">
-          <h2 className="text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
+          <h2 className="font-serif text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
           {vendor.description
             ? <p className="text-gray-600 leading-relaxed whitespace-pre-line">{vendor.description}</p>
             : <p className="text-gray-400">No description provided yet.</p>}
@@ -784,7 +787,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
         {/* ── CONTACT & LOCATION ────────────────────────────────── */}
         <div className="max-w-2xl mt-16 pt-8 border-t border-gray-100 space-y-4">
-          <h2 className="text-xl font-black text-gray-900">Contact & Location</h2>
+          <h2 className="font-serif text-xl font-black text-gray-900">Contact & Location</h2>
           {vendor.address && (
             <div className="flex items-start gap-3 text-sm">
               <span className="text-xl">📍</span>
