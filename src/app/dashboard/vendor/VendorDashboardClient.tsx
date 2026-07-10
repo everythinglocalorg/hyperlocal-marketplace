@@ -15,7 +15,7 @@ import JobMetrics from "@/components/vendor/JobMetrics";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
 import PlacesManager from "@/components/admin/PlacesManager";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
-import { hasFeature, FeatureKey, featuresForTier } from "@/lib/features";
+import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
@@ -132,7 +132,11 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
 ];
 
 export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
-  const can = (f: FeatureKey) => hasFeature(features, f) || isPremium;
+  // Local Pro+ exclusive tier (admins always count as top tier).
+  const isPlus = isAdmin || isPlusTier(vendor.tier);
+  // Features gated to Pro+ only; everything else unlocks for any paid tier.
+  const PLUS_ONLY = new Set<FeatureKey>(["estimates"]);
+  const can = (f: FeatureKey) => hasFeature(features, f) || (PLUS_ONLY.has(f) ? isPlus : isPremium);
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>((initialTab as Tab) || "overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -570,9 +574,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             </Link>
           )}
 
-          {/* Stripe Connect — shown to everyone; free vendors get an upgrade prompt */}
+          {/* Stripe Connect — a Local Pro+ feature; others get an upgrade prompt */}
           <div className="mt-3 pt-3 border-t border-gray-100">
-            {!isPremium ? (
+            {!isPlus ? (
               <Link
                 href="/dashboard/vendor/upgrade"
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors"
@@ -596,13 +600,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 {connectingStripe ? "Redirecting..." : "💳 Connect Stripe to get paid"}
               </button>
             )}
-            {!isPremium && (
-              <p className="text-xs text-center text-gray-400 mt-1.5">Local Pro feature</p>
+            {!isPlus && (
+              <p className="text-xs text-center text-gray-400 mt-1.5">Local Pro+ feature</p>
             )}
-            {isPremium && !connectEnabled && connectAccountId && (
+            {isPlus && !connectEnabled && connectAccountId && (
               <p className="text-xs text-center text-yellow-600 mt-1.5">Setup incomplete — click to finish</p>
             )}
-            {isPremium && connectEnabled && (
+            {isPlus && connectEnabled && (
               <p className="text-xs text-center text-green-600 mt-1.5">✓ Payments enabled</p>
             )}
           </div>
@@ -717,13 +721,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                     <div>
                       <p className="font-semibold text-indigo-900">Accept payments from customers</p>
                       <p className="text-sm text-indigo-600">
-                        {isPremium
+                        {isPlus
                           ? "Connect your Stripe account to get paid directly — no middleman."
-                          : "Upgrade to Local Pro to get paid directly through Stripe — no middleman."}
+                          : "Upgrade to Local Pro+ to get paid directly through Stripe — no middleman."}
                       </p>
                     </div>
                   </div>
-                  {isPremium ? (
+                  {isPlus ? (
                     <button
                       onClick={connectStripe}
                       disabled={connectingStripe}
@@ -741,7 +745,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   )}
                 </div>
               )}
-              {isPremium && connectEnabled && (
+              {isPlus && connectEnabled && (
                 <div className="mb-6 bg-indigo-50 border border-indigo-100 rounded-2xl p-4 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">✅</span>
@@ -898,18 +902,22 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   >
                     👥 Pipeline
                   </button>
-                  <button
-                    onClick={() => setCrmView("estimates")}
-                    className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "estimates" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-                  >
-                    📋 Estimates
-                  </button>
-                  <button
-                    onClick={() => { setCrmView("tools"); setEstimateContact(null); }}
-                    className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "tools" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
-                  >
-                    🧰 Estimator Tools
-                  </button>
+                  {can("estimates") && (
+                    <>
+                      <button
+                        onClick={() => setCrmView("estimates")}
+                        className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "estimates" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                      >
+                        📋 Estimates
+                      </button>
+                      <button
+                        onClick={() => { setCrmView("tools"); setEstimateContact(null); }}
+                        className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "tools" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                      >
+                        🧰 Estimator Tools
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => { setCrmView("metrics"); setEstimateContact(null); }}
                     className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "metrics" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
@@ -922,10 +930,17 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                     vendorId={vendor.id}
                     onCreateEstimate={(contact) => { setEstimateContact(contact); setCrmView("estimates"); }}
                   />
-                ) : crmView === "tools" ? (
-                  <EstimatorTools vendorId={vendor.id} userId={vendor.user_id} />
                 ) : crmView === "metrics" ? (
                   <JobMetrics vendorId={vendor.id} />
+                ) : !can("estimates") ? (
+                  <div className="border-2 border-dashed border-gray-200 rounded-2xl p-10 text-center">
+                    <p className="text-3xl mb-2">📋</p>
+                    <p className="font-bold text-gray-900">Estimate Creator is a Local Pro+ feature</p>
+                    <p className="text-sm text-gray-500 mt-1 mb-4">Build and send professional, itemized estimates to your customers.</p>
+                    <Link href="/dashboard/vendor/upgrade" className="inline-block bg-green-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-green-700 transition-colors">Upgrade to Local Pro+ →</Link>
+                  </div>
+                ) : crmView === "tools" ? (
+                  <EstimatorTools vendorId={vendor.id} userId={vendor.user_id} />
                 ) : (
                   <ProposalBuilder
                     vendorId={vendor.id}
@@ -950,7 +965,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             <div className="space-y-6">
               <StoreSettingsTab vendor={vendor} supabase={supabase} />
               <CustomDomainPanel
-                isPremium={isPremium}
+                isPremium={isPlus}
                 initialDomain={vendor.custom_domain ?? null}
                 initialVerified={vendor.domain_verified ?? false}
               />

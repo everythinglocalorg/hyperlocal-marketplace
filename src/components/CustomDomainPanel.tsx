@@ -106,20 +106,20 @@ export default function CustomDomainPanel({
           <Globe className="w-5 h-5 text-gray-400" />
           <h3 className="font-semibold text-gray-900">Custom domain</h3>
           <span className="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-            Local Pro
+            Local Pro+
           </span>
         </div>
         <p className="text-[15px] text-gray-600 mb-4 leading-relaxed">
           <span className="font-semibold text-gray-900">Connect a live domain and start ranking on Google!</span>{" "}
           Use your own web address like <span className="font-medium">yourbusiness.com</span> to look
-          more professional and get found faster. Available on Local Pro.
+          more professional and get found faster. Available on Local Pro+.
         </p>
         <div className="flex items-center gap-4">
           <a
             href="/dashboard/vendor/upgrade"
             className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
           >
-            Upgrade to Local Pro
+            Upgrade to Local Pro+
           </a>
           <a
             href="/connect-domain"
