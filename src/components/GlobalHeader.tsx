@@ -13,6 +13,8 @@ const HIDDEN_PREFIXES = [
   "/connect-domain", "/u/", "/profile", "/reset-password", "/auth",
   // Static/utility pages that already render their own full nav bar
   "/notifications", "/about", "/pricing", "/contact", "/terms", "/privacy",
+  // Storefront pages render their own unified header with a site menu (hamburger)
+  "/vendors/",
 ];
 
 export default function GlobalHeader() {

@@ -13,6 +13,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import VendorLogo from "@/components/vendor/VendorLogo";
 import TypedText from "@/components/TypedText";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
+import SearchSuggestions from "@/components/SearchSuggestions";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -315,6 +316,22 @@ export default function HomePage() {
                 Search →
               </button>
             </form>
+
+            {/* Ask Mike — location-aware + learned search suggestions */}
+            <SearchSuggestions
+              citySlug={activeCity}
+              cityLabel={resolveCity(activeCity)?.label ?? cityName}
+              onPick={(term) => {
+                setQuery(term);
+                const params = new URLSearchParams();
+                params.set("q", term);
+                if (activeCity) params.set("city", activeCity);
+                const url = `/search?${params.toString()}`;
+                if (gate(url)) return;
+                router.push(url);
+              }}
+              className="mb-5"
+            />
 
             {/* Friction-killer trust line */}
             <p className="text-xs text-gray-400 mb-5">100% FREE Until Launch! · No credit card needed · Now Live in Your Neighborhood</p>

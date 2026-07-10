@@ -13,6 +13,7 @@ import FollowButton from "@/components/FollowButton";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
 import ReferModal from "@/components/ReferModal";
 import LocalTop8Badge from "@/components/LocalTop8Badge";
+import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
 type PageBlock = {
   id: string;
@@ -152,7 +153,10 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   const [messageListing, setMessageListing] = useState<Listing | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
   const [showRefer, setShowRefer] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string; role?: string | null } | null>(null);
+  const [siteMenuOpen, setSiteMenuOpen] = useState(false);
+  const [citySlug, setCitySlug] = useState(DEFAULT_CITY_SLUG);
+  const siteMenuRef = useRef<HTMLDivElement>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showContactDropdown, setShowContactDropdown] = useState(false);
   // Soft signup gate: guests must create a profile before high-intent actions.
@@ -264,9 +268,24 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   useEffect(() => {
     createClient().auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return;
-      const { data: profile } = await createClient().from("profiles").select("id, full_name").eq("id", user.id).single();
+      const { data: profile } = await createClient().from("profiles").select("id, full_name, role").eq("id", user.id).single();
       if (profile) setCurrentUser({ ...profile, email: user.email });
     });
+  }, []);
+
+  // Site menu (hamburger) — city for local links + close on outside click
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(LS_CITY_KEY);
+      if (saved) setCitySlug(saved);
+    }
+  }, []);
+  useEffect(() => {
+    function onClick(e: MouseEvent) {
+      if (siteMenuRef.current && !siteMenuRef.current.contains(e.target as Node)) setSiteMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
   // Track a store-page view once per browser session (counts as a view for each listing).
@@ -519,8 +538,8 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         </div>
       )}
 
-      {/* ── STICKY VENDOR NAV (sits below the global header) ───────── */}
-      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-16 z-40">
+      {/* ── STICKY VENDOR NAV (unified storefront header; global header is hidden here) ── */}
+      <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
           {/* Back + Logo */}
           <Link href="/search" className="text-gray-400 hover:text-gray-700 transition-colors text-xl shrink-0 leading-none">←</Link>
@@ -548,38 +567,62 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
             ))}
           </nav>
 
-          {/* Right actions — desktop only; mobile/tablet use the sticky bottom bar so the header stays a clean single header */}
-          <div className="hidden lg:flex items-center gap-1.5 ml-auto shrink-0">
-            {vendor.phone && (
-              <a href={`tel:${vendor.phone}`} className="hidden lg:flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors border border-gray-200 rounded-lg px-3 py-2 font-medium">
-                📞 {vendor.phone}
-              </a>
-            )}
-            <button
-              onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
-              className="text-sm border border-gray-200 text-gray-700 px-2.5 py-2 rounded-lg font-semibold hover:border-gray-400 transition-colors whitespace-nowrap"
-            >
-              <span className="hidden sm:inline">💬 Message</span>
-              <span className="sm:hidden text-lg leading-none">💬</span>
-            </button>
-            {ctaAction && (
-              ctaAction === "call" && vendor.phone ? (
-                <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
-                  <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
-                  <span className="sm:hidden text-lg leading-none">📞</span>
+          {/* Right actions + site menu */}
+          <div className="flex items-center gap-1.5 ml-auto shrink-0">
+            {/* Contact/CTA — desktop only; mobile/tablet use the sticky bottom bar */}
+            <div className="hidden lg:flex items-center gap-1.5">
+              {vendor.phone && (
+                <a href={`tel:${vendor.phone}`} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors border border-gray-200 rounded-lg px-3 py-2 font-medium">
+                  📞 {vendor.phone}
                 </a>
-              ) : ctaAction === "order" && ctaOrderUrl ? (
-                <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
-                  <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
-                  <span className="sm:hidden text-lg leading-none">🛒</span>
-                </a>
-              ) : ctaAction !== "call" ? (
-                <button onClick={() => { if (requireAccount()) return; setShowCtaForm(true); }} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
-                  <span className="hidden sm:inline">{CTA_LABELS[ctaAction]} →</span>
-                  <span className="sm:hidden text-lg leading-none">{ctaAction === "estimate" ? "📋" : "🛒"}</span>
-                </button>
-              ) : null
-            )}
+              )}
+              <button
+                onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
+                className="text-sm border border-gray-200 text-gray-700 px-2.5 py-2 rounded-lg font-semibold hover:border-gray-400 transition-colors whitespace-nowrap"
+              >
+                💬 Message
+              </button>
+              {ctaAction && (
+                ctaAction === "call" && vendor.phone ? (
+                  <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
+                    {CTA_LABELS[ctaAction]} →
+                  </a>
+                ) : ctaAction === "order" && ctaOrderUrl ? (
+                  <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
+                    {CTA_LABELS[ctaAction]} →
+                  </a>
+                ) : ctaAction !== "call" ? (
+                  <button onClick={() => { if (requireAccount()) return; setShowCtaForm(true); }} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
+                    {CTA_LABELS[ctaAction]} →
+                  </button>
+                ) : null
+              )}
+            </div>
+
+            {/* Site menu (☰) — replaces the full Everything Local bar on storefronts */}
+            <div className="relative" ref={siteMenuRef}>
+              <button onClick={() => setSiteMenuOpen((v) => !v)} aria-label="Site menu" aria-expanded={siteMenuOpen} className="p-2 -mr-1 text-gray-600 hover:text-gray-900 transition-colors">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" /></svg>
+              </button>
+              {siteMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                  <Link href="/" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏠 Home</Link>
+                  <Link href="/search" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🔍 Browse local</Link>
+                  <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
+                  <Link href={`/jobs/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
+                  <Link href={`/explore/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
+                  <div className="border-t border-gray-100 my-1" />
+                  {currentUserId ? (
+                    <Link href={currentUser?.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">Dashboard →</Link>
+                  ) : (
+                    <>
+                      <Link href="/login" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">Log in</Link>
+                      <Link href="/signup" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">Sign up free</Link>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
