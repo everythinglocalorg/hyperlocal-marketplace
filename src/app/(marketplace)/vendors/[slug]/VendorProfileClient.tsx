@@ -426,8 +426,17 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       >
         {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"} →
       </button>
+      {effectiveCta && (
+        <button
+          onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
+          aria-label="Message"
+          className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl text-sm"
+        >
+          💬
+        </button>
+      )}
       {vendor.phone && (
-        <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-5 py-3 rounded-xl text-sm">
+        <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} aria-label="Call" className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-5 py-3 rounded-xl text-sm">
           📞
         </a>
       )}
@@ -605,18 +614,21 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
           </div>
           <div className="mt-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
-              {vendor.is_verified && <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>}
-              {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
-              {isFoundingMember && <span title="One of the first businesses to launch on Everything Local" className="text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">🏅 Founding Member</span>}
-            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900 leading-tight">{vendor.business_name}</h1>
             <div className="flex items-center gap-2 mt-1 text-sm text-gray-500 flex-wrap">
               <span className="text-amber-500 font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
               <span className="text-gray-400">{vendor.review_count > 0 ? `(${vendor.review_count} reviews)` : "New"}</span>
               <span>·</span>
               <span>{vendor.city}, {vendor.state}</span>
             </div>
+            {/* Badges row — recognition pills grouped on their own line for prominence */}
+            {(vendor.is_verified || localTop8Rank || isFoundingMember) && (
+              <div className="flex items-center gap-2 flex-wrap mt-3">
+                {vendor.is_verified && <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">✓ Verified local</span>}
+                {localTop8Rank && <LocalTop8Badge rank={localTop8Rank} city={vendor.city} state={vendor.state} />}
+                {isFoundingMember && <span title="One of the first businesses to launch on Everything Local" className="text-[11px] font-bold bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">🏅 Founding Member</span>}
+              </div>
+            )}
           </div>
 
           {/* Follow — live follower count */}
