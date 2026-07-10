@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
 import { LISTING_CTAS, ListingCtaType, ListingCtaAction, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
+import { useCart } from "@/lib/cart";
 
 // Minimal listing shape the detail popup (and its CTA resolution) needs.
 // Both the vendor profile and search results satisfy this structurally.
@@ -68,11 +69,13 @@ export function resolveListingCta(listing: DetailListing, vendorPhone: string | 
 // gallery and details with a sticky action bar. Pass vendorName + vendorSlug
 // (e.g. from search) to render a "view business" link; omit on the vendor's
 // own profile page where it would be redundant.
-export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, onClose, onBook, onBuy, onMessage, onEstimate }: {
+export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, cartVendor, onClose, onBook, onBuy, onMessage, onEstimate }: {
   listing: DetailListing; vendorPhone: string | null; menuPdfUrl: string | null;
   vendorName?: string | null; vendorSlug?: string | null;
+  cartVendor?: { id: string; name: string; slug: string };
   onClose: () => void; onBook: () => void; onBuy: () => void; onMessage: () => void; onEstimate: () => void;
 }) {
+  const cart = useCart();
   const [imgIdx, setImgIdx] = useState(0);
   const housingData = parseHousing(listing);
   const thriftData = parseThrift(listing);
@@ -83,7 +86,7 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
 
   function runCta() {
     if (ctaAction === "book") onBook();
-    else if (ctaAction === "buy") onBuy();
+    else if (ctaAction === "buy" || ctaAction === "order") onBuy();
     else if (ctaAction === "estimate") onEstimate();
     else if (ctaAction === "menu") {
       if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
@@ -93,6 +96,19 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
     else onMessage();
   }
 
+  function addToCart() {
+    if (!cartVendor || listing.price == null) return;
+    const item = { listingId: listing.id, title: listing.title, price: Number(listing.price), image: listing.images?.[0] ?? null };
+    const res = cart.addItem(cartVendor, item);
+    if (res === "conflict") {
+      const ok = window.confirm(`Your cart has items from ${cart.vendor?.name}. You can only order from one store at a time — start a new cart with ${cartVendor.name}?`);
+      if (!ok) return;
+      cart.startNewCart(cartVendor, item);
+    }
+    onClose();
+    cart.open();
+  }
+
   // One dominant, oversized primary CTA — the decision should be obvious at a glance.
   const primaryCta = "flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-black py-4 rounded-2xl text-base hover:bg-green-700 active:scale-[0.99] transition-all shadow-lg shadow-green-600/30";
   // Attach the price to buy/book actions so value + action land in one look.
@@ -100,7 +116,10 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   // text like "See menu" / "Order now" / "Free estimate" just echoes the button,
   // so it's never rendered as a price line or appended to the CTA.
   const hasNumericPrice = !!priceLabel && /\d/.test(priceLabel);
-  const showPriceInCta = hasNumericPrice && (ctaAction === "buy" || ctaAction === "book");
+  const isPurchase = ctaAction === "buy" || ctaAction === "order";
+  const showPriceInCta = hasNumericPrice && (isPurchase || ctaAction === "book");
+  // Show "Add to Cart" beside Buy/Order Now only for purchasable, priced items.
+  const canAddToCart = isPurchase && !!cartVendor && listing.price != null && hasNumericPrice;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 sm:p-4" onClick={onClose}>
@@ -261,6 +280,20 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
               >
                 🍽️ {ctaLabel}
               </a>
+            ) : canAddToCart ? (
+              <>
+                <button
+                  onClick={addToCart}
+                  className="flex-1 flex items-center justify-center gap-1.5 border-2 border-green-600 text-green-700 font-black py-4 rounded-2xl text-base hover:bg-green-50 active:scale-[0.99] transition-all"
+                >
+                  🛒 Add to Cart
+                </button>
+                <button onClick={runCta} className={primaryCta}>
+                  <span>{ctaLabel}</span>
+                  {showPriceInCta && <span className="font-bold opacity-90">· {priceLabel}</span>}
+                  <span className="text-lg">→</span>
+                </button>
+              </>
             ) : (
               <button onClick={runCta} className={primaryCta}>
                 <span>{ctaLabel}</span>

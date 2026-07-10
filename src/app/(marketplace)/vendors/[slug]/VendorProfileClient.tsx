@@ -183,8 +183,8 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const CTA_LABELS: Record<string, string> = { call: "Call", estimate: "Request Free Estimate", order: "Order Now" };
 
   // Hide the "website" link when it just points back to Everything Local itself
-  // (imported vendors default their website to every1local.com/vendors/…).
-  const externalWebsite = vendor.website && !/every1local\.com/i.test(vendor.website) ? vendor.website : null;
+  // (imported vendors default their website to our own domain /vendors/…).
+  const externalWebsite = vendor.website && !/every1local\.com|everythinglocal\.(shop|org)/i.test(vendor.website) ? vendor.website : null;
 
   // Service-based businesses request estimates; product/food/retail businesses "get in touch".
   const isServiceBased = SERVICE_CATEGORIES.has(vendor.category);
@@ -512,6 +512,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         listing={detailListing}
         vendorPhone={vendor.phone}
         menuPdfUrl={vendor.menu_pdf_url ?? null}
+        cartVendor={{ id: vendor.id, name: vendor.business_name, slug: vendor.slug }}
         onClose={() => setDetailListing(null)}
         onBook={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); openBooking(l); }}
         onBuy={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}

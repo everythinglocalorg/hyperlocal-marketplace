@@ -515,6 +515,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           menuPdfUrl={detailCtx.vendor.menu_pdf_url}
           vendorName={detailCtx.vendor.business_name}
           vendorSlug={detailCtx.vendor.slug}
+          cartVendor={{ id: detailCtx.vendor.id, name: detailCtx.vendor.business_name, slug: detailCtx.vendor.slug }}
           onClose={() => setDetailCtx(null)}
           onBook={() => { const ctx = detailCtx; setDetailCtx(null); openBooking(ctx); }}
           onBuy={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setBuyCtx(ctx); }}
