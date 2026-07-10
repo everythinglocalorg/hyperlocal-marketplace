@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/client";
-import { rememberSearch } from "@/lib/suggestions";
 
 // First-party analytics — events land in public.analytics_events (supabase/analytics.sql).
 // Browser-only: every export no-ops on the server and never throws.
@@ -111,7 +110,6 @@ export function trackSearch(data: SearchEventData, delayMs = 1500): void {
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     searchTimer = null;
-    rememberSearch(data.query); // Ask Mike learns this device's searches
     track("search", { ...data, zero_results: data.result_count === 0 });
   }, delayMs);
 }
