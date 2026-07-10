@@ -6,9 +6,9 @@ import { Substrate, UnitBasis, CALC_TYPE_LABEL } from "@/lib/estimate-pricing";
 const CALC_TYPES: UnitBasis[] = ["sqft", "linear_ft", "each", "hour"];
 const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500";
 
-type Draft = { id?: string; name: string; calc_type: UnitBasis; production_rate: number; labor_rate: number };
+type Draft = { id?: string; name: string; calc_type: UnitBasis; production_rate: number; labor_rate: number; width_inches: number };
 
-function blank(): Draft { return { name: "", calc_type: "sqft", production_rate: 0, labor_rate: 0 }; }
+function blank(): Draft { return { name: "", calc_type: "sqft", production_rate: 0, labor_rate: 0, width_inches: 0 }; }
 
 // Unit noun for a calc type, used in labels like "square feet per hour".
 function unitNoun(t: UnitBasis): string {
@@ -39,6 +39,7 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
     const payload = {
       vendor_id: vendorId, name: editing.name.trim(), calc_type: editing.calc_type,
       production_rate: Number(editing.production_rate) || 0, labor_rate: Number(editing.labor_rate) || 0,
+      width_inches: editing.calc_type === "linear_ft" ? (Number(editing.width_inches) || 0) : null,
     };
     if (editing.id) {
       await supabase.from("estimate_substrates").update(payload).eq("id", editing.id);
@@ -86,11 +87,12 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
                   <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{CALC_TYPE_LABEL[s.calc_type]}</span>
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {s.production_rate > 0 ? `${s.production_rate} ${unitNoun(s.calc_type)}/hr · ` : ""}${Number(s.labor_rate).toFixed(2)}/hr labor
+                  {Number(s.width_inches) > 0 ? `${s.width_inches}" wide · ` : ""}
+                  {s.production_rate > 0 ? `${s.production_rate} ${Number(s.width_inches) > 0 ? "square feet" : unitNoun(s.calc_type)}/hr · ` : ""}${Number(s.labor_rate).toFixed(2)}/hr labor
                 </p>
               </div>
               <div className="flex gap-2 shrink-0">
-                <button onClick={() => setEditing({ id: s.id, name: s.name, calc_type: s.calc_type, production_rate: s.production_rate, labor_rate: s.labor_rate })} className="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">Edit</button>
+                <button onClick={() => setEditing({ id: s.id, name: s.name, calc_type: s.calc_type, production_rate: s.production_rate, labor_rate: s.labor_rate, width_inches: Number(s.width_inches) || 0 })} className="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">Edit</button>
                 <button onClick={() => remove(s.id)} className="text-xs text-red-400 hover:text-red-600">✕</button>
               </div>
             </div>
@@ -117,13 +119,24 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
                   {CALC_TYPES.map((t) => <option key={t} value={t}>{CALC_TYPE_LABEL[t]}</option>)}
                 </select>
               </label>
+              {editing.calc_type === "linear_ft" && (
+                <label className="block">
+                  <span className="text-xs font-semibold text-gray-500 block mb-1">Width (inches)</span>
+                  <input type="number" min={0} step="0.25" value={editing.width_inches}
+                    onChange={(e) => setEditing({ ...editing, width_inches: Number(e.target.value) })}
+                    placeholder="e.g. 4" className={inputCls} />
+                  <span className="text-[11px] text-gray-400 block mt-1">Converts linear feet to square feet (LF × in ÷ 12) so your sq-ft production rate applies. Leave 0 to rate per linear foot.</span>
+                </label>
+              )}
               {editing.calc_type !== "hour" && (
                 <label className="block">
-                  <span className="text-xs font-semibold text-gray-500 block mb-1">Production rate ({unitNoun(editing.calc_type)} per hour)</span>
+                  <span className="text-xs font-semibold text-gray-500 block mb-1">
+                    Production rate ({editing.calc_type === "linear_ft" && editing.width_inches > 0 ? "square feet" : unitNoun(editing.calc_type)} per hour)
+                  </span>
                   <input type="number" min={0} step="0.01" value={editing.production_rate}
                     onChange={(e) => setEditing({ ...editing, production_rate: Number(e.target.value) })}
                     placeholder="e.g. 200" className={inputCls} />
-                  <span className="text-[11px] text-gray-400 block mt-1">How many {unitNoun(editing.calc_type)} your crew completes in one hour.</span>
+                  <span className="text-[11px] text-gray-400 block mt-1">How many {editing.calc_type === "linear_ft" && editing.width_inches > 0 ? "square feet" : unitNoun(editing.calc_type)} your crew completes in one hour.</span>
                 </label>
               )}
               <label className="block">

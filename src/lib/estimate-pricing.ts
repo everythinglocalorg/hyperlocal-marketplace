@@ -35,6 +35,7 @@ export type CatalogItem = {
   unit_basis: UnitBasis;
   spread_rate: number | null;      // material coverage (units per unit of product, e.g. sqft/gallon)
   production_rate?: number | null; // units completed per hour (drives labor time)
+  width_inches?: number | null;    // for linear_ft: converts linear feet → sq ft (LF × in / 12)
   cost_of_goods: number;
   labor_rate: number;              // $ per hour when production_rate is set, else $ per unit
   markup_pct: number;
@@ -51,12 +52,14 @@ export type Substrate = {
   calc_type: UnitBasis;
   production_rate: number;         // units completed per hour
   labor_rate: number;              // $ per hour
+  width_inches?: number | null;    // default width (inches) for linear_ft → sq ft conversion
   is_active: boolean;
 };
 
 // Per-vendor estimating defaults.
 export type EstimateSettings = {
-  default_labor_rate: number;
+  default_labor_rate: number;   // what you BILL per hour
+  hourly_cost_rate: number;     // what you PAY per hour (for profit / job metrics)
   default_markup_pct: number;
   tax_rate_pct: number;
   min_job_price: number;
@@ -64,7 +67,7 @@ export type EstimateSettings = {
 };
 
 export const DEFAULT_SETTINGS: EstimateSettings = {
-  default_labor_rate: 0, default_markup_pct: 0, tax_rate_pct: 0, min_job_price: 0, default_deposit_pct: 50,
+  default_labor_rate: 0, hourly_cost_rate: 0, default_markup_pct: 0, tax_rate_pct: 0, min_job_price: 0, default_deposit_pct: 50,
 };
 
 export const CALC_TYPE_LABEL: Record<UnitBasis, string> = {
@@ -87,6 +90,7 @@ export type ProposalLine = {
   // snapshots from the catalog item / substrate at add-time
   spread_rate: number;          // material coverage (units per unit of product)
   production_rate: number;      // units completed per hour (0 = labor priced per unit)
+  width_inches: number;         // for linear_ft: converts linear feet → sq ft (LF × in / 12); 0 = off
   cost_of_goods: number;
   labor_rate: number;           // $ per hour when production_rate > 0, else $ per unit
   markup_pct: number;
@@ -157,8 +161,19 @@ export function isCoverageBasis(basis: UnitBasis): boolean {
   return basis === "sqft" || basis === "linear_ft";
 }
 
+// The units used to rate a line. For linear-foot work with a width (e.g. trim),
+// linear feet convert to square feet (LF × inches / 12) so a sq-ft production
+// rate and coverage apply. Everything else rates on its own measurement.
+export function billableUnits(line: Pick<ProposalLine, "unit_basis" | "measurement" | "width_inches">): number {
+  const m = num(line.measurement);
+  if (line.unit_basis === "linear_ft" && num(line.width_inches) > 0) {
+    return m * num(line.width_inches) / 12;
+  }
+  return m;
+}
+
 export function computeLineTotal(line: Pick<ProposalLine,
-  "unit_basis" | "measurement" | "coats" | "spread_rate" | "production_rate" | "cost_of_goods" |
+  "unit_basis" | "measurement" | "coats" | "spread_rate" | "production_rate" | "width_inches" | "cost_of_goods" |
   "labor_rate" | "markup_pct" | "manual_total">): number {
   // Flat lines (fees / discounts) are a plain amount held in manual_total; it may
   // be negative for a discount.
@@ -171,28 +186,30 @@ export function computeLineTotal(line: Pick<ProposalLine,
   const labor = num(line.labor_rate);
   const markup = num(line.markup_pct);
   const prodRate = num(line.production_rate);
+  const units = billableUnits(line);   // sq ft for trim-with-width, else the measurement
 
   // Material: coverage-based when a spread rate is set, else cost per unit.
   let material = 0;
   if (isCoverageBasis(line.unit_basis)) {
     const rate = num(line.spread_rate);
-    material = rate > 0 ? (measurement / rate) * cogs : 0;
+    material = rate > 0 ? (units / rate) * cogs : 0;
   } else {
     material = measurement * cogs;
   }
 
-  // Labor: hours = measurement / production_rate when a rate is set (labor_rate is
-  // $/hour); otherwise labor_rate is $/unit. Per-hour lines bill measurement × rate.
+  // Labor: hours = billable units / production_rate when a rate is set (labor_rate
+  // is $/hour); otherwise labor_rate is $/unit. Per-hour lines bill measurement × rate.
   let laborCost;
   if (line.unit_basis === "hour") {
     laborCost = measurement * labor;
   } else if (prodRate > 0) {
-    laborCost = (measurement / prodRate) * labor;
+    laborCost = (units / prodRate) * labor;
   } else {
     laborCost = measurement * labor;
   }
 
-  return round2((material + laborCost) * (1 + markup / 100));
+  // Markup applies to product/material cost only — never to labor.
+  return round2(material * (1 + markup / 100) + laborCost);
 }
 
 // A line is optional if it's marked optional, or (legacy) its area is optional.
@@ -228,6 +245,53 @@ export function estimateTotal(areas: Area[], addons: Addon[]): number {
     .filter((a) => a.included)
     .reduce((s, a) => s + num(a.total), 0);
   return round2(areaSum + addonSum);
+}
+
+// ── Cost / profit (Job Metrics) ──────────────────────────────────────────────
+// These estimate ACTUAL cost from the same inputs: material cost = COGS (no
+// markup); labor hours = billable units / production rate (or measurement for
+// per-hour lines); labor cost = hours × the vendor's hourly cost rate.
+
+export function lineLaborHours(line: Pick<ProposalLine, "unit_basis" | "measurement" | "width_inches" | "production_rate">): number {
+  if (line.unit_basis === "flat") return 0;
+  if (line.unit_basis === "hour") return num(line.measurement);
+  const pr = num(line.production_rate);
+  return pr > 0 ? billableUnits(line) / pr : 0;
+}
+
+export function lineMaterialCost(line: Pick<ProposalLine, "unit_basis" | "measurement" | "width_inches" | "spread_rate" | "cost_of_goods">): number {
+  if (line.unit_basis === "flat") return 0;
+  const cogs = num(line.cost_of_goods);
+  if (isCoverageBasis(line.unit_basis)) {
+    const r = num(line.spread_rate);
+    return r > 0 ? (billableUnits(line) / r) * cogs : 0;
+  }
+  return num(line.measurement) * cogs;
+}
+
+// Revenue / cost / profit for the base proposal (always-included lines + included
+// add-ons). Add-ons have no cost breakdown, so they count as pure margin.
+export function estimateCost(areas: Area[], addons: Addon[], hourlyCostRate: number): {
+  revenue: number; materialCost: number; laborHours: number; laborCost: number; cost: number; profit: number; margin: number;
+} {
+  let materialCost = 0;
+  let laborHours = 0;
+  for (const a of areas ?? []) {
+    for (const l of a.lines ?? []) {
+      if (isLineOptional(a, l)) continue;
+      materialCost += lineMaterialCost(l);
+      laborHours += lineLaborHours(l);
+    }
+  }
+  const laborCost = laborHours * num(hourlyCostRate);
+  const revenue = estimateTotal(areas, addons);
+  const cost = round2(materialCost + laborCost);
+  const profit = round2(revenue - cost);
+  return {
+    revenue, materialCost: round2(materialCost), laborHours: round2(laborHours),
+    laborCost: round2(laborCost), cost, profit,
+    margin: revenue > 0 ? round2((profit / revenue) * 100) : 0,
+  };
 }
 
 // Sum of all optional line items across areas (shown to the vendor as a note).
@@ -317,6 +381,7 @@ export function newLineFromCatalog(item: CatalogItem): ProposalLine {
     coats: 1,
     spread_rate: num(item.spread_rate),
     production_rate: num(item.production_rate),
+    width_inches: num(item.width_inches),
     cost_of_goods: num(item.cost_of_goods),
     labor_rate: num(item.labor_rate),
     markup_pct: num(item.markup_pct),
@@ -335,6 +400,7 @@ export function newLineFromSubstrate(sub: Substrate): ProposalLine {
     substrate: sub.name,
     unit_basis: sub.calc_type,
     production_rate: num(sub.production_rate),
+    width_inches: num(sub.width_inches),
     labor_rate: num(sub.labor_rate),
   };
 }
@@ -350,6 +416,7 @@ export function newBlankLine(): ProposalLine {
     coats: 1,
     spread_rate: 0,
     production_rate: 0,
+    width_inches: 0,
     cost_of_goods: 0,
     labor_rate: 0,
     markup_pct: 0,

@@ -4,23 +4,24 @@ import PriceBookSettings from "@/components/vendor/PriceBookSettings";
 import TemplateManager from "@/components/vendor/TemplateManager";
 import SnippetManager from "@/components/vendor/SnippetManager";
 import VideoLibrary from "@/components/vendor/VideoLibrary";
+import PhotoLibrary from "@/components/vendor/PhotoLibrary";
 import SubstrateManager from "@/components/vendor/SubstrateManager";
 import EstimatorSettings from "@/components/vendor/EstimatorSettings";
 
 type Section = "templates" | "substrates" | "pricebook" | "snippets" | "videos" | "settings";
 
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
-  { id: "templates", label: "Templates", icon: "🧱" },
-  { id: "substrates", label: "Substrates", icon: "📐" },
-  { id: "pricebook", label: "Price Book", icon: "🎨" },
-  { id: "snippets", label: "Text & Notes", icon: "✍️" },
-  { id: "videos", label: "Video Library", icon: "🎬" },
   { id: "settings", label: "Settings", icon: "⚙️" },
+  { id: "substrates", label: "Production Rates", icon: "📐" },
+  { id: "pricebook", label: "Products", icon: "🎨" },
+  { id: "snippets", label: "Text & Notes", icon: "✍️" },
+  { id: "videos", label: "Video + Photo Library", icon: "🎬" },
+  { id: "templates", label: "Templates", icon: "🧱" },
 ];
 
 // Hub for everything a vendor sets up once and reuses across proposals.
-export default function EstimatorTools({ vendorId }: { vendorId: string }) {
-  const [section, setSection] = useState<Section>("templates");
+export default function EstimatorTools({ vendorId, userId }: { vendorId: string; userId: string }) {
+  const [section, setSection] = useState<Section>("settings");
 
   return (
     <div>
@@ -42,7 +43,12 @@ export default function EstimatorTools({ vendorId }: { vendorId: string }) {
       {section === "substrates" && <SubstrateManager vendorId={vendorId} />}
       {section === "pricebook" && <PriceBookSettings vendorId={vendorId} />}
       {section === "snippets" && <SnippetManager vendorId={vendorId} />}
-      {section === "videos" && <VideoLibrary vendorId={vendorId} />}
+      {section === "videos" && (
+        <div className="space-y-8">
+          <PhotoLibrary vendorId={vendorId} userId={userId} />
+          <div className="border-t border-gray-100 pt-6"><VideoLibrary vendorId={vendorId} /></div>
+        </div>
+      )}
       {section === "settings" && <EstimatorSettings vendorId={vendorId} />}
     </div>
   );

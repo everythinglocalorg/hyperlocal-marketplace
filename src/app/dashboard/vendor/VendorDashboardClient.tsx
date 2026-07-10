@@ -11,6 +11,7 @@ import BoostModal from "@/components/BoostModal";
 import CrmBoard from "@/components/vendor/CrmBoard";
 import ProposalBuilder from "@/components/vendor/ProposalBuilder";
 import EstimatorTools from "@/components/vendor/EstimatorTools";
+import JobMetrics from "@/components/vendor/JobMetrics";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
 import PlacesManager from "@/components/admin/PlacesManager";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
@@ -149,7 +150,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   function awardScore(action: "login" | "message" | "listing" | "sale") {
     fetch("/api/score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, vendor_id: vendor.id }) }).catch(() => {});
   }
-  const [crmView, setCrmView] = useState<"board" | "estimates" | "tools">("board");
+  const [crmView, setCrmView] = useState<"board" | "estimates" | "tools" | "metrics">("board");
   const [estimateContact, setEstimateContact] = useState<any>(null);
   const [showUpgradedToast, setShowUpgradedToast] = useState(
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("upgraded") === "1"
@@ -907,6 +908,12 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   >
                     🧰 Estimator Tools
                   </button>
+                  <button
+                    onClick={() => { setCrmView("metrics"); setEstimateContact(null); }}
+                    className={`text-sm font-semibold px-4 py-2 rounded-xl transition-colors ${crmView === "metrics" ? "bg-green-600 text-white" : "border border-gray-200 text-gray-600 hover:bg-gray-50"}`}
+                  >
+                    📊 Job Metrics
+                  </button>
                 </div>
                 {crmView === "board" ? (
                   <CrmBoard
@@ -914,7 +921,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                     onCreateEstimate={(contact) => { setEstimateContact(contact); setCrmView("estimates"); }}
                   />
                 ) : crmView === "tools" ? (
-                  <EstimatorTools vendorId={vendor.id} />
+                  <EstimatorTools vendorId={vendor.id} userId={vendor.user_id} />
+                ) : crmView === "metrics" ? (
+                  <JobMetrics vendorId={vendor.id} />
                 ) : (
                   <ProposalBuilder
                     vendorId={vendor.id}

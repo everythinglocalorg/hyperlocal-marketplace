@@ -2,7 +2,7 @@
 import { useState } from "react";
 import {
   CatalogItem, Substrate, Area, Addon, ProposalLine, DepositType, PaymentMethod, ProposalStructure, StructureVideo,
-  UNIT_LABEL, UnitBasis, computeLineTotal, areaTotal, estimateTotal, depositAmount,
+  UNIT_LABEL, UnitBasis, computeLineTotal, billableUnits, areaTotal, estimateTotal, depositAmount,
   isLineOptional, optionalLinesTotal, newArea, newAddon, newLineFromCatalog, newLineFromSubstrate, newBlankLine, newFlatLine,
 } from "@/lib/estimate-pricing";
 
@@ -41,6 +41,14 @@ export default function ProposalStructureEditor({
     set({ areas: areas.map((a) => (a.id === areaId ? { ...a, lines: [...a.lines, line] } : a)) });
   const removeLine = (areaId: string, lineId: string) =>
     set({ areas: areas.map((a) => (a.id === areaId ? { ...a, lines: a.lines.filter((l) => l.id !== lineId) } : a)) });
+  const duplicateLine = (areaId: string, lineId: string) =>
+    set({ areas: areas.map((a) => {
+      if (a.id !== areaId) return a;
+      const idx = a.lines.findIndex((l) => l.id === lineId);
+      if (idx < 0) return a;
+      const copy = { ...a.lines[idx], id: crypto.randomUUID() };
+      return { ...a, lines: [...a.lines.slice(0, idx + 1), copy, ...a.lines.slice(idx + 1)] };
+    }) });
 
   // Add-ons
   const updateAddon = (id: string, p: Partial<Addon>) => set({ addons: addons.map((a) => (a.id === id ? { ...a, ...p } : a)) });
@@ -77,6 +85,7 @@ export default function ProposalStructureEditor({
             onAddLine={(line) => addLine(area.id, line)}
             onUpdateLine={(lineId, p) => updateLine(area.id, lineId, p)}
             onRemoveLine={(lineId) => removeLine(area.id, lineId)}
+            onDuplicateLine={(lineId) => duplicateLine(area.id, lineId)}
           />
         ))}
       </div>
@@ -234,12 +243,13 @@ function VideoPicker({ library, onAdd }: { library: LibraryVideo[]; onAdd: (v: {
 }
 
 // ── Area card ────────────────────────────────────────────────────────────────
-function AreaCard({ area, catalog, substrates, onUpdate, onRemove, onAddLine, onUpdateLine, onRemoveLine }: {
+function AreaCard({ area, catalog, substrates, onUpdate, onRemove, onAddLine, onUpdateLine, onRemoveLine, onDuplicateLine }: {
   area: Area; catalog: CatalogItem[]; substrates: Substrate[];
   onUpdate: (p: Partial<Area>) => void; onRemove: () => void;
   onAddLine: (line: ProposalLine) => void;
   onUpdateLine: (lineId: string, p: Partial<ProposalLine>) => void;
   onRemoveLine: (lineId: string) => void;
+  onDuplicateLine: (lineId: string) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const total = areaTotal(area);
@@ -274,7 +284,7 @@ function AreaCard({ area, catalog, substrates, onUpdate, onRemove, onAddLine, on
                 <span className="col-span-1" />
               </div>
               {area.lines.map((line) => (
-                <LineRow key={line.id} line={line} onUpdate={(p) => onUpdateLine(line.id, p)} onRemove={() => onRemoveLine(line.id)} />
+                <LineRow key={line.id} line={line} onUpdate={(p) => onUpdateLine(line.id, p)} onRemove={() => onRemoveLine(line.id)} onDuplicate={() => onDuplicateLine(line.id)} />
               ))}
             </div>
           )}
@@ -305,8 +315,8 @@ function AreaCard({ area, catalog, substrates, onUpdate, onRemove, onAddLine, on
 }
 
 // ── Line row ─────────────────────────────────────────────────────────────────
-function LineRow({ line, onUpdate, onRemove }: {
-  line: ProposalLine; onUpdate: (p: Partial<ProposalLine>) => void; onRemove: () => void;
+function LineRow({ line, onUpdate, onRemove, onDuplicate }: {
+  line: ProposalLine; onUpdate: (p: Partial<ProposalLine>) => void; onRemove: () => void; onDuplicate: () => void;
 }) {
   const flat = line.unit_basis === "flat";
   const computed = computeLineTotal({ ...line, manual_total: null });
@@ -319,9 +329,10 @@ function LineRow({ line, onUpdate, onRemove }: {
     </label>
   );
   const removeCol = (
-    <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1">
+    <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1.5">
       {overridden && <button onClick={() => onUpdate({ manual_total: null })} title="Reset to auto" className="text-gray-300 hover:text-green-500 text-xs">↺</button>}
-      <button onClick={onRemove} className="text-gray-300 hover:text-red-400 text-sm">✕</button>
+      <button onClick={onDuplicate} title="Duplicate line" className="text-gray-300 hover:text-green-600 text-sm">⧉</button>
+      <button onClick={onRemove} title="Remove line" className="text-gray-300 hover:text-red-400 text-sm">✕</button>
     </div>
   );
 
@@ -350,7 +361,16 @@ function LineRow({ line, onUpdate, onRemove }: {
       <div className="col-span-12 sm:col-span-5">
         <input value={line.name} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Item name"
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-        {(line.product_line || line.catalog_item_id) && (
+        {line.unit_basis === "linear_ft" && (
+          <div className="flex items-center gap-1.5 mt-1 px-1">
+            <span className="text-[11px] text-gray-400">Width</span>
+            <input type="number" min={0} step="0.25" value={line.width_inches || ""}
+              onChange={(e) => onUpdate({ width_inches: e.target.value === "" ? 0 : Number(e.target.value) })}
+              placeholder="in" className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-green-500" />
+            <span className="text-[11px] text-gray-400">in{line.width_inches > 0 && line.measurement > 0 ? ` → ${Math.round(billableUnits(line))} sq ft` : ""}</span>
+          </div>
+        )}
+        {line.unit_basis !== "linear_ft" && (line.product_line || line.catalog_item_id) && (
           <p className="text-[11px] text-gray-400 mt-0.5 px-1 truncate">{line.product_line ?? "Custom"} · {UNIT_LABEL[line.unit_basis]}</p>
         )}
       </div>

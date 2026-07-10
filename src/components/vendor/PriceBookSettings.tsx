@@ -19,6 +19,7 @@ function blankDraft(substrate = "General", settings: EstimateSettings = DEFAULT_
     unit_basis: "sqft",
     spread_rate: null,
     production_rate: null,
+    width_inches: null,
     cost_of_goods: 0,
     labor_rate: settings.default_labor_rate || 0,
     markup_pct: settings.default_markup_pct || 0,
@@ -45,6 +46,7 @@ export default function PriceBookSettings({ vendorId }: Props) {
     supabase.from("estimate_settings").select("*").eq("vendor_id", vendorId).maybeSingle()
       .then(({ data }) => { if (data) setSettings({
         default_labor_rate: Number(data.default_labor_rate) || 0,
+        hourly_cost_rate: Number(data.hourly_cost_rate) || 0,
         default_markup_pct: Number(data.default_markup_pct) || 0,
         tax_rate_pct: Number(data.tax_rate_pct) || 0,
         min_job_price: Number(data.min_job_price) || 0,
@@ -91,6 +93,7 @@ export default function PriceBookSettings({ vendorId }: Props) {
       unit_basis: draft.unit_basis,
       spread_rate: draft.spread_rate === null || Number.isNaN(draft.spread_rate as number) ? null : Number(draft.spread_rate),
       production_rate: draft.production_rate === null || draft.production_rate === undefined || Number.isNaN(draft.production_rate as number) ? null : Number(draft.production_rate),
+      width_inches: draft.unit_basis === "linear_ft" && draft.width_inches != null && !Number.isNaN(draft.width_inches as number) ? Number(draft.width_inches) : null,
       substrate_id: draft.substrate_id ?? null,
       cost_of_goods: Number(draft.cost_of_goods) || 0,
       labor_rate: Number(draft.labor_rate) || 0,
@@ -121,7 +124,7 @@ export default function PriceBookSettings({ vendorId }: Props) {
     <div>
       <div className="flex items-start justify-between mb-5 gap-4">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">Price Book</h2>
+          <h2 className="text-lg font-bold text-gray-900">Products</h2>
           <p className="text-sm text-gray-500 mt-0.5 max-w-lg">
             Set up your products once. The estimate builder uses these to auto-calculate
             line totals from measurements, coats, spread rate, cost, labor and markup.
@@ -211,6 +214,7 @@ function ItemEditor({ draft, substrates, subs, saving, onChange, onSave, onClose
     set({
       substrate_id: s.id, substrate: s.name, unit_basis: s.calc_type,
       production_rate: s.production_rate || null,
+      width_inches: s.width_inches ?? null,
       labor_rate: draft.labor_rate || s.labor_rate || 0,
     });
   }
@@ -270,8 +274,15 @@ function ItemEditor({ draft, substrates, subs, saving, onChange, onSave, onClose
             </Field>
           ) : (
             <>
+              {draft.unit_basis === "linear_ft" && (
+                <Field label="Width (inches)" hint="Converts linear feet to square feet (LF × in ÷ 12). Leave blank to rate per linear foot.">
+                  <input type="number" min={0} step="0.25" value={draft.width_inches ?? ""}
+                    onChange={(e) => set({ width_inches: e.target.value === "" ? null : Number(e.target.value) })}
+                    placeholder="e.g. 4" className={inputCls} />
+                </Field>
+              )}
               {coverage && (
-                <Field label={`Spread rate (${UNIT_LABEL[draft.unit_basis]} per unit of material)`} hint="e.g. 250 sq ft per gallon">
+                <Field label={`Spread rate (${draft.unit_basis === "linear_ft" && draft.width_inches ? "sq ft" : UNIT_LABEL[draft.unit_basis]} per unit of material)`} hint="e.g. 250 sq ft per gallon">
                   <input type="number" min={0} step="0.01" value={draft.spread_rate ?? ""}
                     onChange={(e) => set({ spread_rate: e.target.value === "" ? null : Number(e.target.value) })}
                     placeholder="250" className={inputCls} />

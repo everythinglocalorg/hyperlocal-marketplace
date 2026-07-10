@@ -16,6 +16,7 @@ export default function EstimatorSettings({ vendorId }: { vendorId: string }) {
       .then(({ data }) => {
         if (data) setSettings({
           default_labor_rate: Number(data.default_labor_rate) || 0,
+          hourly_cost_rate: Number(data.hourly_cost_rate) || 0,
           default_markup_pct: Number(data.default_markup_pct) || 0,
           tax_rate_pct: Number(data.tax_rate_pct) || 0,
           min_job_price: Number(data.min_job_price) || 0,
@@ -38,8 +39,9 @@ export default function EstimatorSettings({ vendorId }: { vendorId: string }) {
   if (loading) return <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   const fields: { key: keyof EstimateSettings; label: string; hint: string; prefix?: string; suffix?: string }[] = [
-    { key: "default_labor_rate", label: "Default labor rate", hint: "Applied to new substrates and price-book items.", prefix: "$", suffix: "/hr" },
-    { key: "default_markup_pct", label: "Default markup", hint: "Added on top of material + labor.", suffix: "%" },
+    { key: "default_labor_rate", label: "Default labor rate (billed)", hint: "What you charge per hour. Applied to new substrates and price-book items.", prefix: "$", suffix: "/hr" },
+    { key: "hourly_cost_rate", label: "Hourly cost rate (paid)", hint: "What you actually pay per hour. Used for profit in Job Metrics.", prefix: "$", suffix: "/hr" },
+    { key: "default_markup_pct", label: "Default markup", hint: "Added on top of product cost.", suffix: "%" },
     { key: "tax_rate_pct", label: "Sales tax rate", hint: "Shown on proposals where applicable.", suffix: "%" },
     { key: "min_job_price", label: "Minimum job price", hint: "A floor for the proposal total.", prefix: "$" },
     { key: "default_deposit_pct", label: "Default deposit", hint: "Pre-selected on new proposals.", suffix: "%" },

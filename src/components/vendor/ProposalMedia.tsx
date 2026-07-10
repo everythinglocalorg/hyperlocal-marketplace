@@ -33,6 +33,7 @@ export default function ProposalMedia({ vendorId, userId, estimateId, areas, ens
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [library, setLibrary] = useState<{ id: string; title: string; url: string; source: string }[]>([]);
+  const [photoLib, setPhotoLib] = useState<{ id: string; title: string | null; url: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,6 +46,8 @@ export default function ProposalMedia({ vendorId, userId, estimateId, areas, ens
   useEffect(() => {
     supabase.from("estimate_videos").select("id, title, url, source").eq("vendor_id", vendorId).eq("is_active", true).order("title")
       .then(({ data }) => setLibrary((data as any[]) ?? []));
+    supabase.from("estimate_photos").select("id, title, url").eq("vendor_id", vendorId).eq("is_active", true).order("created_at", { ascending: false })
+      .then(({ data }) => setPhotoLib((data as any[]) ?? []));
   }, [vendorId, supabase]);
 
   async function addFromLibrary(v: { title: string; url: string; source: string }) {
@@ -52,6 +55,14 @@ export default function ProposalMedia({ vendorId, userId, estimateId, areas, ens
     const id = await ensureSaved();
     if (!id) { setBusy(false); setErr("Save the proposal first."); return; }
     await insertRow({ area_id: null, kind: "video", source: v.source || videoSource(v.url), url: v.url, thumb_url: null, caption: v.title, position: media.length }, id);
+    setBusy(false);
+  }
+
+  async function addPhotoFromLibrary(p: { title: string | null; url: string }) {
+    setErr(null); setBusy(true);
+    const id = await ensureSaved();
+    if (!id) { setBusy(false); setErr("Save the proposal first."); return; }
+    await insertRow({ area_id: null, kind: "photo", source: "url", url: p.url, thumb_url: null, caption: p.title ?? null, position: media.length }, id);
     setBusy(false);
   }
 
@@ -123,10 +134,17 @@ export default function ProposalMedia({ vendorId, userId, estimateId, areas, ens
           <button type="button" onClick={addVideo} disabled={busy || !videoUrl.trim()}
             className="text-sm text-green-700 border border-green-200 px-3 py-2 rounded-xl hover:bg-green-50 transition-colors disabled:opacity-40">Add video</button>
         </div>
+        {photoLib.length > 0 && (
+          <select value="" disabled={busy} onChange={(e) => { const p = photoLib.find((x) => x.id === e.target.value); if (p) addPhotoFromLibrary(p); }}
+            className="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40">
+            <option value="">📷 Attach photo from library…</option>
+            {photoLib.map((p) => <option key={p.id} value={p.id}>{p.title || "Photo"}</option>)}
+          </select>
+        )}
         {library.length > 0 && (
           <select value="" disabled={busy} onChange={(e) => { const v = library.find((x) => x.id === e.target.value); if (v) addFromLibrary(v); }}
             className="text-sm border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-40">
-            <option value="">🎬 Attach from library…</option>
+            <option value="">🎬 Attach video from library…</option>
             {library.map((v) => <option key={v.id} value={v.id}>{v.title}</option>)}
           </select>
         )}
