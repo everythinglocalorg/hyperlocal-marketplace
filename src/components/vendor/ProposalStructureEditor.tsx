@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 import {
-  CatalogItem, Area, Addon, ProposalLine, DepositType, PaymentMethod, ProposalStructure, StructureVideo,
+  CatalogItem, Substrate, Area, Addon, ProposalLine, DepositType, PaymentMethod, ProposalStructure, StructureVideo,
   UNIT_LABEL, UnitBasis, computeLineTotal, areaTotal, estimateTotal, depositAmount,
-  isLineOptional, optionalLinesTotal, newArea, newAddon, newLineFromCatalog, newBlankLine, newFlatLine,
+  isLineOptional, optionalLinesTotal, newArea, newAddon, newLineFromCatalog, newLineFromSubstrate, newBlankLine, newFlatLine,
 } from "@/lib/estimate-pricing";
 
 type Snippet = { id: string; kind: "snippet" | "note"; title: string; body: string };
@@ -14,12 +14,13 @@ type LibraryVideo = { id: string; title: string; url: string; source: string };
 // mode only) a reusable videos section. Proposals keep their own ProposalMedia
 // for per-job photos/videos, so `showVideos` is off there.
 export default function ProposalStructureEditor({
-  value, onChange, catalog, snippets, videoLibrary = [], showVideos = false, totalLabel = "Total",
+  value, onChange, catalog, snippets, substrates = [], videoLibrary = [], showVideos = false, totalLabel = "Total",
 }: {
   value: ProposalStructure;
   onChange: (next: ProposalStructure) => void;
   catalog: CatalogItem[];
   snippets: Snippet[];
+  substrates?: Substrate[];
   videoLibrary?: LibraryVideo[];
   showVideos?: boolean;
   totalLabel?: string;
@@ -70,7 +71,7 @@ export default function ProposalStructureEditor({
       {/* Areas */}
       <div className="space-y-4">
         {areas.map((area) => (
-          <AreaCard key={area.id} area={area} catalog={catalog}
+          <AreaCard key={area.id} area={area} catalog={catalog} substrates={substrates}
             onUpdate={(p) => updateArea(area.id, p)}
             onRemove={() => removeArea(area.id)}
             onAddLine={(line) => addLine(area.id, line)}
@@ -233,8 +234,8 @@ function VideoPicker({ library, onAdd }: { library: LibraryVideo[]; onAdd: (v: {
 }
 
 // ── Area card ────────────────────────────────────────────────────────────────
-function AreaCard({ area, catalog, onUpdate, onRemove, onAddLine, onUpdateLine, onRemoveLine }: {
-  area: Area; catalog: CatalogItem[];
+function AreaCard({ area, catalog, substrates, onUpdate, onRemove, onAddLine, onUpdateLine, onRemoveLine }: {
+  area: Area; catalog: CatalogItem[]; substrates: Substrate[];
   onUpdate: (p: Partial<Area>) => void; onRemove: () => void;
   onAddLine: (line: ProposalLine) => void;
   onUpdateLine: (lineId: string, p: Partial<ProposalLine>) => void;
@@ -266,9 +267,8 @@ function AreaCard({ area, catalog, onUpdate, onRemove, onAddLine, onUpdateLine, 
           {area.lines.length > 0 && (
             <div className="space-y-2 mb-3">
               <div className="hidden sm:grid grid-cols-12 gap-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide px-1">
-                <span className="col-span-4">Item</span>
+                <span className="col-span-5">Item</span>
                 <span className="col-span-3 text-center">Measurement</span>
-                <span className="col-span-1 text-center">Coats</span>
                 <span className="col-span-2 text-right">Total</span>
                 <span className="col-span-1 text-center">Opt</span>
                 <span className="col-span-1" />
@@ -285,6 +285,13 @@ function AreaCard({ area, catalog, onUpdate, onRemove, onAddLine, onUpdateLine, 
                 className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
                 <option value="">+ Add item from price book…</option>
                 {catalog.map((c) => <option key={c.id} value={c.id}>{c.substrate} · {c.name}{c.unit_basis === "flat" ? " ($)" : ""}</option>)}
+              </select>
+            )}
+            {substrates.length > 0 && (
+              <select value="" onChange={(e) => { const s = substrates.find((x) => x.id === e.target.value); if (s) onAddLine(newLineFromSubstrate(s)); }}
+                className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                <option value="">+ Add labor (substrate)…</option>
+                {substrates.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             )}
             <button onClick={() => onAddLine(newBlankLine())} className="text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">+ Custom line</button>
@@ -305,7 +312,6 @@ function LineRow({ line, onUpdate, onRemove }: {
   const computed = computeLineTotal({ ...line, manual_total: null });
   const total = computeLineTotal(line);
   const overridden = !flat && line.manual_total != null;
-  const coverage = line.unit_basis === "sqft" || line.unit_basis === "linear_ft";
 
   const optCheck = (
     <label className="col-span-2 sm:col-span-1 flex items-center justify-center" title="Optional — the customer can toggle this line on the proposal">
@@ -341,14 +347,14 @@ function LineRow({ line, onUpdate, onRemove }: {
 
   return (
     <div className="grid grid-cols-12 gap-2 items-center">
-      <div className="col-span-12 sm:col-span-4">
+      <div className="col-span-12 sm:col-span-5">
         <input value={line.name} onChange={(e) => onUpdate({ name: e.target.value })} placeholder="Item name"
           className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
         {(line.product_line || line.catalog_item_id) && (
           <p className="text-[11px] text-gray-400 mt-0.5 px-1 truncate">{line.product_line ?? "Custom"} · {UNIT_LABEL[line.unit_basis]}</p>
         )}
       </div>
-      <div className="col-span-5 sm:col-span-3 flex items-center gap-1">
+      <div className="col-span-6 sm:col-span-3 flex items-center gap-1">
         <input type="number" min={0} step="0.01" value={line.measurement} onChange={(e) => onUpdate({ measurement: Number(e.target.value) })}
           className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-500" />
         {!line.catalog_item_id ? (
@@ -360,13 +366,7 @@ function LineRow({ line, onUpdate, onRemove }: {
           <span className="text-xs text-gray-400 w-14 shrink-0">{UNIT_LABEL[line.unit_basis]}</span>
         )}
       </div>
-      <div className="col-span-3 sm:col-span-1">
-        {coverage ? (
-          <input type="number" min={1} value={line.coats} onChange={(e) => onUpdate({ coats: Number(e.target.value) })}
-            className="w-full border border-gray-200 rounded-lg px-1 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-green-500" />
-        ) : <div className="text-center text-gray-300 text-xs">—</div>}
-      </div>
-      <div className="col-span-3 sm:col-span-2 relative">
+      <div className="col-span-4 sm:col-span-2 relative">
         <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
         <input type="number" min={0} step="0.01" value={total}
           onChange={(e) => onUpdate({ manual_total: e.target.value === "" ? null : Number(e.target.value) })}

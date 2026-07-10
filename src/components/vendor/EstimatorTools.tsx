@@ -4,14 +4,18 @@ import PriceBookSettings from "@/components/vendor/PriceBookSettings";
 import TemplateManager from "@/components/vendor/TemplateManager";
 import SnippetManager from "@/components/vendor/SnippetManager";
 import VideoLibrary from "@/components/vendor/VideoLibrary";
+import SubstrateManager from "@/components/vendor/SubstrateManager";
+import EstimatorSettings from "@/components/vendor/EstimatorSettings";
 
-type Section = "templates" | "snippets" | "videos" | "pricebook";
+type Section = "templates" | "substrates" | "pricebook" | "snippets" | "videos" | "settings";
 
 const SECTIONS: { id: Section; label: string; icon: string }[] = [
   { id: "templates", label: "Templates", icon: "🧱" },
+  { id: "substrates", label: "Substrates", icon: "📐" },
+  { id: "pricebook", label: "Price Book", icon: "🎨" },
   { id: "snippets", label: "Text & Notes", icon: "✍️" },
   { id: "videos", label: "Video Library", icon: "🎬" },
-  { id: "pricebook", label: "Price Book", icon: "🎨" },
+  { id: "settings", label: "Settings", icon: "⚙️" },
 ];
 
 // Hub for everything a vendor sets up once and reuses across proposals.
@@ -35,9 +39,11 @@ export default function EstimatorTools({ vendorId }: { vendorId: string }) {
       </div>
 
       {section === "templates" && <TemplateManager vendorId={vendorId} />}
+      {section === "substrates" && <SubstrateManager vendorId={vendorId} />}
+      {section === "pricebook" && <PriceBookSettings vendorId={vendorId} />}
       {section === "snippets" && <SnippetManager vendorId={vendorId} />}
       {section === "videos" && <VideoLibrary vendorId={vendorId} />}
-      {section === "pricebook" && <PriceBookSettings vendorId={vendorId} />}
+      {section === "settings" && <EstimatorSettings vendorId={vendorId} />}
     </div>
   );
 }

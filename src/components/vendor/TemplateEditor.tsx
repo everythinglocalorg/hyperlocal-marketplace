@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import ProposalStructureEditor from "@/components/vendor/ProposalStructureEditor";
-import { CatalogItem, ProposalStructure, newArea, migrateOptionalAreas } from "@/lib/estimate-pricing";
+import { CatalogItem, Substrate, ProposalStructure, newArea, migrateOptionalAreas } from "@/lib/estimate-pricing";
 
 type TemplateRow = { id: string; name: string; description: string | null; structure: ProposalStructure };
 type Snippet = { id: string; kind: "snippet" | "note"; title: string; body: string };
@@ -32,6 +32,7 @@ export default function TemplateEditor({ vendorId, template, onClose, onSaved }:
   const [description, setDescription] = useState(template.description ?? "");
   const [structure, setStructure] = useState<ProposalStructure>(normalize(template.structure));
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [substrates, setSubstrates] = useState<Substrate[]>([]);
   const [snippets, setSnippets] = useState<Snippet[]>([]);
   const [videoLibrary, setVideoLibrary] = useState<LibraryVideo[]>([]);
   const [saving, setSaving] = useState(false);
@@ -39,6 +40,8 @@ export default function TemplateEditor({ vendorId, template, onClose, onSaved }:
   useEffect(() => {
     supabase.from("estimate_catalog_items").select("*").eq("vendor_id", vendorId).eq("is_active", true).order("substrate").order("name")
       .then(({ data }) => setCatalog((data as CatalogItem[]) ?? []));
+    supabase.from("estimate_substrates").select("*").eq("vendor_id", vendorId).eq("is_active", true).order("name")
+      .then(({ data }) => setSubstrates((data as Substrate[]) ?? []));
     supabase.from("estimate_snippets").select("id, kind, title, body").eq("vendor_id", vendorId).eq("is_active", true).order("title")
       .then(({ data }) => setSnippets((data as any[]) ?? []));
     supabase.from("estimate_videos").select("id, title, url, source").eq("vendor_id", vendorId).eq("is_active", true).order("title")
@@ -79,6 +82,7 @@ export default function TemplateEditor({ vendorId, template, onClose, onSaved }:
         onChange={setStructure}
         catalog={catalog}
         snippets={snippets}
+        substrates={substrates}
         videoLibrary={videoLibrary}
         showVideos
         totalLabel="Template total"

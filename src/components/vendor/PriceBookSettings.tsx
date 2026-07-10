@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { CatalogItem, UnitBasis, UNIT_LABEL } from "@/lib/estimate-pricing";
+import { CatalogItem, Substrate, EstimateSettings, DEFAULT_SETTINGS, UnitBasis, UNIT_LABEL } from "@/lib/estimate-pricing";
 
 // The per-vendor "price book". Vendors define their own substrates + products so
 // the proposal builder can auto-calculate line totals. Items are grouped by
@@ -11,15 +11,17 @@ const UNIT_OPTIONS: UnitBasis[] = ["sqft", "linear_ft", "each", "hour", "flat"];
 
 type Draft = Omit<CatalogItem, "id" | "vendor_id" | "is_active"> & { id?: string };
 
-function blankDraft(substrate = "General"): Draft {
+function blankDraft(substrate = "General", settings: EstimateSettings = DEFAULT_SETTINGS): Draft {
   return {
     substrate,
+    substrate_id: null,
     name: "",
     unit_basis: "sqft",
     spread_rate: null,
+    production_rate: null,
     cost_of_goods: 0,
-    labor_rate: 0,
-    markup_pct: 0,
+    labor_rate: settings.default_labor_rate || 0,
+    markup_pct: settings.default_markup_pct || 0,
     default_coats: 1,
     product_line: null,
   };
@@ -30,11 +32,26 @@ interface Props { vendorId: string; }
 export default function PriceBookSettings({ vendorId }: Props) {
   const supabase = createClient();
   const [items, setItems] = useState<CatalogItem[]>([]);
+  const [subs, setSubs] = useState<Substrate[]>([]);
+  const [settings, setSettings] = useState<EstimateSettings>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendorId]);
+  useEffect(() => {
+    load();
+    supabase.from("estimate_substrates").select("*").eq("vendor_id", vendorId).eq("is_active", true).order("name")
+      .then(({ data }) => setSubs((data as Substrate[]) ?? []));
+    supabase.from("estimate_settings").select("*").eq("vendor_id", vendorId).maybeSingle()
+      .then(({ data }) => { if (data) setSettings({
+        default_labor_rate: Number(data.default_labor_rate) || 0,
+        default_markup_pct: Number(data.default_markup_pct) || 0,
+        tax_rate_pct: Number(data.tax_rate_pct) || 0,
+        min_job_price: Number(data.min_job_price) || 0,
+        default_deposit_pct: data.default_deposit_pct ?? 50,
+      }); });
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [vendorId]);
 
   async function load() {
     setLoading(true);
@@ -72,11 +89,13 @@ export default function PriceBookSettings({ vendorId }: Props) {
       substrate: draft.substrate.trim() || "General",
       name: draft.name.trim(),
       unit_basis: draft.unit_basis,
-      spread_rate: draft.spread_rate === null || Number.isNaN(draft.spread_rate) ? null : Number(draft.spread_rate),
+      spread_rate: draft.spread_rate === null || Number.isNaN(draft.spread_rate as number) ? null : Number(draft.spread_rate),
+      production_rate: draft.production_rate === null || draft.production_rate === undefined || Number.isNaN(draft.production_rate as number) ? null : Number(draft.production_rate),
+      substrate_id: draft.substrate_id ?? null,
       cost_of_goods: Number(draft.cost_of_goods) || 0,
       labor_rate: Number(draft.labor_rate) || 0,
       markup_pct: Number(draft.markup_pct) || 0,
-      default_coats: Number(draft.default_coats) || 1,
+      default_coats: 1,
       product_line: draft.product_line?.trim() || null,
     };
     if (draft.id) {
@@ -108,7 +127,7 @@ export default function PriceBookSettings({ vendorId }: Props) {
             line totals from measurements, coats, spread rate, cost, labor and markup.
           </p>
         </div>
-        <button onClick={() => setEditing(blankDraft(substrates[0]))}
+        <button onClick={() => setEditing(blankDraft(substrates[0], settings))}
           className="bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-green-700 transition-colors shrink-0">
           + Add Item
         </button>
@@ -119,7 +138,7 @@ export default function PriceBookSettings({ vendorId }: Props) {
           <p className="text-4xl mb-3">🎨</p>
           <p className="font-semibold text-gray-600 mb-1">No products yet</p>
           <p className="text-sm">Add your materials and services to build estimates in seconds.</p>
-          <button onClick={() => setEditing(blankDraft())} className="mt-4 bg-green-600 text-white px-6 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors">Add your first item</button>
+          <button onClick={() => setEditing(blankDraft("General", settings))} className="mt-4 bg-green-600 text-white px-6 py-2 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors">Add your first item</button>
         </div>
       ) : (
         <div className="space-y-6">
@@ -166,6 +185,7 @@ export default function PriceBookSettings({ vendorId }: Props) {
         <ItemEditor
           draft={editing}
           substrates={substrates}
+          subs={subs}
           saving={saving}
           onChange={setEditing}
           onSave={() => save(editing)}
@@ -176,13 +196,24 @@ export default function PriceBookSettings({ vendorId }: Props) {
   );
 }
 
-function ItemEditor({ draft, substrates, saving, onChange, onSave, onClose }: {
-  draft: Draft; substrates: string[]; saving: boolean;
+function ItemEditor({ draft, substrates, subs, saving, onChange, onSave, onClose }: {
+  draft: Draft; substrates: string[]; subs: Substrate[]; saving: boolean;
   onChange: (d: Draft) => void; onSave: () => void; onClose: () => void;
 }) {
   const set = (patch: Partial<Draft>) => onChange({ ...draft, ...patch });
   const coverage = draft.unit_basis === "sqft" || draft.unit_basis === "linear_ft";
   const flat = draft.unit_basis === "flat";
+
+  // Picking a substrate carries its calc type + production rate + labor rate.
+  function applySubstrate(id: string) {
+    const s = subs.find((x) => x.id === id);
+    if (!s) { set({ substrate_id: null }); return; }
+    set({
+      substrate_id: s.id, substrate: s.name, unit_basis: s.calc_type,
+      production_rate: s.production_rate || null,
+      labor_rate: draft.labor_rate || s.labor_rate || 0,
+    });
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
@@ -198,9 +229,16 @@ function ItemEditor({ draft, substrates, saving, onChange, onSave, onClose }: {
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Substrate">
-              <input list="pb-substrates" value={draft.substrate} onChange={(e) => set({ substrate: e.target.value })}
-                placeholder="Concrete" className={inputCls} />
+            <Field label="Substrate" hint={subs.length === 0 ? "Add substrates in the Substrates tab to auto-fill rates." : undefined}>
+              {subs.length > 0 ? (
+                <select value={draft.substrate_id ?? ""} onChange={(e) => applySubstrate(e.target.value)} className={inputCls}>
+                  <option value="">— Custom / none —</option>
+                  {subs.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              ) : (
+                <input list="pb-substrates" value={draft.substrate} onChange={(e) => set({ substrate: e.target.value })}
+                  placeholder="Concrete" className={inputCls} />
+              )}
               <datalist id="pb-substrates">
                 {substrates.map((s) => <option key={s} value={s} />)}
               </datalist>
@@ -211,16 +249,17 @@ function ItemEditor({ draft, substrates, saving, onChange, onSave, onClose }: {
             </Field>
           </div>
 
-          <div className={`grid ${flat ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
+          <div className={`grid ${flat || draft.unit_basis === "hour" ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
             <Field label="Unit basis" hint={flat ? "Flat = a fixed charge or discount (no measurement)." : undefined}>
               <select value={draft.unit_basis} onChange={(e) => set({ unit_basis: e.target.value as UnitBasis })} className={inputCls}>
                 {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u === "flat" ? "flat charge / discount" : UNIT_LABEL[u]}</option>)}
               </select>
             </Field>
-            {!flat && (
-              <Field label="Default coats">
-                <input type="number" min={1} value={draft.default_coats}
-                  onChange={(e) => set({ default_coats: Number(e.target.value) })} className={inputCls} />
+            {!flat && draft.unit_basis !== "hour" && (
+              <Field label="Production rate (units/hr)" hint="How many units your crew completes in an hour.">
+                <input type="number" min={0} step="0.01" value={draft.production_rate ?? ""}
+                  onChange={(e) => set({ production_rate: e.target.value === "" ? null : Number(e.target.value) })}
+                  placeholder="e.g. 200" className={inputCls} />
               </Field>
             )}
           </div>
@@ -243,7 +282,7 @@ function ItemEditor({ draft, substrates, saving, onChange, onSave, onClose }: {
                 <Field label={coverage ? "Cost / material unit" : "Cost / unit"}>
                   <MoneyInput value={draft.cost_of_goods} onChange={(v) => set({ cost_of_goods: v })} />
                 </Field>
-                <Field label={`Labor / ${UNIT_LABEL[draft.unit_basis]}`}>
+                <Field label={draft.production_rate ? "Labor / hr" : `Labor / ${UNIT_LABEL[draft.unit_basis]}`}>
                   <MoneyInput value={draft.labor_rate} onChange={(v) => set({ labor_rate: v })} />
                 </Field>
                 <Field label="Markup %">

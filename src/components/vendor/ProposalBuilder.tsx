@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import ProposalMedia from "@/components/vendor/ProposalMedia";
 import ProposalStructureEditor from "@/components/vendor/ProposalStructureEditor";
 import {
-  CatalogItem, Area, Addon, ProposalLine, DepositType, PaymentMethod, ProposalStructure,
+  CatalogItem, Substrate, Area, Addon, ProposalLine, DepositType, PaymentMethod, ProposalStructure,
   estimateTotal, toFlatLineItems, newArea, newBlankLine, round2, cloneStructureWithNewIds, migrateOptionalAreas,
 } from "@/lib/estimate-pricing";
 
@@ -243,6 +243,7 @@ function ProposalEditor({ estimate, vendorId, userId, onSave, onClose }: {
   });
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [substrates, setSubstrates] = useState<Substrate[]>([]);
   const [snippets, setSnippets] = useState<{ id: string; kind: "snippet" | "note"; title: string; body: string }[]>([]);
   const [templateSaved, setTemplateSaved] = useState(false);
   const [sending, setSending] = useState<null | "email" | "internal">(null);
@@ -287,6 +288,8 @@ function ProposalEditor({ estimate, vendorId, userId, onSave, onClose }: {
       .then(({ data }) => setContacts((data as Contact[]) ?? []));
     supabase.from("estimate_catalog_items").select("*").eq("vendor_id", vendorId).eq("is_active", true).order("substrate").order("name")
       .then(({ data }) => setCatalog((data as CatalogItem[]) ?? []));
+    supabase.from("estimate_substrates").select("*").eq("vendor_id", vendorId).eq("is_active", true).order("name")
+      .then(({ data }) => setSubstrates((data as Substrate[]) ?? []));
     supabase.from("estimate_snippets").select("id, kind, title, body").eq("vendor_id", vendorId).eq("is_active", true).order("title")
       .then(({ data }) => setSnippets((data as any[]) ?? []));
   }, [vendorId, supabase]);
@@ -388,7 +391,7 @@ function ProposalEditor({ estimate, vendorId, userId, onSave, onClose }: {
           deposit_type: s.deposit_type, deposit_value: s.deposit_value, payment_methods: s.payment_methods,
           project_overview: s.project_overview, notes: s.notes,
         })}
-        catalog={catalog} snippets={snippets} totalLabel="Proposal total"
+        catalog={catalog} snippets={snippets} substrates={substrates} totalLabel="Proposal total"
       />
 
       {/* Photos & videos (per-job) */}

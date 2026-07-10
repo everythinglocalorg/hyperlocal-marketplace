@@ -30,15 +30,49 @@ export type CatalogItem = {
   id: string;
   vendor_id: string;
   substrate: string;
+  substrate_id?: string | null;
   name: string;
   unit_basis: UnitBasis;
-  spread_rate: number | null;
+  spread_rate: number | null;      // material coverage (units per unit of product, e.g. sqft/gallon)
+  production_rate?: number | null; // units completed per hour (drives labor time)
   cost_of_goods: number;
-  labor_rate: number;
+  labor_rate: number;              // $ per hour when production_rate is set, else $ per unit
   markup_pct: number;
   default_coats: number;
   product_line: string | null;
   is_active: boolean;
+};
+
+// A substrate / "category": how work is measured + how fast it's done.
+export type Substrate = {
+  id: string;
+  vendor_id: string;
+  name: string;
+  calc_type: UnitBasis;
+  production_rate: number;         // units completed per hour
+  labor_rate: number;              // $ per hour
+  is_active: boolean;
+};
+
+// Per-vendor estimating defaults.
+export type EstimateSettings = {
+  default_labor_rate: number;
+  default_markup_pct: number;
+  tax_rate_pct: number;
+  min_job_price: number;
+  default_deposit_pct: number;
+};
+
+export const DEFAULT_SETTINGS: EstimateSettings = {
+  default_labor_rate: 0, default_markup_pct: 0, tax_rate_pct: 0, min_job_price: 0, default_deposit_pct: 50,
+};
+
+export const CALC_TYPE_LABEL: Record<UnitBasis, string> = {
+  sqft: "Square Foot",
+  linear_ft: "Linear Foot",
+  each: "Per Item",
+  hour: "Per Hour",
+  flat: "Flat Charge",
 };
 
 // A line item inside a builder area (stored as jsonb on the estimate).
@@ -49,11 +83,12 @@ export type ProposalLine = {
   substrate: string;
   unit_basis: UnitBasis;
   measurement: number;          // sqft / linear ft / each / hours
-  coats: number;
-  // snapshots from the catalog item at add-time
-  spread_rate: number;
+  coats: number;                // legacy (kept = 1); generalized out of the UI
+  // snapshots from the catalog item / substrate at add-time
+  spread_rate: number;          // material coverage (units per unit of product)
+  production_rate: number;      // units completed per hour (0 = labor priced per unit)
   cost_of_goods: number;
-  labor_rate: number;
+  labor_rate: number;           // $ per hour when production_rate > 0, else $ per unit
   markup_pct: number;
   product_line: string | null;
   manual_total: number | null;  // when set, overrides the computed total (and holds the amount for flat lines)
@@ -123,7 +158,7 @@ export function isCoverageBasis(basis: UnitBasis): boolean {
 }
 
 export function computeLineTotal(line: Pick<ProposalLine,
-  "unit_basis" | "measurement" | "coats" | "spread_rate" | "cost_of_goods" |
+  "unit_basis" | "measurement" | "coats" | "spread_rate" | "production_rate" | "cost_of_goods" |
   "labor_rate" | "markup_pct" | "manual_total">): number {
   // Flat lines (fees / discounts) are a plain amount held in manual_total; it may
   // be negative for a discount.
@@ -132,22 +167,31 @@ export function computeLineTotal(line: Pick<ProposalLine,
     return round2(num(line.manual_total));
   }
   const measurement = num(line.measurement);
-  const coats = num(line.coats) > 0 ? num(line.coats) : 1;
   const cogs = num(line.cost_of_goods);
   const labor = num(line.labor_rate);
   const markup = num(line.markup_pct);
+  const prodRate = num(line.production_rate);
 
+  // Material: coverage-based when a spread rate is set, else cost per unit.
   let material = 0;
-  let laborCost = 0;
   if (isCoverageBasis(line.unit_basis)) {
     const rate = num(line.spread_rate);
-    const unitsNeeded = rate > 0 ? (measurement * coats) / rate : 0;
-    material = unitsNeeded * cogs;
-    laborCost = measurement * coats * labor;
+    material = rate > 0 ? (measurement / rate) * cogs : 0;
   } else {
     material = measurement * cogs;
+  }
+
+  // Labor: hours = measurement / production_rate when a rate is set (labor_rate is
+  // $/hour); otherwise labor_rate is $/unit. Per-hour lines bill measurement × rate.
+  let laborCost;
+  if (line.unit_basis === "hour") {
+    laborCost = measurement * labor;
+  } else if (prodRate > 0) {
+    laborCost = (measurement / prodRate) * labor;
+  } else {
     laborCost = measurement * labor;
   }
+
   return round2((material + laborCost) * (1 + markup / 100));
 }
 
@@ -270,8 +314,9 @@ export function newLineFromCatalog(item: CatalogItem): ProposalLine {
     substrate: item.substrate,
     unit_basis: item.unit_basis,
     measurement: 0,
-    coats: item.default_coats || 1,
+    coats: 1,
     spread_rate: num(item.spread_rate),
+    production_rate: num(item.production_rate),
     cost_of_goods: num(item.cost_of_goods),
     labor_rate: num(item.labor_rate),
     markup_pct: num(item.markup_pct),
@@ -279,6 +324,18 @@ export function newLineFromCatalog(item: CatalogItem): ProposalLine {
     // A flat catalog item carries its fixed amount in cost_of_goods.
     manual_total: flat ? num(item.cost_of_goods) : null,
     optional: false,
+  };
+}
+
+// A labor line from a substrate: production rate + hourly labor, no material.
+export function newLineFromSubstrate(sub: Substrate): ProposalLine {
+  return {
+    ...newBlankLine(),
+    name: sub.name,
+    substrate: sub.name,
+    unit_basis: sub.calc_type,
+    production_rate: num(sub.production_rate),
+    labor_rate: num(sub.labor_rate),
   };
 }
 
@@ -292,6 +349,7 @@ export function newBlankLine(): ProposalLine {
     measurement: 0,
     coats: 1,
     spread_rate: 0,
+    production_rate: 0,
     cost_of_goods: 0,
     labor_rate: 0,
     markup_pct: 0,
