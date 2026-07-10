@@ -399,17 +399,15 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
   // Just a button that opens the menu PDF in a new browser tab (no embedded viewer).
   const menuSection = vendor.menu_pdf_url ? (
     <div id="menu" ref={(el) => { sectionRefs.current.menu = el; }} className="mt-16 pt-8 border-t border-gray-100">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="font-serif text-xl font-black text-gray-900">🍽️ Menu</h2>
-        <a
-          href={vendor.menu_pdf_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white text-sm font-bold px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors"
-        >
-          View Menu!
-        </a>
-      </div>
+      <p className="text-center text-[11px] font-bold tracking-[0.2em] text-gray-400 uppercase mb-4">The Menu</p>
+      <a
+        href={vendor.menu_pdf_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="max-w-md mx-auto flex items-center justify-center gap-2 border-2 border-gray-900 text-gray-900 tracking-wide font-bold px-6 py-4 rounded-xl hover:bg-gray-900 hover:text-white transition-colors"
+      >
+        VIEW FULL MENU <span aria-hidden="true">↗</span>
+      </a>
     </div>
   ) : null;
 
@@ -426,6 +424,11 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
       >
         {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"} →
       </button>
+      {isRestaurant && vendor.menu_pdf_url && (
+        <a href={vendor.menu_pdf_url} target="_blank" rel="noopener noreferrer" aria-label="Menu" className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl text-sm">
+          🍽️
+        </a>
+      )}
       {effectiveCta && (
         <button
           onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
