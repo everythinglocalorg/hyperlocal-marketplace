@@ -32,7 +32,7 @@ export default function PricingPage() {
             <ul className="space-y-3 text-sm text-gray-600 mb-8">
               {[
                 "Business listing page",
-                "Up to 10 active listings",
+                "Up to 5 active listings",
                 "Buyer messaging",
                 "Booking requests",
                 "Local Pages access",
@@ -53,6 +53,7 @@ export default function PricingPage() {
             <p className="text-green-600 text-sm font-semibold mb-6">Free during launch</p>
             <ul className="space-y-3 text-sm text-gray-600 mb-8">
               <li className="flex items-start gap-2 font-semibold text-gray-700"><span className="text-green-500 mt-0.5">✓</span>Everything in Free</li>
+              <li className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>📦 Up to 15 active listings</li>
               {LOCAL_PRO_FEATURES.map((f) => (
                 <li key={f.title} className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>{f.icon} {f.title}</li>
               ))}
