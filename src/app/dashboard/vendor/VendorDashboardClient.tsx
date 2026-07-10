@@ -2680,6 +2680,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(vendor.banner_url);
   const [bannerPosition, setBannerPosition] = useState<number>(vendor.banner_position ?? 50);
+  const [bannerZoom, setBannerZoom] = useState<number>(vendor.banner_zoom ?? 1);
   const [logoZoom, setLogoZoom] = useState<number>(vendor.logo_zoom ?? 1);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -2798,6 +2799,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       logo_url: logoUrl,
       banner_url: bannerUrl,
       banner_position: bannerPosition,
+      banner_zoom: bannerZoom,
       logo_zoom: logoZoom,
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
@@ -2817,22 +2819,22 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       <form onSubmit={handleSave} className="space-y-6">
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">Cover photo</label>
-          <p className="text-xs text-gray-400 mb-2">The big banner across the top of your public page. If you skip it, we use your first product photo automatically.</p>
+          <p className="text-xs text-gray-400 mb-2">The big banner across the top of your public page. If you skip it, we use your first product photo automatically. <span className="text-gray-500 font-medium">Best size: 1600 × 500 px</span> (a wide 3.2:1 photo).</p>
           <div onClick={() => bannerRef.current?.click()} className="w-full h-32 rounded-2xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center">
             {bannerPreview
-              ? <img src={bannerPreview} alt="" className="w-full h-full object-cover" style={{ objectPosition: `center ${bannerPosition}%` }} />
-              : <span className="text-gray-400 text-sm">Click to upload a cover photo (1200x300 recommended)</span>}
+              ? <img src={bannerPreview} alt="" className="w-full h-full object-cover transition-transform" style={{ transform: `scale(${bannerZoom})` }} />
+              : <span className="text-gray-400 text-sm">Click to upload a cover photo · 1600 × 500 px</span>}
           </div>
           <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={onBannerChange} />
           {bannerPreview && (
             <div className="mt-3">
               <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
-                <span>Reposition — drag to frame the cover</span>
-                <span className="text-gray-400">{bannerPosition < 34 ? "Top" : bannerPosition > 66 ? "Bottom" : "Center"}</span>
+                <span>🔍 Zoom to fit</span>
+                <span className="text-gray-400">{Math.round(bannerZoom * 100)}%</span>
               </label>
               <input
-                type="range" min={0} max={100} step={1} value={bannerPosition}
-                onChange={(e) => setBannerPosition(Number(e.target.value))}
+                type="range" min={1} max={2.5} step={0.05} value={bannerZoom}
+                onChange={(e) => setBannerZoom(Number(e.target.value))}
                 className="w-full accent-green-600"
               />
             </div>
@@ -2846,7 +2848,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           </div>
           <div className="flex-1 min-w-0">
             <button type="button" onClick={() => logoRef.current?.click()} className="text-sm text-green-600 font-medium hover:underline">Change logo</button>
-            <p className="text-xs text-gray-400 mt-0.5">Square image works best — use zoom to make it fit.</p>
+            <p className="text-xs text-gray-400 mt-0.5">Square works best — <span className="text-gray-500 font-medium">400 × 400 px</span>. Use zoom to make it fit.</p>
             {logoPreview && (
               <div className="mt-2">
                 <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">

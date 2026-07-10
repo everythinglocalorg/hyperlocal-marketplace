@@ -34,6 +34,7 @@ type Vendor = {
   local_bucks_earned: number; service_radius_miles: number;
   service_locations?: string[] | null;
   banner_position?: number | null;
+  banner_zoom?: number | null;
   page_blocks?: PageBlock[] | null;
   menu_pdf_url?: string | null;
   cta_button?: { action?: "call" | "estimate" | "order"; url?: string } | null;
@@ -592,7 +593,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
         {/* Cover — real banner if the vendor has one, else a branded gradient */}
         <div className="relative h-28 sm:h-40 overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700">
           {heroCover && (
-            <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `center ${vendor.banner_position ?? 50}%` }} />
+            <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `center ${vendor.banner_position ?? 50}%`, transform: `scale(${vendor.banner_zoom ?? 1})` }} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
           <span className="absolute top-3 left-4 text-[11px] font-bold tracking-wider text-white bg-black/30 backdrop-blur px-3 py-1 rounded-full uppercase">
