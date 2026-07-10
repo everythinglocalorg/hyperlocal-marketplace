@@ -416,33 +416,34 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
     <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
 
-    {/* Sticky mobile CTA bar — conversion stays one tap away while scrolling */}
-    <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 flex gap-2 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+    {/* Sticky mobile CTA bar — clean icon+label nav on the left, primary action pill on the right */}
+    <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+      <div className="flex items-center gap-6">
+        {isRestaurant && vendor.menu_pdf_url && (
+          <a href={vendor.menu_pdf_url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-0.5 text-gray-700 hover:text-gray-900 transition-colors">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.6} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>
+            <span className="text-[11px] font-medium">Menu</span>
+          </a>
+        )}
+        {vendor.phone && (
+          <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="flex flex-col items-center gap-0.5 text-gray-700 hover:text-gray-900 transition-colors">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.6} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" /></svg>
+            <span className="text-[11px] font-medium">Call</span>
+          </a>
+        )}
+        {effectiveCta && (
+          <button onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }} className="flex flex-col items-center gap-0.5 text-gray-700 hover:text-gray-900 transition-colors">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.6} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" /></svg>
+            <span className="text-[11px] font-medium">Message</span>
+          </button>
+        )}
+      </div>
       <button
         onClick={() => { if (requireAccount()) return; if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true); }}
-        className="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors text-sm"
+        className="shrink-0 bg-gray-900 text-white font-semibold text-sm px-6 py-3 rounded-full hover:bg-gray-800 transition-colors"
       >
-        {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"} →
+        {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"}
       </button>
-      {isRestaurant && vendor.menu_pdf_url && (
-        <a href={vendor.menu_pdf_url} target="_blank" rel="noopener noreferrer" aria-label="Menu" className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl text-sm">
-          🍽️
-        </a>
-      )}
-      {effectiveCta && (
-        <button
-          onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
-          aria-label="Message"
-          className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-4 py-3 rounded-xl text-sm"
-        >
-          💬
-        </button>
-      )}
-      {vendor.phone && (
-        <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} aria-label="Call" className="shrink-0 border-2 border-gray-200 text-gray-800 font-bold px-5 py-3 rounded-xl text-sm">
-          📞
-        </a>
-      )}
     </div>
     {showMessageModal && <MessageModal listing={{ id: vendor.id, title: `Contact ${vendor.business_name}` }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
 
