@@ -1199,6 +1199,14 @@ function ListingsTab({
   }, [supabase, vendorId]);
   useEffect(() => { loadCats(); }, [loadCats]);
   const catName = (id?: string | null) => cats.find((c) => c.id === id)?.name ?? null;
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) => setSelectedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  // Assign one or many listings to a product category (null = uncategorized).
+  async function assignCategory(ids: string[], catId: string | null) {
+    if (!ids.length) return;
+    await supabase.from("listings").update({ listing_category_id: catId }).in("id", ids);
+    onRefresh();
+  }
   const [boostListingId, setBoostListingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", type: "product", price: "", price_label: "", description: "",
@@ -1883,21 +1891,55 @@ function ListingsTab({
         </div>
       ) : (
         <>
+        {/* Bulk category assignment bar */}
+        {cats.length > 0 && selectedIds.size > 0 && (
+          <div className="sticky top-14 lg:top-2 z-20 bg-green-600 text-white rounded-xl px-4 py-2.5 mb-3 flex items-center gap-3 shadow-lg">
+            <span className="text-sm font-semibold">{selectedIds.size} selected</span>
+            <select
+              value=""
+              onChange={(e) => { const v = e.target.value; if (!v) return; assignCategory([...selectedIds], v === "__none" ? null : v); setSelectedIds(new Set()); }}
+              className="text-sm text-gray-800 rounded-lg px-2 py-1 bg-white focus:outline-none"
+            >
+              <option value="">Move to category…</option>
+              <option value="__none">Uncategorized</option>
+              {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+            <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-sm underline hover:text-green-100">Clear</button>
+          </div>
+        )}
+
         {/* Mobile: card layout (table columns get cut off on phones) */}
         <div className="lg:hidden space-y-3">
           {listings.map((l) => (
             <div key={l.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{l.title}</p>
-                  <p className="text-xs text-gray-400 capitalize">{l.type} · {catName(l.listing_category_id) ?? l.category}</p>
+              <div className="flex items-start gap-2">
+                {cats.length > 0 && (
+                  <input type="checkbox" aria-label={`Select ${l.title}`} checked={selectedIds.has(l.id)} onChange={() => toggleSelect(l.id)} className="mt-1 accent-green-600" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{l.title}</p>
+                      <p className="text-xs text-gray-400 capitalize">{l.type}{cats.length === 0 ? ` · ${catName(l.listing_category_id) ?? l.category}` : ""}</p>
+                    </div>
+                    <button
+                      onClick={() => onToggle(l.id, l.is_active)}
+                      className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${l.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
+                    >
+                      {l.is_active ? "Active" : "Paused"}
+                    </button>
+                  </div>
+                  {cats.length > 0 && (
+                    <select
+                      value={l.listing_category_id ?? ""}
+                      onChange={(e) => assignCategory([l.id], e.target.value || null)}
+                      className="mt-1.5 text-xs text-gray-600 border border-gray-200 rounded-lg px-1.5 py-1 max-w-full focus:outline-none focus:ring-1 focus:ring-green-500"
+                    >
+                      <option value="">Uncategorized</option>
+                      {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  )}
                 </div>
-                <button
-                  onClick={() => onToggle(l.id, l.is_active)}
-                  className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${l.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
-                >
-                  {l.is_active ? "Active" : "Paused"}
-                </button>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-500">
                 <span className="font-semibold text-gray-700">{l.price ? formatPrice(l.price) : l.price_label ?? "—"}</span>
@@ -1920,6 +1962,17 @@ function ListingsTab({
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 text-xs font-medium text-gray-400 uppercase tracking-wide">
+                {cats.length > 0 && (
+                  <th className="px-4 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all"
+                      checked={listings.length > 0 && selectedIds.size === listings.length}
+                      onChange={(e) => setSelectedIds(e.target.checked ? new Set(listings.map((l) => l.id)) : new Set())}
+                      className="accent-green-600"
+                    />
+                  </th>
+                )}
                 <th className="text-left px-6 py-3">Listing</th>
                 <th className="text-left px-4 py-3">Type</th>
                 <th className="text-right px-4 py-3">Price</th>
@@ -1932,10 +1985,26 @@ function ListingsTab({
             </thead>
             <tbody className="divide-y divide-gray-50">
               {listings.map((l) => (
-                <tr key={l.id} className="hover:bg-gray-50 transition-colors">
+                <tr key={l.id} className={`hover:bg-gray-50 transition-colors ${selectedIds.has(l.id) ? "bg-green-50/50" : ""}`}>
+                  {cats.length > 0 && (
+                    <td className="px-4 py-3">
+                      <input type="checkbox" aria-label={`Select ${l.title}`} checked={selectedIds.has(l.id)} onChange={() => toggleSelect(l.id)} className="accent-green-600" />
+                    </td>
+                  )}
                   <td className="px-6 py-3">
                     <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">{l.title}</p>
-                    <p className="text-xs text-gray-400">{catName(l.listing_category_id) ?? l.category}</p>
+                    {cats.length > 0 ? (
+                      <select
+                        value={l.listing_category_id ?? ""}
+                        onChange={(e) => assignCategory([l.id], e.target.value || null)}
+                        className="mt-1 text-xs text-gray-500 border border-gray-200 rounded-lg px-1.5 py-0.5 max-w-[170px] focus:outline-none focus:ring-1 focus:ring-green-500"
+                      >
+                        <option value="">Uncategorized</option>
+                        {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      </select>
+                    ) : (
+                      <p className="text-xs text-gray-400">{l.category}</p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs capitalize text-gray-500">{l.type}</span>
