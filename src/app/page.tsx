@@ -451,6 +451,43 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* The Local Referral Engine */}
+        <section className="py-16 px-4 bg-white border-t border-gray-100">
+          <div className="max-w-4xl mx-auto text-center">
+            <p className="text-green-600 font-semibold text-sm uppercase tracking-widest mb-3">The Local Referral Engine</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-4">Help a local friend. Get rewarded for it.</h2>
+            <p className="text-gray-500 text-base sm:text-lg max-w-2xl mx-auto mb-4">
+              Referring a trusted local business should do two things: help a neighbor <span className="text-gray-700 font-semibold">and</span> earn you something back.
+              Most networking referrals get lost in the dust. Here, every referral is <span className="text-gray-700 font-semibold">tracked, encouraged, and rewarded</span> with 🪙 Local Bucks you can spend around town.
+            </p>
+
+            {/* The 3 legs */}
+            <p className="text-sm font-semibold text-gray-400 uppercase tracking-wide mt-12 mb-6">The three legs of Everything Local</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 text-left">
+              {[
+                { n: "1", icon: "🏘️", title: "Hyper-local & customer-obsessed", body: "Built for your town first — every business, listing, and referral lives right here in your community." },
+                { n: "2", icon: "🤝", title: "A stronger, tighter-knit economy", body: "Neighbors referring neighbors keeps dollars local — building a more connected economy across the country." },
+                { n: "3", icon: "💪", title: "Small business over everything", body: "Which should be enough on its own — putting small businesses and local economies ahead of anything else." },
+              ].map((c) => (
+                <div key={c.n} className="bg-green-50 border border-green-100 rounded-2xl p-5">
+                  <div className="text-3xl mb-3">{c.icon}</div>
+                  <h3 className="font-bold text-gray-900 mb-1 leading-snug">{c.title}</h3>
+                  <p className="text-sm text-gray-500 leading-relaxed">{c.body}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center mt-10">
+              <Link href="/signup" className="bg-green-600 text-white font-bold px-8 py-3.5 rounded-full hover:bg-green-700 transition-colors">
+                Start referring &amp; earning →
+              </Link>
+              <Link href="/local-bucks" className="border-2 border-green-600 text-green-700 font-bold px-8 py-3.5 rounded-full hover:bg-green-50 transition-colors">
+                🪙 How Local Bucks work
+              </Link>
+            </div>
+          </div>
+        </section>
+
 
         {/* Local Pages + Local Jobs */}
         <section className="py-14 px-4 bg-white border-t border-gray-100">

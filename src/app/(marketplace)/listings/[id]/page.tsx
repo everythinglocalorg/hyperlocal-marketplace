@@ -9,7 +9,7 @@ async function loadListing(id: string) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("listings")
-    .select("id, title, description, images, price, vendor:vendors(slug, business_name, city, state)")
+    .select("id, title, description, images, price, vendor:vendors(slug, business_name, city, state, logo_url)")
     .eq("id", id)
     .maybeSingle();
   if (!data) return null;
@@ -29,8 +29,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     listing.description ||
     `${listing.title} from ${biz}${listing.vendor?.city ? ` in ${listing.vendor.city}, ${listing.vendor.state}` : ""} on Everything Local.`;
-  // Branded Everything Local card for link previews
-  const image = "/api/og";
+  // Real photo → business logo → branded card as last resort
+  const image = listing.images?.[0] || listing.vendor?.logo_url || "/api/og";
 
   return {
     title,
