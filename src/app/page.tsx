@@ -458,7 +458,7 @@ export default function HomePage() {
             <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-4">Help a local friend. Get rewarded for it.</h2>
             <p className="text-gray-500 text-base sm:text-lg max-w-2xl mx-auto mb-4">
               Referring a trusted local business should do two things: help a neighbor <span className="text-gray-700 font-semibold">and</span> earn you something back.
-              Most networking referrals get lost in the dust. Here, every referral is <span className="text-gray-700 font-semibold">tracked, encouraged, and rewarded</span> with 🪙 Local Bucks you can spend around town.
+              Most networking referrals get lost in the dust. Here, every referral is <span className="text-gray-700 font-semibold">tracked, encouraged, and rewarded</span> with 🪙 Local Bucks.
             </p>
 
             {/* The 3 legs */}
