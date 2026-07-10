@@ -1,8 +1,8 @@
 "use client";
 import { useMemo, useState } from "react";
 import {
-  Area, Addon, DepositType, PaymentMethod, UNIT_LABEL, isCoverageBasis,
-  computeLineTotal, areaTotal, selectedTotal, depositAmount, defaultSelectedAddonIds,
+  Area, Addon, ProposalLine, DepositType, PaymentMethod, UNIT_LABEL, isCoverageBasis, isLineOptional,
+  computeLineTotal, selectedTotal, depositAmount, defaultSelectedAddonIds, round2,
 } from "@/lib/estimate-pricing";
 import { renderMarkdown } from "@/lib/markdown";
 
@@ -17,7 +17,7 @@ export type ProposalData = {
   proposalNumber: string | null; salesperson: string | null;
   createdAt: string; expiresAt: string | null; acceptedAt: string | null; depositPaidAt: string | null;
   customer: { name: string | null; email: string | null; phone: string | null; address: string | null };
-  savedSelections: { optional_area_ids?: string[]; addon_ids?: string[] } | null;
+  savedSelections: { line_ids?: string[]; addon_ids?: string[] } | null;
   media: Media[];
   vendor: { businessName: string; slug: string | null; logoUrl: string | null; phone: string | null; city: string | null; state: string | null; connectEnabled: boolean };
 };
@@ -38,8 +38,8 @@ export default function ProposalCustomerView({ data }: { data: ProposalData }) {
   const alreadyAccepted = Boolean(data.acceptedAt) || data.status === "accepted";
   const paid = Boolean(data.depositPaidAt);
 
-  const [optAreas, setOptAreas] = useState<Set<string>>(
-    new Set(data.savedSelections?.optional_area_ids ?? []),
+  const [selectedLines, setSelectedLines] = useState<Set<string>>(
+    new Set(data.savedSelections?.line_ids ?? []),
   );
   const [addonSel, setAddonSel] = useState<Set<string>>(
     new Set(data.savedSelections?.addon_ids ?? defaultSelectedAddonIds(data.addons)),
@@ -52,18 +52,16 @@ export default function ProposalCustomerView({ data }: { data: ProposalData }) {
   const justPaid = query.get("paid") === "1";
   const cancelled = query.get("cancelled") === "1";
 
-  const total = useMemo(() => selectedTotal(data.areas, data.addons, optAreas, addonSel), [data.areas, data.addons, optAreas, addonSel]);
+  const total = useMemo(() => selectedTotal(data.areas, data.addons, selectedLines, addonSel), [data.areas, data.addons, selectedLines, addonSel]);
   const deposit = depositAmount(total, data.depositType, data.depositValue);
 
   const canCard = data.paymentMethods.includes("card") && data.vendor.connectEnabled && deposit >= 0.5;
   const canCheck = data.paymentMethods.includes("check");
 
-  const nonOptional = data.areas.filter((a) => !a.optional);
-  const optional = data.areas.filter((a) => a.optional);
   const generalMedia = data.media.filter((m) => !m.area_id).sort((a, b) => a.position - b.position);
 
-  function toggleOptArea(id: string) {
-    setOptAreas((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  function toggleLine(id: string) {
+    setSelectedLines((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   function toggleAddon(id: string) {
     setAddonSel((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -73,7 +71,7 @@ export default function ProposalCustomerView({ data }: { data: ProposalData }) {
     setError(null); setBusy("card");
     const res = await fetch("/api/proposal/deposit", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: data.token, optionalAreaIds: [...optAreas], addonIds: [...addonSel] }),
+      body: JSON.stringify({ token: data.token, lineIds: [...selectedLines], addonIds: [...addonSel] }),
     });
     const j = await res.json().catch(() => ({}));
     if (res.ok && j.url) { window.location.href = j.url; return; }
@@ -85,7 +83,7 @@ export default function ProposalCustomerView({ data }: { data: ProposalData }) {
     if (!window.confirm("Accept this proposal and arrange to pay by check?")) { setBusy(null); return; }
     const res = await fetch("/api/proposal/accept", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token: data.token, optionalAreaIds: [...optAreas], addonIds: [...addonSel], method: "check" }),
+      body: JSON.stringify({ token: data.token, lineIds: [...selectedLines], addonIds: [...addonSel], method: "check" }),
     });
     const j = await res.json().catch(() => ({}));
     setBusy(null);
@@ -168,35 +166,13 @@ export default function ProposalCustomerView({ data }: { data: ProposalData }) {
           </div>
         )}
 
-        {/* Included areas */}
+        {/* Areas — each line is either included or a customer-toggleable option */}
         <div className="space-y-4">
-          {nonOptional.map((area) => (
-            <AreaBlock key={area.id} area={area} media={data.media.filter((m) => m.area_id === area.id)} />
+          {data.areas.map((area) => (
+            <AreaBlock key={area.id} area={area} media={data.media.filter((m) => m.area_id === area.id)}
+              selectedLines={selectedLines} onToggleLine={accepted ? undefined : toggleLine} />
           ))}
         </div>
-
-        {/* Optional areas */}
-        {optional.length > 0 && (
-          <div className="mt-6">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Optional upgrades</p>
-            <div className="space-y-4">
-              {optional.map((area) => {
-                const selected = optAreas.has(area.id);
-                return (
-                  <div key={area.id} className={`rounded-2xl border transition-colors ${selected ? "border-green-300 bg-white" : "border-dashed border-gray-300 bg-gray-50"}`}>
-                    <button onClick={() => !accepted && toggleOptArea(area.id)} disabled={accepted}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-left disabled:cursor-default">
-                      <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 ${selected ? "bg-green-600 border-green-600 text-white" : "border-gray-300"}`}>{selected ? "✓" : ""}</span>
-                      <span className="font-semibold text-gray-900 flex-1">{area.name}</span>
-                      <span className="text-sm font-bold text-gray-800">{money(areaTotal(area))}</span>
-                    </button>
-                    {selected && <div className="px-4 pb-3"><AreaLines area={area} /></div>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Add-ons */}
         {data.addons.length > 0 && (
@@ -272,7 +248,11 @@ export default function ProposalCustomerView({ data }: { data: ProposalData }) {
   );
 }
 
-function AreaBlock({ area, media }: { area: Area; media: Media[] }) {
+function AreaBlock({ area, media, selectedLines, onToggleLine }: {
+  area: Area; media: Media[]; selectedLines: Set<string>; onToggleLine?: (id: string) => void;
+}) {
+  const areaShown = (area.lines ?? []).reduce(
+    (s, l) => s + ((!isLineOptional(area, l) || selectedLines.has(l.id)) ? computeLineTotal(l) : 0), 0);
   return (
     <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-50">
@@ -280,36 +260,60 @@ function AreaBlock({ area, media }: { area: Area; media: Media[] }) {
           <p className="font-bold text-gray-900">{area.name}</p>
           {area.hours > 0 && <p className="text-xs text-gray-400">Est. {area.hours} hrs</p>}
         </div>
-        <span className="text-sm font-bold text-gray-800">{money(areaTotal(area))}</span>
+        <span className="text-sm font-bold text-gray-800">{money(round2(areaShown))}</span>
       </div>
       {area.prep_note && (
         <div className="mx-4 mt-3 text-xs bg-amber-50 border border-amber-100 text-amber-800 rounded-lg px-3 py-2">{area.prep_note}</div>
       )}
-      <div className="px-4 py-3"><AreaLines area={area} /></div>
+      <div className="px-4 py-3"><AreaLines area={area} selectedLines={selectedLines} onToggleLine={onToggleLine} /></div>
       {media.length > 0 && <div className="px-4 pb-4"><MediaGallery media={media} /></div>}
     </div>
   );
 }
 
-function AreaLines({ area }: { area: Area }) {
+function lineDetail(l: ProposalLine): string {
+  if (l.unit_basis === "flat") return "";
+  const m = l.measurement > 0 ? `${l.measurement} ${UNIT_LABEL[l.unit_basis]}` : "";
+  const c = isCoverageBasis(l.unit_basis) && l.coats > 1 ? `${m ? " · " : ""}${l.coats} coats` : "";
+  return m + c;
+}
+
+function AreaLines({ area, selectedLines, onToggleLine }: {
+  area: Area; selectedLines: Set<string>; onToggleLine?: (id: string) => void;
+}) {
   if (!area.lines?.length) return <p className="text-xs text-gray-400">No line items.</p>;
   return (
-    <table className="w-full text-sm">
-      <tbody>
-        {area.lines.map((l) => (
-          <tr key={l.id} className="border-b border-gray-50 last:border-0">
-            <td className="py-2 pr-2 text-gray-800">
-              {l.name}
-              <span className="text-gray-400 text-xs block sm:inline sm:ml-2">
-                {l.measurement > 0 ? `${l.measurement} ${UNIT_LABEL[l.unit_basis]}` : ""}
-                {isCoverageBasis(l.unit_basis) && l.coats > 1 ? ` · ${l.coats} coats` : ""}
+    <div className="divide-y divide-gray-50">
+      {area.lines.map((l) => {
+        const optional = isLineOptional(area, l);
+        const on = !optional || selectedLines.has(l.id);
+        const price = computeLineTotal(l);
+        const detail = lineDetail(l);
+        if (optional) {
+          return (
+            <button key={l.id} onClick={() => onToggleLine?.(l.id)} disabled={!onToggleLine}
+              className="w-full flex items-center gap-3 py-2.5 text-left disabled:cursor-default">
+              <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 text-xs ${on ? "bg-green-600 border-green-600 text-white" : "border-gray-300"}`}>{on ? "✓" : ""}</span>
+              <span className="flex-1 min-w-0">
+                <span className="text-gray-900 font-medium">{l.name || "Optional item"}</span>
+                {detail && <span className="text-gray-400 text-xs ml-2">{detail}</span>}
+                <span className="ml-2 text-[10px] uppercase tracking-wide font-bold text-green-600">Optional</span>
               </span>
-            </td>
-            <td className="py-2 text-right font-semibold text-gray-900 whitespace-nowrap">{money(computeLineTotal(l))}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+              <span className={`text-sm font-semibold whitespace-nowrap ${on ? (price < 0 ? "text-red-600" : "text-gray-900") : "text-gray-400"}`}>{money(price)}</span>
+            </button>
+          );
+        }
+        return (
+          <div key={l.id} className="flex items-center gap-3 py-2.5">
+            <span className="flex-1 min-w-0 text-gray-800">
+              {l.name}
+              {detail && <span className="text-gray-400 text-xs ml-2">{detail}</span>}
+            </span>
+            <span className={`text-sm font-semibold whitespace-nowrap ${price < 0 ? "text-red-600" : "text-gray-900"}`}>{money(price)}</span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

@@ -9,7 +9,7 @@ function getAdmin() {
 // Public: customer accepts the proposal and chooses to pay by check (no card
 // charge). Records acceptance + their selections so the vendor sees it in CRM.
 export async function POST(req: NextRequest) {
-  const { token, optionalAreaIds, addonIds, method } = await req.json().catch(() => ({}));
+  const { token, lineIds, addonIds, method } = await req.json().catch(() => ({}));
   if (!token) return NextResponse.json({ error: "Missing proposal token" }, { status: 400 });
 
   const admin = getAdmin();
@@ -27,14 +27,14 @@ export async function POST(req: NextRequest) {
   }
 
   const addons: Addon[] = Array.isArray(est.addons) ? est.addons : [];
-  const optAreaIds: string[] = Array.isArray(optionalAreaIds) ? optionalAreaIds : [];
+  const lineSel: string[] = Array.isArray(lineIds) ? lineIds : [];
   const addonSel: string[] = Array.isArray(addonIds) ? addonIds : defaultSelectedAddonIds(addons);
 
   await admin.from("estimates").update({
     status: "accepted",
     accepted_at: new Date().toISOString(),
     accepted_payment_method: "check",
-    customer_selections: { optional_area_ids: optAreaIds, addon_ids: addonSel },
+    customer_selections: { line_ids: lineSel, addon_ids: addonSel },
   }).eq("id", est.id);
 
   return NextResponse.json({ ok: true });

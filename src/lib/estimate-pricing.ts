@@ -16,13 +16,14 @@
 // A manual_total overrides the computed value when the vendor types their own.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type UnitBasis = "sqft" | "linear_ft" | "each" | "hour";
+export type UnitBasis = "sqft" | "linear_ft" | "each" | "hour" | "flat";
 
 export const UNIT_LABEL: Record<UnitBasis, string> = {
   sqft: "sq ft",
   linear_ft: "linear ft",
   each: "each",
   hour: "hour",
+  flat: "flat",
 };
 
 export type CatalogItem = {
@@ -55,7 +56,8 @@ export type ProposalLine = {
   labor_rate: number;
   markup_pct: number;
   product_line: string | null;
-  manual_total: number | null;  // when set, overrides the computed total
+  manual_total: number | null;  // when set, overrides the computed total (and holds the amount for flat lines)
+  optional: boolean;            // customer can toggle this line on/off in the customer view
 };
 
 export type Area = {
@@ -63,7 +65,7 @@ export type Area = {
   name: string;
   hours: number;                // informational labor hours (not added to total)
   prep_note: string;            // "Preparation Grade" banner text
-  optional: boolean;            // "Add Optional Area" — excluded from base total
+  optional: boolean;            // legacy area-level optional (migrated to line-level in the builder)
   lines: ProposalLine[];
 };
 
@@ -78,6 +80,9 @@ export type Addon = {
 export type DepositType = "percent" | "flat";
 export type PaymentMethod = "card" | "check";
 
+// A reusable video reference stored on a template (applied to proposals as media).
+export type StructureVideo = { id: string; title: string; url: string; source: string };
+
 // The reusable part of a proposal — what a template stores and applies.
 export type ProposalStructure = {
   areas: Area[];
@@ -87,6 +92,7 @@ export type ProposalStructure = {
   payment_methods: PaymentMethod[];
   project_overview: string | null;
   notes: string | null;
+  videos?: StructureVideo[];
 };
 
 // Deep-copy a structure with fresh ids so applying a template to a new proposal
@@ -119,6 +125,9 @@ export function isCoverageBasis(basis: UnitBasis): boolean {
 export function computeLineTotal(line: Pick<ProposalLine,
   "unit_basis" | "measurement" | "coats" | "spread_rate" | "cost_of_goods" |
   "labor_rate" | "markup_pct" | "manual_total">): number {
+  // Flat lines (fees / discounts) are a plain amount held in manual_total; it may
+  // be negative for a discount.
+  if (line.unit_basis === "flat") return round2(num(line.manual_total));
   if (line.manual_total != null && Number.isFinite(line.manual_total)) {
     return round2(num(line.manual_total));
   }
@@ -142,41 +151,74 @@ export function computeLineTotal(line: Pick<ProposalLine,
   return round2((material + laborCost) * (1 + markup / 100));
 }
 
+// A line is optional if it's marked optional, or (legacy) its area is optional.
+export function isLineOptional(area: Area, line: ProposalLine): boolean {
+  return !!line.optional || !!area.optional;
+}
+
+// Convert legacy area-level optional into line-level optional so the builder's
+// per-line checkboxes reflect reality.
+export function migrateOptionalAreas(areas: Area[]): Area[] {
+  return (areas ?? []).map((a) =>
+    a.optional
+      ? { ...a, optional: false, lines: (a.lines ?? []).map((l) => ({ ...l, optional: true })) }
+      : a,
+  );
+}
+
+// Gross area total — every line, optional or not (shown on the builder).
 export function areaTotal(area: Area): number {
   return round2((area.lines ?? []).reduce((s, l) => s + computeLineTotal(l), 0));
 }
 
-// Base proposal price: non-optional areas + included add-ons.
+// Base area total — only the always-included lines.
+export function areaBaseTotal(area: Area): number {
+  return round2((area.lines ?? []).filter((l) => !isLineOptional(area, l)).reduce((s, l) => s + computeLineTotal(l), 0));
+}
+
+// Base proposal price: always-included lines + included add-ons (optional lines
+// and non-included add-ons are opt-in on the customer view).
 export function estimateTotal(areas: Area[], addons: Addon[]): number {
-  const areaSum = (areas ?? [])
-    .filter((a) => !a.optional)
-    .reduce((s, a) => s + areaTotal(a), 0);
+  const areaSum = (areas ?? []).reduce((s, a) => s + areaBaseTotal(a), 0);
   const addonSum = (addons ?? [])
     .filter((a) => a.included)
     .reduce((s, a) => s + num(a.total), 0);
   return round2(areaSum + addonSum);
 }
 
-// Total for the customer view: non-optional areas are always in; optional areas
-// and add-ons are included only when their id is in the selected sets. Used by
-// both the customer view (live) and the deposit API (authoritative recompute).
+// Sum of all optional line items across areas (shown to the vendor as a note).
+export function optionalLinesTotal(areas: Area[]): number {
+  let sum = 0;
+  for (const a of areas ?? []) for (const l of a.lines ?? []) if (isLineOptional(a, l)) sum += computeLineTotal(l);
+  return round2(sum);
+}
+
+// Total for the customer view: always-included lines are in; optional lines and
+// add-ons are added only when their id is in the selected sets. Used by both the
+// customer view (live) and the deposit API (authoritative recompute).
 export function selectedTotal(
   areas: Area[], addons: Addon[],
-  selectedOptionalAreaIds: Set<string>, selectedAddonIds: Set<string>,
+  selectedLineIds: Set<string>, selectedAddonIds: Set<string>,
 ): number {
-  const areaSum = (areas ?? [])
-    .filter((a) => !a.optional || selectedOptionalAreaIds.has(a.id))
-    .reduce((s, a) => s + areaTotal(a), 0);
-  const addonSum = (addons ?? [])
-    .filter((a) => selectedAddonIds.has(a.id))
-    .reduce((s, a) => s + num(a.total), 0);
-  return round2(areaSum + addonSum);
+  let sum = 0;
+  for (const a of areas ?? []) {
+    for (const l of a.lines ?? []) {
+      if (!isLineOptional(a, l) || selectedLineIds.has(l.id)) sum += computeLineTotal(l);
+    }
+  }
+  for (const ad of addons ?? []) if (selectedAddonIds.has(ad.id)) sum += num(ad.total);
+  return round2(sum);
 }
 
 // The add-ons a vendor pre-selected ("Added to Proposal") — the default checked
 // state in the customer view.
 export function defaultSelectedAddonIds(addons: Addon[]): string[] {
   return (addons ?? []).filter((a) => a.included).map((a) => a.id);
+}
+
+// Optional lines default to OFF in the customer view (they're opt-in upsells).
+export function defaultSelectedLineIds(): string[] {
+  return [];
 }
 
 export function depositAmount(total: number, type: DepositType, value: number): number {
@@ -194,13 +236,15 @@ export function toFlatLineItems(
 ): { id: string; description: string; qty: number; unit_price: number }[] {
   const out: { id: string; description: string; qty: number; unit_price: number }[] = [];
   for (const area of areas ?? []) {
-    if (area.optional) continue;
     for (const line of area.lines ?? []) {
+      if (isLineOptional(area, line)) continue;  // optional lines are opt-in, not in the base
       const total = computeLineTotal(line);
       const unit = UNIT_LABEL[line.unit_basis] ?? "";
-      const detail = isCoverageBasis(line.unit_basis)
-        ? ` (${num(line.measurement)} ${unit}${num(line.coats) > 1 ? ` · ${num(line.coats)} coats` : ""})`
-        : ` (${num(line.measurement)} ${unit})`;
+      const detail = line.unit_basis === "flat"
+        ? ""
+        : isCoverageBasis(line.unit_basis)
+          ? ` (${num(line.measurement)} ${unit}${num(line.coats) > 1 ? ` · ${num(line.coats)} coats` : ""})`
+          : ` (${num(line.measurement)} ${unit})`;
       out.push({
         id: line.id,
         description: `${area.name ? area.name + " — " : ""}${line.name}${detail}`,
@@ -218,6 +262,7 @@ export function toFlatLineItems(
 
 // ── Builders for fresh rows ──────────────────────────────────────────────────
 export function newLineFromCatalog(item: CatalogItem): ProposalLine {
+  const flat = item.unit_basis === "flat";
   return {
     id: crypto.randomUUID(),
     catalog_item_id: item.id,
@@ -231,7 +276,9 @@ export function newLineFromCatalog(item: CatalogItem): ProposalLine {
     labor_rate: num(item.labor_rate),
     markup_pct: num(item.markup_pct),
     product_line: item.product_line,
-    manual_total: null,
+    // A flat catalog item carries its fixed amount in cost_of_goods.
+    manual_total: flat ? num(item.cost_of_goods) : null,
+    optional: false,
   };
 }
 
@@ -250,16 +297,22 @@ export function newBlankLine(): ProposalLine {
     markup_pct: 0,
     product_line: null,
     manual_total: null,
+    optional: false,
   };
 }
 
-export function newArea(optional = false): Area {
+// A flat "line item" — a typed name + amount (negative = discount).
+export function newFlatLine(name = "", amount = 0): ProposalLine {
+  return { ...newBlankLine(), unit_basis: "flat", name, manual_total: amount };
+}
+
+export function newArea(): Area {
   return {
     id: crypto.randomUUID(),
-    name: optional ? "Optional Area" : "New Area",
+    name: "New Area",
     hours: 0,
     prep_note: "",
-    optional,
+    optional: false,
     lines: [],
   };
 }

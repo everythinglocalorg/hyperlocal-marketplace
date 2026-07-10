@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import TemplateEditor from "@/components/vendor/TemplateEditor";
 import { Area, Addon, ProposalStructure, estimateTotal, newArea } from "@/lib/estimate-pricing";
 
 type Template = { id: string; name: string; description: string | null; structure: ProposalStructure };
@@ -21,6 +22,7 @@ export default function TemplateManager({ vendorId }: { vendorId: string }) {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<{ id?: string; name: string; description: string } | null>(null);
+  const [building, setBuilding] = useState<Template | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendorId]);
@@ -43,7 +45,14 @@ export default function TemplateManager({ vendorId }: { vendorId: string }) {
       const { data } = await supabase.from("estimate_templates").insert({
         vendor_id: vendorId, name: editing.name.trim(), description: editing.description.trim() || null, structure: emptyStructure(),
       }).select("id, name, description, structure").single();
-      if (data) setTemplates((prev) => [...prev, { ...(data as any), structure: (data as any).structure as ProposalStructure }]);
+      if (data) {
+        const row = { ...(data as any), structure: (data as any).structure as ProposalStructure } as Template;
+        setTemplates((prev) => [...prev, row]);
+        setSaving(false);
+        setEditing(null);
+        setBuilding(row); // jump straight into building the new template
+        return;
+      }
     }
     setSaving(false);
     setEditing(null);
@@ -64,12 +73,22 @@ export default function TemplateManager({ vendorId }: { vendorId: string }) {
 
   if (loading) return <div className="flex items-center justify-center h-32"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
 
+  if (building) return (
+    <TemplateEditor
+      vendorId={vendorId}
+      template={building}
+      onClose={() => setBuilding(null)}
+      onSaved={(t) => { setTemplates((prev) => prev.map((x) => (x.id === t.id ? { ...x, ...t } : x))); setBuilding(null); }}
+    />
+  );
+
   return (
     <div>
       <div className="flex items-start justify-between mb-4 gap-4">
         <p className="text-sm text-gray-500 max-w-lg">
-          Start a proposal from a template to skip the setup. Build a great proposal once, then use
-          <strong> Save as template </strong> in the builder to capture it here.
+          Templates pre-fill a new proposal so you skip the setup. Click <strong>Build</strong> to add
+          areas, pricing, add-ons, text &amp; notes, and videos — or use <strong>Save as template</strong>
+          in the builder to capture a finished proposal.
         </p>
         <button onClick={() => setEditing({ name: "", description: "" })}
           className="bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-green-700 transition-colors shrink-0">+ New Template</button>
@@ -95,6 +114,7 @@ export default function TemplateManager({ vendorId }: { vendorId: string }) {
                   <p className="text-xs text-gray-400 mt-0.5">{areas.length} area{areas.length === 1 ? "" : "s"} · {addons.length} add-on{addons.length === 1 ? "" : "s"} · ${total.toFixed(2)}</p>
                 </div>
                 <div className="flex gap-2 shrink-0">
+                  <button onClick={() => setBuilding(t)} className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">Build</button>
                   <button onClick={() => setEditing({ id: t.id, name: t.name, description: t.description ?? "" })} className="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">Rename</button>
                   <button onClick={() => duplicate(t)} className="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">Duplicate</button>
                   <button onClick={() => remove(t.id)} className="text-xs text-red-400 hover:text-red-600">✕</button>

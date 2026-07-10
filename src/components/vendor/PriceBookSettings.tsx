@@ -7,7 +7,7 @@ import { CatalogItem, UnitBasis, UNIT_LABEL } from "@/lib/estimate-pricing";
 // the proposal builder can auto-calculate line totals. Items are grouped by
 // substrate; the substrate list is simply the distinct substrates in use.
 
-const UNIT_OPTIONS: UnitBasis[] = ["sqft", "linear_ft", "each", "hour"];
+const UNIT_OPTIONS: UnitBasis[] = ["sqft", "linear_ft", "each", "hour", "flat"];
 
 type Draft = Omit<CatalogItem, "id" | "vendor_id" | "is_active"> & { id?: string };
 
@@ -138,10 +138,17 @@ export default function PriceBookSettings({ vendorId }: Props) {
                         <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{UNIT_LABEL[it.unit_basis]}</span>
                       </div>
                       {it.product_line && <p className="text-xs text-gray-400 truncate">{it.product_line}</p>}
-                      <p className="text-xs text-gray-400 mt-0.5">
-                        {it.spread_rate ? `${it.spread_rate} /unit · ` : ""}
-                        COGS ${Number(it.cost_of_goods).toFixed(2)} · Labor ${Number(it.labor_rate).toFixed(2)} · {it.markup_pct}% markup · {it.default_coats} coat{it.default_coats === 1 ? "" : "s"}
-                      </p>
+                      {it.unit_basis === "flat" ? (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {Number(it.cost_of_goods) < 0 ? "Discount " : "Flat charge "}
+                          <span className={Number(it.cost_of_goods) < 0 ? "text-red-500" : ""}>${Number(it.cost_of_goods).toFixed(2)}</span>
+                        </p>
+                      ) : (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          {it.spread_rate ? `${it.spread_rate} /unit · ` : ""}
+                          COGS ${Number(it.cost_of_goods).toFixed(2)} · Labor ${Number(it.labor_rate).toFixed(2)} · {it.markup_pct}% markup · {it.default_coats} coat{it.default_coats === 1 ? "" : "s"}
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button onClick={() => setEditing({ ...it })} className="text-xs border border-gray-200 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-50">Edit</button>
@@ -175,6 +182,7 @@ function ItemEditor({ draft, substrates, saving, onChange, onSave, onClose }: {
 }) {
   const set = (patch: Partial<Draft>) => onChange({ ...draft, ...patch });
   const coverage = draft.unit_basis === "sqft" || draft.unit_basis === "linear_ft";
+  const flat = draft.unit_basis === "flat";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto" onClick={onClose}>
@@ -203,38 +211,48 @@ function ItemEditor({ draft, substrates, saving, onChange, onSave, onClose }: {
             </Field>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Unit basis">
+          <div className={`grid ${flat ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
+            <Field label="Unit basis" hint={flat ? "Flat = a fixed charge or discount (no measurement)." : undefined}>
               <select value={draft.unit_basis} onChange={(e) => set({ unit_basis: e.target.value as UnitBasis })} className={inputCls}>
-                {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
+                {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u === "flat" ? "flat charge / discount" : UNIT_LABEL[u]}</option>)}
               </select>
             </Field>
-            <Field label="Default coats">
-              <input type="number" min={1} value={draft.default_coats}
-                onChange={(e) => set({ default_coats: Number(e.target.value) })} className={inputCls} />
-            </Field>
+            {!flat && (
+              <Field label="Default coats">
+                <input type="number" min={1} value={draft.default_coats}
+                  onChange={(e) => set({ default_coats: Number(e.target.value) })} className={inputCls} />
+              </Field>
+            )}
           </div>
 
-          {coverage && (
-            <Field label={`Spread rate (${UNIT_LABEL[draft.unit_basis]} per unit of material)`} hint="e.g. 250 sq ft per gallon">
-              <input type="number" min={0} step="0.01" value={draft.spread_rate ?? ""}
-                onChange={(e) => set({ spread_rate: e.target.value === "" ? null : Number(e.target.value) })}
-                placeholder="250" className={inputCls} />
+          {flat ? (
+            <Field label="Amount" hint="Use a negative number for a discount (e.g. -50).">
+              <MoneyInput value={draft.cost_of_goods} onChange={(v) => set({ cost_of_goods: v })} allowNegative />
             </Field>
+          ) : (
+            <>
+              {coverage && (
+                <Field label={`Spread rate (${UNIT_LABEL[draft.unit_basis]} per unit of material)`} hint="e.g. 250 sq ft per gallon">
+                  <input type="number" min={0} step="0.01" value={draft.spread_rate ?? ""}
+                    onChange={(e) => set({ spread_rate: e.target.value === "" ? null : Number(e.target.value) })}
+                    placeholder="250" className={inputCls} />
+                </Field>
+              )}
+
+              <div className="grid grid-cols-3 gap-3">
+                <Field label={coverage ? "Cost / material unit" : "Cost / unit"}>
+                  <MoneyInput value={draft.cost_of_goods} onChange={(v) => set({ cost_of_goods: v })} />
+                </Field>
+                <Field label={`Labor / ${UNIT_LABEL[draft.unit_basis]}`}>
+                  <MoneyInput value={draft.labor_rate} onChange={(v) => set({ labor_rate: v })} />
+                </Field>
+                <Field label="Markup %">
+                  <input type="number" min={0} step="1" value={draft.markup_pct}
+                    onChange={(e) => set({ markup_pct: Number(e.target.value) })} className={inputCls} />
+                </Field>
+              </div>
+            </>
           )}
-
-          <div className="grid grid-cols-3 gap-3">
-            <Field label={coverage ? "Cost / material unit" : "Cost / unit"}>
-              <MoneyInput value={draft.cost_of_goods} onChange={(v) => set({ cost_of_goods: v })} />
-            </Field>
-            <Field label={`Labor / ${UNIT_LABEL[draft.unit_basis]}`}>
-              <MoneyInput value={draft.labor_rate} onChange={(v) => set({ labor_rate: v })} />
-            </Field>
-            <Field label="Markup %">
-              <input type="number" min={0} step="1" value={draft.markup_pct}
-                onChange={(e) => set({ markup_pct: Number(e.target.value) })} className={inputCls} />
-            </Field>
-          </div>
         </div>
         <div className="px-5 py-4 border-t border-gray-100 flex gap-3">
           <button onClick={onSave} disabled={saving || !draft.name.trim()}
@@ -260,11 +278,11 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function MoneyInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+function MoneyInput({ value, onChange, allowNegative = false }: { value: number; onChange: (v: number) => void; allowNegative?: boolean }) {
   return (
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
-      <input type="number" min={0} step="0.01" value={value}
+      <input type="number" min={allowNegative ? undefined : 0} step="0.01" value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full border border-gray-200 rounded-lg pl-7 pr-2 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
     </div>

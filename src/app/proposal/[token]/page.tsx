@@ -57,7 +57,7 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
       phone: (est.customer_phone as string) ?? null,
       address: (est.customer_address as string) ?? null,
     },
-    savedSelections: (est.customer_selections as { optional_area_ids?: string[]; addon_ids?: string[] }) ?? null,
+    savedSelections: (est.customer_selections as { line_ids?: string[]; addon_ids?: string[] }) ?? null,
     media: (Array.isArray(est.media) ? est.media : []) as {
       id: string; area_id: string | null; kind: string; source: string; url: string; thumb_url: string | null; caption: string | null; position: number;
     }[],

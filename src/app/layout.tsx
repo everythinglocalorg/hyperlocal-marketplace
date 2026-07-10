@@ -15,8 +15,9 @@ export const metadata: Metadata = {
     title: "Everything Local Marketplace",
     description: "Discover local vendors, earn Local Bucks, and support your community.",
     type: "website",
+    images: [{ url: "/api/og", width: 1200, height: 630, alt: "Everything Local — Browse Local Like Never Before" }],
   },
-  twitter: { card: "summary_large_image" },
+  twitter: { card: "summary_large_image", images: ["/api/og"] },
 };
 
 export default function RootLayout({

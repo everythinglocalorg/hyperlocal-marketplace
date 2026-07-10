@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Payments aren't configured yet." }, { status: 500 });
   }
 
-  const { token, optionalAreaIds, addonIds } = await req.json().catch(() => ({}));
+  const { token, lineIds, addonIds } = await req.json().catch(() => ({}));
   if (!token) return NextResponse.json({ error: "Missing proposal token" }, { status: 400 });
 
   const admin = getAdmin();
@@ -36,10 +36,10 @@ export async function POST(req: NextRequest) {
   // Authoritative recompute — never trust an amount from the browser.
   const areas: Area[] = Array.isArray(est.areas) ? est.areas : [];
   const addons: Addon[] = Array.isArray(est.addons) ? est.addons : [];
-  const optAreaSet = new Set<string>(Array.isArray(optionalAreaIds) ? optionalAreaIds : []);
+  const lineSet = new Set<string>(Array.isArray(lineIds) ? lineIds : []);
   const addonSet = new Set<string>(Array.isArray(addonIds) ? addonIds : defaultSelectedAddonIds(addons));
 
-  const total = selectedTotal(areas, addons, optAreaSet, addonSet);
+  const total = selectedTotal(areas, addons, lineSet, addonSet);
   const deposit = depositAmount(total, (est.deposit_type as DepositType) ?? "percent", Number(est.deposit_value) ?? 50);
   const depositCents = Math.round(deposit * 100);
   if (depositCents < 50) {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   // Persist the customer's selections so the webhook can finalize acceptance.
   await admin.from("estimates").update({
-    customer_selections: { optional_area_ids: Array.from(optAreaSet), addon_ids: Array.from(addonSet) },
+    customer_selections: { line_ids: Array.from(lineSet), addon_ids: Array.from(addonSet) },
   }).eq("id", est.id);
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;

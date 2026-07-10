@@ -29,7 +29,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     listing.description ||
     `${listing.title} from ${biz}${listing.vendor?.city ? ` in ${listing.vendor.city}, ${listing.vendor.state}` : ""} on Everything Local.`;
-  const image = listing.images?.[0] || undefined;
+  // Branded Everything Local card for link previews
+  const image = "/api/og";
 
   return {
     title,
