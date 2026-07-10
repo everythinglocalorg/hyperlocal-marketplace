@@ -736,6 +736,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               </>
             ) : (
               <>
+                <h2 className="font-serif text-xl font-black text-gray-900 mb-5">{isRestaurant ? "Popular" : "Services & Products"}</h2>
                 {/* Top 3 products */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {orderedListings.slice(0, 3).map((listing) => (
@@ -832,6 +833,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
         {/* ── REVIEWS ───────────────────────────────────────────── */}
         <div id="reviews" ref={(el) => { sectionRefs.current.reviews = el; }} className="max-w-2xl mt-16 pt-8 border-t border-gray-100">
+            <h2 className="font-serif text-xl font-black text-gray-900 mb-5">Reviews</h2>
             {localReviews.length > 0 && (
               <div className="bg-gray-50 rounded-2xl p-6 mb-8 flex items-center gap-8">
                 <div className="text-center">
@@ -912,9 +914,11 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
                 </div>
               ))}
               {localReviews.length === 0 && (
-                <div className="text-center py-16 text-gray-300">
-                  <p className="text-5xl mb-3">⭐</p>
-                  <p className="text-gray-400">No reviews yet. Be the first!</p>
+                <div className="bg-gray-50 rounded-2xl p-6 text-center">
+                  <p className="text-4xl font-black text-gray-900">{(vendor.rating ?? 5).toFixed(1)}</p>
+                  <div className="flex justify-center mt-1">{stars(vendor.rating ?? 5, "text-base")}</div>
+                  <p className="text-sm font-semibold text-gray-700 mt-3">New business</p>
+                  <p className="text-sm text-gray-400 mt-0.5">No reviews yet — be the first to share your visit.</p>
                 </div>
               )}
             </div>
