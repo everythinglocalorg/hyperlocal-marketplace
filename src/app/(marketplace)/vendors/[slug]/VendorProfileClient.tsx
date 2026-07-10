@@ -740,48 +740,27 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
               </>
             ) : (
               <>
-                <h2 className="font-serif text-xl font-black text-gray-900 mb-5">{isRestaurant ? "Popular" : "Services & Products"}</h2>
-                {/* Top 3 products */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {orderedListings.slice(0, 3).map((listing) => (
-                    <ListingCard
-                      key={listing.id}
-                      listing={listing}
-                      vendorName={vendor.business_name}
-                      vendorPhone={vendor.phone}
-                      menuPdfUrl={vendor.menu_pdf_url ?? null}
-                      onOpen={() => setDetailListing(listing)}
-                      onBook={() => { if (requireAccount()) return; openBooking(listing); }}
-                      onBuy={() => { if (requireAccount()) return; trackClick(listing.id); setBuyListing(listing); }}
-                      onEstimate={() => { if (requireAccount()) return; trackClick(listing.id); setEstimateListing(listing); }}
-                      onMessage={() => { if (requireAccount()) return; trackClick(listing.id); setMessageListing(listing); }}
-                    />
+                <p className="text-[11px] font-bold tracking-[0.2em] text-gray-400 uppercase mb-5">{isRestaurant ? "Popular" : "Services & Products"}</p>
+                {/* Clean minimal product grid — square image + name; click opens the detail popup (Buy/Book/Message live there) */}
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-6">
+                  {orderedListings.map((listing) => (
+                    <button key={listing.id} onClick={() => setDetailListing(listing)} className="text-left group">
+                      <div className="relative aspect-square rounded-xl bg-gray-100 overflow-hidden mb-2 flex items-center justify-center">
+                        {listing.images?.[0]
+                          ? <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          : <span className="text-3xl text-gray-300">{TYPE_ICON[listing.type] ?? "📦"}</span>}
+                        {listing.is_featured && (
+                          <span className="absolute top-2 right-2 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">⭐</span>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">{listing.title}</p>
+                    </button>
                   ))}
                 </div>
 
                 {/* Photo content blocks */}
                 {pageBlocks.length > 0 && (
-                  <div className="my-10 border-y border-gray-100">{renderPhotoBlocks()}</div>
-                )}
-
-                {/* Remaining products */}
-                {orderedListings.length > 3 && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    {orderedListings.slice(3).map((listing) => (
-                      <ListingCard
-                        key={listing.id}
-                        listing={listing}
-                        vendorName={vendor.business_name}
-                        vendorPhone={vendor.phone}
-                        menuPdfUrl={vendor.menu_pdf_url ?? null}
-                        onOpen={() => setDetailListing(listing)}
-                        onBook={() => openBooking(listing)}
-                        onBuy={() => { trackClick(listing.id); setBuyListing(listing); }}
-                        onEstimate={() => { trackClick(listing.id); setEstimateListing(listing); }}
-                        onMessage={() => { trackClick(listing.id); setMessageListing(listing); }}
-                      />
-                    ))}
-                  </div>
+                  <div className="mt-10 pt-8 border-t border-gray-100">{renderPhotoBlocks()}</div>
                 )}
               </>
             )}
@@ -837,7 +816,7 @@ export default function VendorProfileClient({ vendor, listings, reviews, current
 
         {/* ── REVIEWS ───────────────────────────────────────────── */}
         <div id="reviews" ref={(el) => { sectionRefs.current.reviews = el; }} className="max-w-2xl mt-16 pt-8 border-t border-gray-100">
-            <h2 className="font-serif text-xl font-black text-gray-900 mb-5">Reviews</h2>
+            <p className="text-[11px] font-bold tracking-[0.2em] text-gray-400 uppercase mb-5">Reviews</p>
             {localReviews.length > 0 && (
               <div className="bg-gray-50 rounded-2xl p-6 mb-8 flex items-center gap-8">
                 <div className="text-center">
