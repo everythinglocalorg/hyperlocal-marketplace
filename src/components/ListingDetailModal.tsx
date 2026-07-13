@@ -70,11 +70,11 @@ export function resolveListingCta(listing: DetailListing, vendorPhone: string | 
 // gallery and details with a sticky action bar. Pass vendorName + vendorSlug
 // (e.g. from search) to render a "view business" link; omit on the vendor's
 // own profile page where it would be redundant.
-export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, cartVendor, onClose, onBook, onBuy, onMessage, onEstimate }: {
+export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, cartVendor, onClose, onBook, onBuy, onOrder, onMessage, onEstimate }: {
   listing: DetailListing; vendorPhone: string | null; menuPdfUrl: string | null;
   vendorName?: string | null; vendorSlug?: string | null;
   cartVendor?: { id: string; name: string; slug: string };
-  onClose: () => void; onBook: () => void; onBuy: () => void; onMessage: () => void; onEstimate: () => void;
+  onClose: () => void; onBook: () => void; onBuy: () => void; onOrder?: () => void; onMessage: () => void; onEstimate: () => void;
 }) {
   const cart = useCart();
   const favorites = useFavorites();
@@ -93,7 +93,8 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
 
   function runCta() {
     if (ctaAction === "book") onBook();
-    else if (ctaAction === "buy" || ctaAction === "order") onBuy();
+    else if (ctaAction === "order") (onOrder ?? onBuy)();
+    else if (ctaAction === "buy") onBuy();
     else if (ctaAction === "estimate") onEstimate();
     else if (ctaAction === "menu") {
       if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");

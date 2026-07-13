@@ -519,6 +519,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         onClose={() => setDetailListing(null)}
         onBook={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); openBooking(l); }}
         onBuy={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}
+        onOrder={() => { const l = detailListing; if (!l) return; setDetailListing(null); trackClick(l.id); if (ctaOrderUrl) window.open(ctaOrderUrl, "_blank", "noopener,noreferrer"); else setBuyListing(l); }}
         onEstimate={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setEstimateListing(l); }}
         onMessage={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setMessageListing(l); }}
       />
