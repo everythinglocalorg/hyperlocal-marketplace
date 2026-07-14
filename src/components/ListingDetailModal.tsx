@@ -25,6 +25,7 @@ export type DetailListing = {
   cta_type?: string | null;
   waiver_url?: string | null;
   waiver_filename?: string | null;
+  sold_at?: string | null;
 };
 
 export const TYPE_ICON: Record<string, string> = { product: "📦", service: "🔧", restaurant: "🍽️", event: "🎉", rental: "🏠", thrift: "🏷️", housing_sale: "🏠", housing_rent: "🏡" };
@@ -70,11 +71,11 @@ export function resolveListingCta(listing: DetailListing, vendorPhone: string | 
 // gallery and details with a sticky action bar. Pass vendorName + vendorSlug
 // (e.g. from search) to render a "view business" link; omit on the vendor's
 // own profile page where it would be redundant.
-export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, cartVendor, onClose, onBook, onBuy, onOrder, onMessage, onEstimate }: {
+export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, cartVendor, onClose, onBook, onBuy, onOrder, onMakeOffer, onMessage, onEstimate }: {
   listing: DetailListing; vendorPhone: string | null; menuPdfUrl: string | null;
   vendorName?: string | null; vendorSlug?: string | null;
   cartVendor?: { id: string; name: string; slug: string };
-  onClose: () => void; onBook: () => void; onBuy: () => void; onOrder?: () => void; onMessage: () => void; onEstimate: () => void;
+  onClose: () => void; onBook: () => void; onBuy: () => void; onOrder?: () => void; onMakeOffer?: () => void; onMessage: () => void; onEstimate: () => void;
 }) {
   const cart = useCart();
   const favorites = useFavorites();
@@ -90,6 +91,8 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   const { ctaLabel, ctaAction } = resolveListingCta(listing, vendorPhone, menuPdfUrl);
   const images = listing.images ?? [];
   const visibleTags = (listing.tags ?? []).filter((t) => !t.startsWith("__"));
+  const isThrift = listing.type === "thrift";
+  const isSold = !!listing.sold_at || listing.quantity === 0;
 
   function runCta() {
     if (ctaAction === "book") onBook();
@@ -286,6 +289,17 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
               <span className="text-lg leading-none">💬</span>
               <span className="text-[10px] font-medium">Message</span>
             </button>
+            {isSold ? (
+              <div className="flex-1 flex items-center justify-center gap-2 bg-gray-300 text-gray-600 font-black py-4 rounded-2xl text-base cursor-not-allowed select-none">
+                ✓ Sold
+              </div>
+            ) : (
+            <>
+            {isThrift && onMakeOffer && (
+              <button onClick={onMakeOffer} className="flex-1 flex items-center justify-center gap-1.5 border-2 border-green-600 text-green-700 font-black py-4 rounded-2xl text-base hover:bg-green-50 active:scale-[0.99] transition-all">
+                💲 Make an Offer
+              </button>
+            )}
             {ctaAction === "call" && vendorPhone ? (
               <a href={`tel:${vendorPhone.replace(/[^\d+]/g, "")}`} className={primaryCta}>
                 📞 {ctaLabel}
@@ -318,6 +332,8 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
                 {showPriceInCta && <span className="font-bold opacity-90">· {priceLabel}</span>}
                 <span className="text-lg">→</span>
               </button>
+            )}
+            </>
             )}
           </div>
         </div>

@@ -19,7 +19,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
 
 interface Props {
   vendor: {
@@ -85,6 +85,7 @@ type Listing = {
   rental_deposit_type?: string | null;
   rental_deposit_value?: number | null;
   cta_type?: string | null;
+  sold_at?: string | null;
   created_at: string;
 };
 
@@ -134,6 +135,19 @@ type RentalBooking = {
   listing: { title: string } | null;
 };
 
+type ThriftOffer = {
+  id: string;
+  listing_id: string;
+  listing_title: string | null;
+  buyer_name: string;
+  buyer_email: string;
+  amount: number;
+  message: string | null;
+  status: string;
+  counter_amount: number | null;
+  created_at: string;
+};
+
 type Customer = {
   id: string;
   full_name: string | null;
@@ -153,6 +167,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
   { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true },
   { id: "rentals", label: "Rentals", icon: "🏕️" },
+  { id: "offers", label: "Offers", icon: "🤝" },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
   { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
   { id: "myplaces", label: "My Places", icon: "🌿" },
@@ -201,6 +216,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const [listings, setListings] = useState<Listing[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [rentalBookings, setRentalBookings] = useState<RentalBooking[]>([]);
+  const [offers, setOffers] = useState<ThriftOffer[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
   const [loadingRentals, setLoadingRentals] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
@@ -280,6 +297,25 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const updateRentalBookingStatus = useCallback(async (id: string, status: string) => {
     await supabase.from("rental_bookings").update({ status }).eq("id", id);
     setRentalBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
+  }, [supabase]);
+
+  const loadOffers = useCallback(async () => {
+    setLoadingOffers(true);
+    const { data } = await supabase
+      .from("thrift_offers")
+      .select("id, listing_id, listing_title, buyer_name, buyer_email, amount, message, status, counter_amount, created_at")
+      .eq("vendor_id", vendor.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setOffers((data as ThriftOffer[]) ?? []);
+    setLoadingOffers(false);
+  }, [supabase, vendor.id]);
+
+  const updateOffer = useCallback(async (id: string, status: string, counterAmount?: number) => {
+    const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+    if (status === "countered" && counterAmount != null) patch.counter_amount = counterAmount;
+    await supabase.from("thrift_offers").update(patch).eq("id", id);
+    setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, status, counter_amount: status === "countered" ? (counterAmount ?? o.counter_amount) : o.counter_amount } : o)));
   }, [supabase]);
 
   const loadCustomers = useCallback(async () => {
@@ -381,12 +417,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     loadListings();
     loadBookings();
     loadRentalBookings();
+    loadOffers();
     loadMentions();
     loadInquiries();
     loadConversations();
     if (isPremium || isAdmin) loadCustomers();
     awardScore("login");
-  }, [loadListings, loadBookings, loadRentalBookings, loadCustomers, loadInquiries, loadConversations, isPremium]);
+  }, [loadListings, loadBookings, loadRentalBookings, loadOffers, loadCustomers, loadInquiries, loadConversations, isPremium]);
 
   async function toggleListingActive(id: string, current: boolean) {
     await supabase.from("listings").update({ is_active: !current }).eq("id", id);
@@ -950,6 +987,15 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             />
           )}
 
+          {/* ── THRIFT OFFERS ── */}
+          {tab === "offers" && (
+            <OffersTab
+              offers={offers}
+              loading={loadingOffers}
+              onUpdate={updateOffer}
+            />
+          )}
+
           {/* ── CRM ── */}
           {tab === "crm" && (
             can("crm") ? (
@@ -1264,6 +1310,11 @@ function ListingsTab({
     await supabase.from("listings").update({ listing_category_id: catId }).in("id", ids);
     onRefresh();
   }
+  // Thrift one-of-a-kind items: toggle SOLD (also frees/holds the item).
+  async function markSold(id: string, sold: boolean) {
+    await supabase.from("listings").update({ sold_at: sold ? new Date().toISOString() : null }).eq("id", id);
+    onRefresh();
+  }
   const [boostListingId, setBoostListingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "", type: "product", price: "", price_label: "", description: "",
@@ -1546,7 +1597,7 @@ function ListingsTab({
     { value: "housing_sale", label: "Home For Sale" },
     { value: "housing_rent", label: "Rental Property" },
   ];
-  const CATEGORIES = ["Products", "Services & Trades", "Restaurants & Food", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education", "Housing & Rentals"];
+  const CATEGORIES = ["Products", "Thrift Sales", "Services & Trades", "Restaurants & Food", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education", "Housing & Rentals"];
 
   return (
     <div>
@@ -2035,11 +2086,14 @@ function ListingsTab({
                 <span>👁 {l.view_count}</span>
                 <span>🖱 {l.click_count}</span>
               </div>
-              <div className="flex gap-2 mt-3 pt-3 border-t border-gray-50">
-                <button onClick={() => onEdit(l)} className="flex-1 text-sm bg-gray-900 text-white py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">✏️ Edit</button>
-                <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="flex-1 text-sm border border-gray-200 text-gray-600 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50">{duplicatingId === l.id ? "…" : "⧉ Copy"}</button>
-                <button onClick={() => setBoostListingId(l.id)} className="flex-1 text-sm border border-amber-300 text-amber-700 py-2 rounded-xl font-semibold hover:bg-amber-50 transition-colors">🚀 Boost</button>
-                <button onClick={() => onDelete(l.id)} className="flex-1 text-sm border border-red-200 text-red-500 py-2 rounded-xl font-semibold hover:bg-red-50 transition-colors">🗑 Delete</button>
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-50">
+                <button onClick={() => onEdit(l)} className="flex-1 min-w-[90px] text-sm bg-gray-900 text-white py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">✏️ Edit</button>
+                {l.type === "thrift" && (
+                  <button onClick={() => markSold(l.id, !l.sold_at)} className={`flex-1 min-w-[110px] text-sm border py-2 rounded-xl font-semibold transition-colors ${l.sold_at ? "border-green-300 text-green-700 hover:bg-green-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>{l.sold_at ? "↩ Mark Available" : "✓ Mark Sold"}</button>
+                )}
+                <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="flex-1 min-w-[90px] text-sm border border-gray-200 text-gray-600 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50">{duplicatingId === l.id ? "…" : "⧉ Copy"}</button>
+                <button onClick={() => setBoostListingId(l.id)} className="flex-1 min-w-[90px] text-sm border border-amber-300 text-amber-700 py-2 rounded-xl font-semibold hover:bg-amber-50 transition-colors">🚀 Boost</button>
+                <button onClick={() => onDelete(l.id)} className="flex-1 min-w-[90px] text-sm border border-red-200 text-red-500 py-2 rounded-xl font-semibold hover:bg-red-50 transition-colors">🗑 Delete</button>
               </div>
             </div>
           ))}
@@ -2438,6 +2492,96 @@ function RentalsTab({ bookings, loading, onUpdateStatus }: {
                   <button onClick={() => onUpdateStatus(b.id, "completed")} className="flex-1 min-w-[120px] bg-blue-600 text-white text-xs py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">Mark as Completed</button>
                 )}
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OffersTab({ offers, loading, onUpdate }: {
+  offers: ThriftOffer[]; loading: boolean; onUpdate: (id: string, status: string, counterAmount?: number) => void;
+}) {
+  const [filter, setFilter] = useState<string>("all");
+  const filtered = filter === "all" ? offers : offers.filter((o) => o.status === filter);
+
+  const statusColor: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-700",
+    accepted: "bg-green-100 text-green-700",
+    declined: "bg-red-100 text-red-700",
+    countered: "bg-blue-100 text-blue-700",
+  };
+
+  function counter(o: ThriftOffer) {
+    const input = window.prompt(`Counter offer for "${o.listing_title ?? "item"}" — enter your price ($):`, String(o.amount));
+    if (input == null) return;
+    const amt = Number(input);
+    if (isNaN(amt) || amt <= 0) { alert("Enter a valid amount."); return; }
+    onUpdate(o.id, "countered", amt);
+  }
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Offers</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{offers.length} total · accept, decline, or counter offers on your thrift items</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {["all", "pending", "accepted", "declined", "countered"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
+                filter === s ? "bg-green-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-green-400"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-24 bg-white rounded-xl animate-pulse" />)}</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+          <p className="text-4xl mb-3">🤝</p>
+          <p className="text-gray-500">No offers yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((o) => (
+            <div key={o.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <p className="font-semibold text-gray-900 text-sm">{o.buyer_name}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColor[o.status] ?? "bg-gray-100 text-gray-500"}`}>
+                      {o.status}
+                    </span>
+                  </div>
+                  {o.listing_title && <p className="text-xs text-gray-500 mb-0.5">🏷️ {o.listing_title}</p>}
+                  <p className="text-xs text-gray-400"><a href={`mailto:${o.buyer_email}`} className="hover:underline">{o.buyer_email}</a></p>
+                  {o.status === "countered" && o.counter_amount != null && (
+                    <p className="text-xs text-blue-600 font-medium mt-0.5">Countered at {formatPrice(o.counter_amount)}</p>
+                  )}
+                  {o.message && <p className="text-xs text-gray-400 mt-1 italic">&quot;{o.message}&quot;</p>}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-bold text-gray-900">{formatPrice(o.amount)}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{new Date(o.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {o.status === "pending" && (
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <button onClick={() => onUpdate(o.id, "accepted")} className="flex-1 min-w-[100px] bg-green-600 text-white text-xs py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">✓ Accept</button>
+                  <button onClick={() => counter(o)} className="flex-1 min-w-[100px] bg-blue-600 text-white text-xs py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">↔ Counter</button>
+                  <button onClick={() => onUpdate(o.id, "declined")} className="flex-1 min-w-[100px] border border-red-200 text-red-500 text-xs py-2 rounded-lg font-medium hover:bg-red-50 transition-colors">✕ Decline</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
