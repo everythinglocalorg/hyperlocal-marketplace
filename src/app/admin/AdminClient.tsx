@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { ALL_FEATURES, FeatureKey, featuresForTier } from "@/lib/features";
 import PlacesManager from "@/components/admin/PlacesManager";
+import AdminDomainControl from "@/components/admin/AdminDomainControl";
 
 type AdminTab = "vendors" | "claims" | "users" | "listings" | "places" | "logs" | "security";
 
@@ -11,6 +12,8 @@ type Vendor = {
   city: string; state: string; category: string; is_verified: boolean;
   features: Record<string, boolean> | null;
   user_id: string | null;
+  custom_domain?: string | null;
+  domain_verified?: boolean | null;
   is_claimed: boolean;
   claimed_at: string | null;
   owner_name: string | null;
@@ -92,7 +95,7 @@ function VendorsTab({ adminId }: { adminId: string }) {
   async function load() {
     const { data } = await supabase
       .from("vendors")
-      .select("id,business_name,slug,tier,city,state,category,is_verified,features,user_id,is_claimed,claimed_at")
+      .select("id,business_name,slug,tier,city,state,category,is_verified,features,user_id,is_claimed,claimed_at,custom_domain,domain_verified")
       .order("business_name");
     const rows = (data ?? []) as any[];
 
@@ -294,6 +297,24 @@ function VendorsTab({ adminId }: { adminId: string }) {
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${selected.is_verified ? "translate-x-4" : "translate-x-0.5"}`} />
                 </button>
               </div>
+            </div>
+
+            {/* Custom domain */}
+            <div className="border-t border-gray-100 pt-4 mt-4">
+              <AdminDomainControl
+                key={selected.id}
+                vendorId={selected.id}
+                initialDomain={selected.custom_domain ?? null}
+                initialVerified={selected.domain_verified ?? false}
+                onChange={(cd, dv) => {
+                  setSelected({ ...selected, custom_domain: cd, domain_verified: dv });
+                  setVendors((prev) =>
+                    prev.map((v) =>
+                      v.id === selected.id ? { ...v, custom_domain: cd, domain_verified: dv } : v
+                    )
+                  );
+                }}
+              />
             </div>
           </div>
         </div>
