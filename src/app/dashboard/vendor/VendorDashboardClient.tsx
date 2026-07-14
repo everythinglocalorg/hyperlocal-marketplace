@@ -19,7 +19,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
 
 interface Props {
   vendor: {
@@ -76,6 +76,12 @@ type Listing = {
   listing_category_id?: string | null;
   waiver_url?: string | null;
   waiver_filename?: string | null;
+  waiver_body?: string | null;
+  rental_mode?: string | null;
+  rental_buffer_hours?: number | null;
+  rental_quantity?: number | null;
+  fareharbor_shortname?: string | null;
+  fareharbor_flow?: string | null;
   cta_type?: string | null;
   created_at: string;
 };
@@ -107,6 +113,23 @@ type Booking = {
   listing: { title: string } | null;
 };
 
+type RentalBooking = {
+  id: string;
+  status: string;
+  duration_label: string;
+  duration_hours: number;
+  total_price: number;
+  start_date: string;
+  start_time: string;
+  end_date: string | null;
+  notes: string | null;
+  waiver_signer_name: string | null;
+  signed_waiver_pdf_url: string | null;
+  created_at: string;
+  customer: { full_name: string | null; email: string } | null;
+  listing: { title: string } | null;
+};
+
 type Customer = {
   id: string;
   full_name: string | null;
@@ -125,6 +148,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "notifications", label: "Notifications", icon: "🔔" },
   { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
   { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true },
+  { id: "rentals", label: "Rentals", icon: "🏕️" },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
   { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
   { id: "myplaces", label: "My Places", icon: "🌿" },
@@ -172,6 +196,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const [openingConnectDashboard, setOpeningConnectDashboard] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [rentalBookings, setRentalBookings] = useState<RentalBooking[]>([]);
+  const [loadingRentals, setLoadingRentals] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -234,6 +260,23 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     }));
     setLoadingBookings(false);
   }, [supabase, vendor.id]);
+
+  const loadRentalBookings = useCallback(async () => {
+    setLoadingRentals(true);
+    const { data } = await supabase
+      .from("rental_bookings")
+      .select("*, customer:profiles(full_name, email), listing:listings(title)")
+      .eq("vendor_id", vendor.id)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    setRentalBookings((data as RentalBooking[]) ?? []);
+    setLoadingRentals(false);
+  }, [supabase, vendor.id]);
+
+  const updateRentalBookingStatus = useCallback(async (id: string, status: string) => {
+    await supabase.from("rental_bookings").update({ status }).eq("id", id);
+    setRentalBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status } : b)));
+  }, [supabase]);
 
   const loadCustomers = useCallback(async () => {
     const { data } = await supabase
@@ -333,12 +376,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   useEffect(() => {
     loadListings();
     loadBookings();
+    loadRentalBookings();
     loadMentions();
     loadInquiries();
     loadConversations();
     if (isPremium || isAdmin) loadCustomers();
     awardScore("login");
-  }, [loadListings, loadBookings, loadCustomers, loadInquiries, loadConversations, isPremium]);
+  }, [loadListings, loadBookings, loadRentalBookings, loadCustomers, loadInquiries, loadConversations, isPremium]);
 
   async function toggleListingActive(id: string, current: boolean) {
     await supabase.from("listings").update({ is_active: !current }).eq("id", id);
@@ -893,6 +937,15 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             ) : <PremiumGate feature="Booking Management" />
           )}
 
+          {/* ── RENTALS ── */}
+          {tab === "rentals" && (
+            <RentalsTab
+              bookings={rentalBookings}
+              loading={loadingRentals}
+              onUpdateStatus={updateRentalBookingStatus}
+            />
+          )}
+
           {/* ── CRM ── */}
           {tab === "crm" && (
             can("crm") ? (
@@ -1220,6 +1273,10 @@ function ListingsTab({
   const [rentalDurations, setRentalDurations] = useState<{ label: string; hours: number; price: number }[]>([]);
   const [rentalWaiverUrl, setRentalWaiverUrl] = useState<string | null>(null);
   const [rentalWaiverFilename, setRentalWaiverFilename] = useState<string | null>(null);
+  const [rentalSettings, setRentalSettings] = useState<import("@/components/rental/RentalSetup").RentalSettings>({
+    rental_mode: "hourly", rental_buffer_hours: "0", rental_quantity: "1",
+    waiver_body: "", fareharbor_shortname: "", fareharbor_flow: "",
+  });
   const [thriftAddress, setThriftAddress] = useState("");
   const [housing, setHousing] = useState({
     address: "", bedrooms: "", bathrooms: "", sqft: "", lot_size: "",
@@ -1269,6 +1326,16 @@ function ListingsTab({
           const h = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__housing:"))?.replace("__housing:", "") ?? "null");
           if (h) setHousing(h);
         } catch {}
+      }
+      if (editingListing.type === "rental") {
+        setRentalSettings({
+          rental_mode: editingListing.rental_mode ?? "hourly",
+          rental_buffer_hours: String(editingListing.rental_buffer_hours ?? 0),
+          rental_quantity: String(editingListing.rental_quantity ?? 1),
+          waiver_body: editingListing.waiver_body ?? "",
+          fareharbor_shortname: editingListing.fareharbor_shortname ?? "",
+          fareharbor_flow: editingListing.fareharbor_flow ?? "",
+        });
       }
       onShowNew(true);
     }
@@ -1387,7 +1454,16 @@ function ListingsTab({
     const waiverPayload = {
       ...basePayload,
       cta_type: ctaType,
-      ...(form.type === "rental" ? { waiver_url: rentalWaiverUrl, waiver_filename: rentalWaiverFilename } : {}),
+      ...(form.type === "rental" ? {
+        waiver_url: rentalWaiverUrl,
+        waiver_filename: rentalWaiverFilename,
+        waiver_body: rentalSettings.waiver_body || null,
+        rental_mode: rentalSettings.rental_mode,
+        rental_buffer_hours: Number(rentalSettings.rental_buffer_hours) || 0,
+        rental_quantity: Math.max(1, Number(rentalSettings.rental_quantity) || 1),
+        fareharbor_shortname: rentalSettings.fareharbor_shortname || null,
+        fareharbor_flow: rentalSettings.fareharbor_flow || null,
+      } : {}),
     };
 
     if (editingListing) {
@@ -1431,6 +1507,7 @@ function ListingsTab({
     setRentalDurations([]);
     setRentalWaiverUrl(null);
     setRentalWaiverFilename(null);
+    setRentalSettings({ rental_mode: "hourly", rental_buffer_hours: "0", rental_quantity: "1", waiver_body: "", fareharbor_shortname: "", fareharbor_flow: "" });
     setThriftAddress("");
     setThriftHours([
       { day: "Monday", open: "", close: "", closed: false },
@@ -1676,8 +1753,10 @@ function ListingsTab({
                   waiverUrl={rentalWaiverUrl ?? editingListing?.waiver_url ?? null}
                   waiverFilename={rentalWaiverFilename ?? editingListing?.waiver_filename ?? null}
                   vendorId={vendorId}
+                  initialSettings={rentalSettings}
                   onWaiverUploaded={(url, name) => { setRentalWaiverUrl(url); setRentalWaiverFilename(name); }}
                   onDurationsChange={setRentalDurations}
+                  onSettingsChange={setRentalSettings}
                 />
               </div>
             )}
@@ -2232,6 +2311,125 @@ function googleCalendarUrl(b: Booking, vendorName: string): string {
     details,
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+// ── RENTALS TAB ───────────────────────────────────────────────
+function RentalsTab({ bookings, loading, onUpdateStatus }: {
+  bookings: RentalBooking[]; loading: boolean; onUpdateStatus: (id: string, status: string) => void;
+}) {
+  const [filter, setFilter] = useState<string>("all");
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const filtered = filter === "all" ? bookings : bookings.filter((b) => b.status === filter);
+
+  const statusColor: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-700",
+    confirmed: "bg-blue-100 text-blue-700",
+    completed: "bg-green-100 text-green-700",
+    cancelled: "bg-red-100 text-red-700",
+  };
+
+  async function downloadWaiver(id: string) {
+    setDownloading(id);
+    try {
+      const res = await fetch(`/api/rental/waiver-url?booking=${id}`);
+      const json = await res.json();
+      if (json.url) window.open(json.url, "_blank", "noopener,noreferrer");
+      else alert(json.error ?? "No signed waiver available yet.");
+    } catch {
+      alert("Could not fetch the waiver.");
+    }
+    setDownloading(null);
+  }
+
+  function dateRange(b: RentalBooking) {
+    const start = new Date(b.start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    if (b.end_date && b.end_date !== b.start_date) {
+      const end = new Date(b.end_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      return `${start} – ${end}`;
+    }
+    return start;
+  }
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Rental Bookings</h1>
+          <p className="text-gray-400 text-sm mt-0.5">{bookings.length} total · manage statuses and signed waivers</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {["all", "pending", "confirmed", "completed", "cancelled"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${
+                filter === s ? "bg-green-600 text-white" : "bg-white border border-gray-200 text-gray-600 hover:border-green-400"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">{[1, 2, 3].map((i) => <div key={i} className="h-24 bg-white rounded-xl animate-pulse" />)}</div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-gray-100">
+          <p className="text-4xl mb-3">🏕️</p>
+          <p className="text-gray-500">No rental bookings yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((b) => (
+            <div key={b.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <p className="font-semibold text-gray-900 text-sm">
+                      {b.customer?.full_name ?? b.customer?.email ?? "Unknown customer"}
+                    </p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize ${statusColor[b.status] ?? "bg-gray-100 text-gray-500"}`}>
+                      {b.status}
+                    </span>
+                  </div>
+                  {b.listing && <p className="text-xs text-gray-500 mb-0.5">📦 {b.listing.title}</p>}
+                  <p className="text-xs text-gray-500">📅 {dateRange(b)}{b.start_time && b.start_time !== "00:00" ? ` · ${b.start_time}` : ""}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{b.duration_label} ({b.duration_hours}h)</p>
+                  {b.notes && <p className="text-xs text-gray-400 mt-1 italic">&quot;{b.notes}&quot;</p>}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-bold text-gray-900">{formatPrice(b.total_price)}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{new Date(b.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                {b.signed_waiver_pdf_url && (
+                  <button
+                    onClick={() => downloadWaiver(b.id)}
+                    disabled={downloading === b.id}
+                    className="text-xs px-3 py-2 rounded-lg border border-gray-200 text-gray-600 hover:border-green-400 font-medium disabled:opacity-50"
+                  >
+                    {downloading === b.id ? "…" : "📄 Signed waiver"}
+                  </button>
+                )}
+                {b.status === "pending" && (
+                  <>
+                    <button onClick={() => onUpdateStatus(b.id, "confirmed")} className="flex-1 min-w-[100px] bg-green-600 text-white text-xs py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">✓ Confirm</button>
+                    <button onClick={() => onUpdateStatus(b.id, "cancelled")} className="flex-1 min-w-[100px] border border-red-200 text-red-500 text-xs py-2 rounded-lg font-medium hover:bg-red-50 transition-colors">✕ Cancel</button>
+                  </>
+                )}
+                {b.status === "confirmed" && (
+                  <button onClick={() => onUpdateStatus(b.id, "completed")} className="flex-1 min-w-[120px] bg-blue-600 text-white text-xs py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">Mark as Completed</button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function BookingsTab({ bookings, loading, onUpdateStatus, onCreate, vendorName }: {

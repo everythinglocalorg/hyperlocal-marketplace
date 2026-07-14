@@ -35,6 +35,21 @@ type Booking = {
   } | null;
 };
 
+type RentalBooking = {
+  id: string;
+  status: string;
+  duration_label: string;
+  duration_hours: number;
+  total_price: number;
+  start_date: string;
+  start_time: string;
+  end_date: string | null;
+  signed_waiver_pdf_url: string | null;
+  created_at: string;
+  vendor: { business_name: string; slug: string } | null;
+  listing: { title: string } | null;
+};
+
 type BucksTransaction = {
   id: string;
   amount: number;
@@ -86,6 +101,7 @@ type VendorAccount = { id: string; business_name: string; slug: string } | null;
 interface Props {
   profile: Profile;
   bookings: Booking[];
+  rentalBookings: RentalBooking[];
   bucksHistory: BucksTransaction[];
   referrals: Referral[];
   referredBy: ReferredBy;
@@ -126,7 +142,7 @@ const STATUS_ICONS: Record<string, string> = {
   cancelled: "✕",
 };
 
-export default function BuyerDashboardClient({ profile, bookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks, profileDetails, ownedBusinessCount }: Props) {
+export default function BuyerDashboardClient({ profile, bookings, rentalBookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks, profileDetails, ownedBusinessCount }: Props) {
   const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile">(() => {
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tab");
@@ -711,7 +727,7 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-6">My Bookings</h1>
 
-            {bookings.length === 0 ? (
+            {bookings.length === 0 && rentalBookings.length === 0 ? (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 py-16 text-center">
                 <p className="text-4xl mb-3">📅</p>
                 <p className="text-gray-500 text-sm mb-4">No bookings yet.</p>
@@ -782,6 +798,57 @@ export default function BuyerDashboardClient({ profile, bookings, bucksHistory, 
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* ── Rental bookings ── */}
+            {rentalBookings.length > 0 && (
+              <div className="mt-8">
+                <h2 className="text-lg font-bold text-gray-900 mb-4">🏕️ My Rentals</h2>
+                <div className="space-y-3">
+                  {rentalBookings.map((r) => {
+                    const start = new Date(r.start_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                    const range = r.end_date && r.end_date !== r.start_date
+                      ? `${start} – ${new Date(r.end_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`
+                      : start;
+                    return (
+                      <div key={r.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold text-gray-900">{r.listing?.title ?? "Rental"}</p>
+                              <span className={`text-xs px-2.5 py-1 rounded-full font-medium border ${STATUS_STYLES[r.status] ?? "bg-gray-50 text-gray-500 border-gray-200"}`}>
+                                {r.status.charAt(0).toUpperCase() + r.status.slice(1)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{r.vendor?.business_name}</p>
+                            <p className="text-sm text-gray-600 mt-1">📅 {range}{r.start_time && r.start_time !== "00:00" ? ` · ${r.start_time}` : ""}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">{r.duration_label} ({r.duration_hours}h)</p>
+                          </div>
+                          <p className="font-bold text-gray-900 shrink-0">${Number(r.total_price).toFixed(2)}</p>
+                        </div>
+                        <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-50">
+                          {r.vendor?.slug && (
+                            <Link href={`/vendors/${r.vendor.slug}`} className="text-xs text-green-600 hover:underline font-medium">View storefront →</Link>
+                          )}
+                          {r.signed_waiver_pdf_url && (
+                            <button
+                              onClick={async () => {
+                                const res = await fetch(`/api/rental/waiver-url?booking=${r.id}`);
+                                const json = await res.json();
+                                if (json.url) window.open(json.url, "_blank", "noopener,noreferrer");
+                                else alert(json.error ?? "Waiver not available.");
+                              }}
+                              className="text-xs text-gray-600 hover:text-green-700 font-medium"
+                            >
+                              📄 Download signed waiver
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

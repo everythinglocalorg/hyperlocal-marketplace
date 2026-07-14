@@ -79,6 +79,9 @@ type Listing = {
   quantity: number | null; images: string[]; category: string;
   tags: string[] | null; is_featured: boolean; view_count: number;
   waiver_url: string | null; waiver_filename: string | null;
+  waiver_body?: string | null; rental_mode?: string | null;
+  rental_quantity?: number | null; rental_buffer_hours?: number | null;
+  fareharbor_shortname?: string | null; fareharbor_flow?: string | null;
   cta_type?: string | null; listing_category_id?: string | null;
 };
 
@@ -328,9 +331,37 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
   async function openBooking(listing: Listing) {
     trackClick(listing.id);
+    // If this vendor uses FareHarbor, hand off to their Lightframe embed
+    // (FareHarbor handles its own calendar, payment, and waivers). Otherwise
+    // use the native rental flow.
+    if (listing.fareharbor_shortname) {
+      openFareHarbor(listing);
+      return;
+    }
     const { data: durations } = await supabase.from("rental_durations").select("*").eq("listing_id", listing.id).order("hours");
     setBookingDurations(durations ?? []);
     setBookingListing(listing);
+  }
+
+  function openFareHarbor(listing: Listing) {
+    const shortname = listing.fareharbor_shortname!;
+    const flow = listing.fareharbor_flow || undefined;
+    const doOpen = () => {
+      const w = window as unknown as { FH?: { open: (o: Record<string, unknown>) => void } };
+      if (w.FH && typeof w.FH.open === "function") {
+        w.FH.open({ shortname, fallback: "simple", ...(flow ? { flow: Number(flow) } : {}) });
+      } else {
+        const url = `https://fareharbor.com/embeds/book/${shortname}/${flow ? `?flow=${flow}&` : "?"}full-items=yes`;
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    };
+    if (document.getElementById("fh-embed-script")) { doOpen(); return; }
+    const s = document.createElement("script");
+    s.id = "fh-embed-script";
+    s.src = "https://fareharbor.com/embeds/api/v1/?autolightframe=yes";
+    s.async = true;
+    s.onload = doOpen;
+    document.body.appendChild(s);
   }
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -507,7 +538,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
     {estimateListing && <BuyNowModal listing={{ id: estimateListing.id, title: estimateListing.title, price: estimateListing.price, price_label: estimateListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="estimate" onClose={() => setEstimateListing(null)} />}
     {showRefer && <ReferModal vendorId={vendor.id} vendorName={vendor.business_name} currentUserId={currentUserId} onClose={() => setShowRefer(false)} />}
-    {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
+    {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename, waiver_body: bookingListing.waiver_body, rental_mode: bookingListing.rental_mode, rental_quantity: bookingListing.rental_quantity, rental_buffer_hours: bookingListing.rental_buffer_hours }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
 
     {/* Listing detail popup — full photos/details; its sticky action bar reuses the same CTA handlers */}
     {detailListing && (
