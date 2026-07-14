@@ -78,7 +78,7 @@ function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
     >
       <div className="h-36 bg-gray-100 relative">
         {l.images?.[0] ? (
-          <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+          <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">
             {l.type === "rental" ? "🏠" : l.type === "thrift" ? "🏷️" : "📦"}
@@ -114,7 +114,7 @@ function KeywordListingCard({ r, onClick }: { r: SearchResult; onClick?: () => v
     >
       <div className="h-36 bg-gray-100 relative">
         {r.image_url ? (
-          <img src={r.image_url} alt={r.title} className="w-full h-full object-cover" />
+          <img src={r.image_url} alt={r.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>
         )}
@@ -140,7 +140,7 @@ function KeywordVendorCard({ r, onClick }: { r: SearchResult; onClick?: () => vo
     >
       <div className="h-36 bg-white relative">
         {r.image_url ? (
-          <img src={r.image_url} alt={r.title} className="w-full h-full object-contain p-2 transition-transform" style={{ transform: `scale(${r.logo_zoom ?? 1})` }} />
+          <img src={r.image_url} alt={r.title} loading="lazy" decoding="async" className="w-full h-full object-contain p-2 transition-transform" style={{ transform: `scale(${r.logo_zoom ?? 1})` }} />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">🏪</div>
         )}

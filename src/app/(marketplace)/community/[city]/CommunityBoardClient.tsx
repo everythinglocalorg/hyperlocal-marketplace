@@ -571,7 +571,7 @@ export default function CommunityBoardClient({
                   className="shrink-0 w-32 bg-white rounded-2xl border-2 border-amber-200 ring-1 ring-amber-100 overflow-hidden hover:shadow-md transition-all">
                   <div className="w-full h-20 bg-gray-100 flex items-center justify-center overflow-hidden">
                     {f.image
-                      ? <img src={f.image} alt={f.title} className={`w-full h-full ${f.kind === "vendor" ? "object-contain p-2" : "object-cover"}`} />
+                      ? <img src={f.image} alt={f.title} loading="lazy" decoding="async" className={`w-full h-full ${f.kind === "vendor" ? "object-contain p-2" : "object-cover"}`} />
                       : <span className="text-2xl text-gray-300">{f.kind === "vendor" ? "🏪" : "📦"}</span>}
                   </div>
                   <div className="p-2">

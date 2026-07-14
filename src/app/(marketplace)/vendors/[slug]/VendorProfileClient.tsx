@@ -14,6 +14,17 @@ import Top8Button from "@/components/Top8Button";
 import { useFavorites } from "@/lib/favorites";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
 import ReferModal from "@/components/ReferModal";
+
+// TEMP INSTRUMENTATION — capture the component stack for the "deps changed size" warning.
+if (typeof window !== "undefined" && !(window as any).__ceHooked) {
+  (window as any).__ceHooked = true;
+  (window as any).__caught = [];
+  const _e = console.error;
+  console.error = function (...a: any[]) {
+    try { if (a.some((x) => typeof x === "string" && x.includes("changed size between renders"))) (window as any).__caught.push(new Error("cap").stack); } catch {}
+    return _e.apply(this, a as any);
+  };
+}
 import LocalTop8Badge from "@/components/LocalTop8Badge";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
@@ -893,7 +904,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                     <button key={listing.id} onClick={() => openDetail(listing)} className="text-left group">
                       <div className="relative aspect-square rounded-xl bg-gray-100 overflow-hidden mb-2 flex items-center justify-center">
                         {listing.images?.[0]
-                          ? <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                          ? <img src={listing.images[0]} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           : <span className="text-3xl text-gray-300">{TYPE_ICON[listing.type] ?? "📦"}</span>}
                         {listing.is_featured && (
                           <span className="absolute top-2 right-2 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">⭐</span>
@@ -1212,7 +1223,7 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
       {/* Photo — kept clean; only the CTA (and badges) sit on it */}
       <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
         {hasImage
-          ? <img src={listing.images[0]} alt={listing.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          ? <img src={listing.images[0]} alt={listing.title} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           : <div className="absolute inset-0 bg-gray-800 flex items-center justify-center text-6xl">{TYPE_ICON[listing.type] ?? "📦"}</div>}
 
         {/* Soft bottom scrim so the CTA stays legible on any photo */}

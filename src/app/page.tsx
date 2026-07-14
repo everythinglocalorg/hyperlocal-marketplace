@@ -388,7 +388,7 @@ export default function HomePage() {
                       <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden relative">
                         {l.boosted && <span className="absolute top-1.5 left-1.5 z-10 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★ Featured</span>}
                         {l.images?.[0]
-                          ? <img src={l.images[0]} alt={l.title} className="w-full h-full object-cover" />
+                          ? <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
                           : <span className="text-3xl text-gray-300">{{ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" }[l.type as string] ?? "📦"}</span>}
                       </div>
                       <div className="p-2.5">
@@ -626,7 +626,7 @@ export default function HomePage() {
                 {blogPosts.map((p) => (
                   <Link key={p.slug} href={`/blog/${p.slug}`} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-green-200 transition-all">
                     <div className="h-40 bg-gray-100">
-                      {p.cover_image_url && <img src={p.cover_image_url} alt={p.title} className="w-full h-full object-cover" />}
+                      {p.cover_image_url && <img src={p.cover_image_url} alt={p.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />}
                     </div>
                     <div className="p-5">
                       <span className="text-xs font-bold uppercase tracking-wide text-green-700">{({ news: "News", tips: "Tips", highlight: "Highlight", guide: "Guide", other: "Post" } as Record<string, string>)[p.category] ?? "Post"}</span>
