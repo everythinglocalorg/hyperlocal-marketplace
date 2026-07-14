@@ -14,6 +14,7 @@ import VendorLogo from "@/components/vendor/VendorLogo";
 import TypedText from "@/components/TypedText";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import SearchSuggestions from "@/components/SearchSuggestions";
+import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -45,8 +46,25 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
   // immediately; the mount effect below re-personalizes to the visitor's saved city.
   const [recentListings, setRecentListings] = useState<any[]>(initialListings);
   const [newVendors, setNewVendors] = useState<any[]>(initialVendors);
+  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [radius, setRadius] = useState(50);
+
+  // Businesses near the active city, plotted on the map.
+  useEffect(() => {
+    const supabase = createClient();
+    const cityObj = resolveCity(activeCity);
+    let q = supabase
+      .from("vendors")
+      .select("business_name, slug, latitude, longitude, city, state")
+      .eq("is_active", true)
+      .not("latitude", "is", null)
+      .limit(60);
+    if (cityObj) q = q.ilike("city", cityObj.city);
+    q.then(({ data }) => setMapMarkers(
+      (data ?? []).map((v: any) => ({ lat: v.latitude, lng: v.longitude, title: v.business_name, href: `/vendors/${v.slug}`, subtitle: `${v.city}, ${v.state}` }))
+    ));
+  }, [activeCity]);
   const [blogPosts] = useState<any[]>(initialBlog);
 
   // Soft signup gate: guests see the welcome modal before searching/browsing.
@@ -421,6 +439,17 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   </Link>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Map — local businesses near you */}
+          {mapMarkers.length > 0 && (
+            <div className="max-w-5xl mx-auto mt-4 px-4 pb-14">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">📍 Businesses near {cityName}</h2>
+                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} onClick={(e) => { if (gate(`/search${activeCity ? `?city=${activeCity}` : ""}`)) e.preventDefault(); }} className="text-sm text-green-600 hover:underline">View all →</Link>
+              </div>
+              <LeafletMap markers={mapMarkers} height={420} />
             </div>
           )}
         </section>
