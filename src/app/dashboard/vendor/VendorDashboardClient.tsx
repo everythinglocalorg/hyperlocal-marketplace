@@ -3063,7 +3063,20 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [bannerPreview, setBannerPreview] = useState<string | null>(vendor.banner_url);
   const [bannerPosition, setBannerPosition] = useState<number>(vendor.banner_position ?? 50);
-  const [bannerZoom, setBannerZoom] = useState<number>(vendor.banner_zoom ?? 1);
+  const bannerDragRef = useRef<{ startY: number; startPos: number } | null>(null);
+  // Facebook-style drag-to-reposition: dragging the cover down reveals the top.
+  function onBannerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    bannerDragRef.current = { startY: e.clientY, startPos: bannerPosition };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  }
+  function onBannerPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    const d = bannerDragRef.current;
+    if (!d) return;
+    const h = e.currentTarget.clientHeight || 160;
+    const next = d.startPos - ((e.clientY - d.startY) / h) * 100;
+    setBannerPosition(Math.max(0, Math.min(100, Math.round(next))));
+  }
+  function onBannerPointerUp() { bannerDragRef.current = null; }
   const [logoZoom, setLogoZoom] = useState<number>(vendor.logo_zoom ?? 1);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -3182,7 +3195,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       logo_url: logoUrl,
       banner_url: bannerUrl,
       banner_position: bannerPosition,
-      banner_zoom: bannerZoom,
+      banner_zoom: 1,
       logo_zoom: logoZoom,
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
@@ -3203,25 +3216,38 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">Cover photo</label>
           <p className="text-xs text-gray-400 mb-2">The big banner across the top of your public page. If you skip it, we use your first product photo automatically. <span className="text-gray-500 font-medium">Best size: 1600 × 500 px</span> (a wide 3.2:1 photo).</p>
-          <div onClick={() => bannerRef.current?.click()} className="w-full h-32 rounded-2xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center">
-            {bannerPreview
-              ? <img src={bannerPreview} alt="" className="w-full h-full object-cover transition-transform" style={{ transform: `scale(${bannerZoom})` }} />
-              : <span className="text-gray-400 text-sm">Click to upload a cover photo · 1600 × 500 px</span>}
-          </div>
-          <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={onBannerChange} />
-          {bannerPreview && (
-            <div className="mt-3">
-              <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
-                <span>🔍 Zoom to fit</span>
-                <span className="text-gray-400">{Math.round(bannerZoom * 100)}%</span>
-              </label>
-              <input
-                type="range" min={1} max={2.5} step={0.05} value={bannerZoom}
-                onChange={(e) => setBannerZoom(Number(e.target.value))}
-                className="w-full accent-green-600"
-              />
+          {bannerPreview ? (
+            <>
+              {/* Frame matches the public hero (wide) so what you see is what shows */}
+              <div
+                onPointerDown={onBannerPointerDown}
+                onPointerMove={onBannerPointerMove}
+                onPointerUp={onBannerPointerUp}
+                onPointerCancel={onBannerPointerUp}
+                className="relative w-full aspect-[16/6] rounded-2xl overflow-hidden bg-gray-100 cursor-grab active:cursor-grabbing select-none touch-none"
+              >
+                <img src={bannerPreview} alt="" draggable={false} className="absolute inset-0 w-full h-full object-cover pointer-events-none" style={{ objectPosition: `center ${bannerPosition}%` }} />
+                <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/50 text-white text-[11px] font-medium px-2.5 py-1 rounded-full pointer-events-none">↕ Drag to reposition</div>
+              </div>
+              <div className="mt-3">
+                <label className="flex items-center justify-between text-xs font-medium text-gray-500 mb-1">
+                  <span>Reposition (up / down)</span>
+                  <span className="text-gray-400">{bannerPosition < 34 ? "Top" : bannerPosition > 66 ? "Bottom" : "Center"}</span>
+                </label>
+                <input
+                  type="range" min={0} max={100} step={1} value={bannerPosition}
+                  onChange={(e) => setBannerPosition(Number(e.target.value))}
+                  className="w-full accent-green-600"
+                />
+              </div>
+              <button type="button" onClick={() => bannerRef.current?.click()} className="mt-2 text-sm text-green-600 font-medium hover:underline">Change cover photo</button>
+            </>
+          ) : (
+            <div onClick={() => bannerRef.current?.click()} className="w-full aspect-[16/6] rounded-2xl overflow-hidden bg-gray-100 border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center">
+              <span className="text-gray-400 text-sm">Click to upload a cover photo · 1600 × 500 px</span>
             </div>
           )}
+          <input ref={bannerRef} type="file" accept="image/*" className="hidden" onChange={onBannerChange} />
         </div>
         <div className="flex items-center gap-4">
           <div onClick={() => logoRef.current?.click()} className={`w-20 h-20 rounded-2xl flex items-center justify-center font-bold text-2xl text-green-700 overflow-hidden cursor-pointer ring-2 ring-green-100 hover:ring-green-400 transition-all shrink-0 ${logoPreview ? "bg-white" : "bg-green-100"}`}>

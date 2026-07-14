@@ -29,7 +29,7 @@ type PageBlock = {
 };
 
 type Vendor = {
-  id: string; business_name: string; slug: string; description: string | null;
+  id: string; user_id?: string | null; business_name: string; slug: string; description: string | null;
   category: string; city: string; state: string; zip_code: string;
   address: string | null; phone: string | null; website: string | null;
   logo_url: string | null; banner_url: string | null; tier: string;
@@ -298,14 +298,29 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  // Track a store-page view once per browser session (counts as a view for each listing).
+  // The vendor owner viewing their own store shouldn't inflate their stats.
+  const isOwner = !!currentUserId && currentUserId === vendor.user_id;
+
+  // Track a store-page visit once per browser session (this is "Store Visits").
+  // Per-listing views are tracked separately, only when an item is actually opened.
   useEffect(() => {
+    if (isOwner) return;
     const key = `viewed_vendor_${vendor.id}`;
     if (typeof window === "undefined" || sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
-    supabase.rpc("increment_vendor_listing_views", { vendor_id_in: vendor.id }).then(() => {});
     supabase.rpc("increment_vendor_profile_views", { vendor_id_in: vendor.id }).then(() => {});
-  }, [supabase, vendor.id]);
+  }, [supabase, vendor.id, isOwner]);
+
+  // Count a listing view only when a visitor actually opens that item's detail,
+  // once per session per listing (not the owner, not on every store-page load).
+  function openDetail(listing: Listing) {
+    setDetailListing(listing);
+    if (isOwner || typeof window === "undefined") return;
+    const key = `viewed_listing_${listing.id}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+    supabase.rpc("increment_listing_views", { listing_id_in: listing.id }).then(() => {});
+  }
 
   // First-party analytics: full event with context (every view, not session-deduped)
   useEffect(() => {
@@ -710,7 +725,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         {/* Editorial cover — the business name sits over the image for a high-end feel */}
         <div className="relative h-52 sm:h-72 overflow-hidden bg-gradient-to-br from-green-600 to-emerald-700">
           {heroCover && (
-            <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `center ${vendor.banner_position ?? 50}%`, transform: `scale(${vendor.banner_zoom ?? 1})` }} />
+            <img src={heroCover} alt="" className="absolute inset-0 w-full h-full object-cover" style={{ objectPosition: `center ${vendor.banner_position ?? 50}%` }} />
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
           <span className="absolute top-4 left-4 text-[11px] font-bold tracking-[0.2em] text-white/90 uppercase">
@@ -875,7 +890,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 {/* Clean minimal product grid — square image + name; click opens the detail popup (Buy/Book/Message live there) */}
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-6">
                   {(activeProductCat ? orderedListings.filter((l) => l.listing_category_id === activeProductCat) : orderedListings).map((listing) => (
-                    <button key={listing.id} onClick={() => setDetailListing(listing)} className="text-left group">
+                    <button key={listing.id} onClick={() => openDetail(listing)} className="text-left group">
                       <div className="relative aspect-square rounded-xl bg-gray-100 overflow-hidden mb-2 flex items-center justify-center">
                         {listing.images?.[0]
                           ? <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
