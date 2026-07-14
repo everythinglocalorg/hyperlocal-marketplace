@@ -63,7 +63,7 @@ export default function ConnectDomainPage() {
             <div className="bg-gray-50 rounded-xl p-4 text-[13px]">
               <p className="text-gray-500 mb-2">Always use what your screen shows. It will be one of:</p>
               <p>• <strong>Plain domain</strong> (joespizza.com): Type <span className="font-mono">A</span>, Name <span className="font-mono">@</span>, Value <span className="font-mono">76.76.21.21</span></p>
-              <p>• <strong>With a prefix</strong> (www.joespizza.com): Type <span className="font-mono">CNAME</span>, Name <span className="font-mono">www</span>, Value <span className="font-mono">cname.vercel-dns.com</span></p>
+              <p>• <strong>Also add, so www works too:</strong> Type <span className="font-mono">CNAME</span>, Name <span className="font-mono">www</span>, Value <span className="font-mono">cname.vercel-dns.com</span></p>
             </div>
           </Step>
 

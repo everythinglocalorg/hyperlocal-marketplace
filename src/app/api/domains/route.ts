@@ -4,6 +4,7 @@ import {
   addDomainToProject,
   removeDomainFromProject,
   dnsInstructionsFor,
+  wwwVariant,
   vercelConfigured,
 } from "@/lib/vercel";
 
@@ -69,9 +70,11 @@ export async function POST(request: Request) {
     );
   }
 
-  // If they already had a different domain, detach the old one first.
+  // If they already had a different domain, detach the old one (and its www).
   if (vendor.custom_domain && vendor.custom_domain !== domain) {
     await removeDomainFromProject(vendor.custom_domain).catch(() => {});
+    const oldWww = wwwVariant(vendor.custom_domain);
+    if (oldWww) await removeDomainFromProject(oldWww).catch(() => {});
   }
 
   try {
@@ -82,6 +85,10 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  // Also attach the www. form so www.<domain> works (best-effort).
+  const www = wwwVariant(domain);
+  if (www) await addDomainToProject(www).catch(() => {});
 
   const { error: dbError } = await supabase
     .from("vendors")
@@ -122,6 +129,8 @@ export async function DELETE() {
 
   if (vendor.custom_domain && vercelConfigured()) {
     await removeDomainFromProject(vendor.custom_domain).catch(() => {});
+    const www = wwwVariant(vendor.custom_domain);
+    if (www) await removeDomainFromProject(www).catch(() => {});
   }
 
   await supabase

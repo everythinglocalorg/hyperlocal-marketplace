@@ -203,7 +203,7 @@ export default function CustomDomainPanel({
           {!verified && dns && (
             <div className="border border-amber-200 bg-amber-50 rounded-xl p-4">
               <p className="text-sm font-medium text-amber-900 mb-2">
-                Last step: add this record at your domain provider (e.g. GoDaddy)
+                Last step: add these records at your domain provider (e.g. GoDaddy) — the second makes the www. version work too.
               </p>
               <ol className="text-sm text-amber-800 list-decimal list-inside space-y-1 mb-3">
                 <li>Sign in to GoDaddy → <span className="font-medium">My Products</span> → your domain → <span className="font-medium">DNS</span>.</li>
@@ -230,6 +230,28 @@ export default function CustomDomainPanel({
                   </button>
                 </div>
               </div>
+              {dns.type === "A" && (
+                <div className="grid grid-cols-3 gap-2 bg-white rounded-lg p-3 text-sm mt-2">
+                  <div>
+                    <div className="text-xs text-gray-400 mb-0.5">Type</div>
+                    <div className="font-mono text-gray-900">CNAME</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-400 mb-0.5">Name / Host</div>
+                    <div className="font-mono text-gray-900">www</div>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-xs text-gray-400 mb-0.5">Value / Points to</div>
+                    <button
+                      onClick={() => copy("cname.vercel-dns.com")}
+                      className="font-mono text-gray-900 inline-flex items-center gap-1 hover:text-green-700 truncate"
+                    >
+                      <span className="truncate">cname.vercel-dns.com</span>
+                      <Copy className="w-3 h-3 shrink-0" />
+                    </button>
+                  </div>
+                </div>
+              )}
               <button
                 onClick={verify}
                 disabled={busy}

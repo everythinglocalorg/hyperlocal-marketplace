@@ -61,6 +61,12 @@ export async function removeDomainFromProject(domain: string) {
   );
 }
 
+// The www. form of an apex domain (e.g. "4kegs.com" -> "www.4kegs.com").
+// Returns null for subdomains / already-www hosts, which don't need one.
+export function wwwVariant(domain: string): string | null {
+  return domain.split(".").length === 2 ? `www.${domain}` : null;
+}
+
 // Whether Vercel considers the domain verified (DNS + ownership in place).
 export async function getDomainStatus(
   domain: string

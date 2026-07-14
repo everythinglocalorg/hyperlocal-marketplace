@@ -6,6 +6,7 @@ import {
   removeDomainFromProject,
   getDomainStatus,
   dnsInstructionsFor,
+  wwwVariant,
   vercelConfigured,
 } from "@/lib/vercel";
 
@@ -84,6 +85,8 @@ export async function POST(request: Request) {
     .single();
   if (current?.custom_domain && current.custom_domain !== domain) {
     await removeDomainFromProject(current.custom_domain).catch(() => {});
+    const oldWww = wwwVariant(current.custom_domain);
+    if (oldWww) await removeDomainFromProject(oldWww).catch(() => {});
   }
 
   try {
@@ -99,6 +102,10 @@ export async function POST(request: Request) {
       );
     }
   }
+
+  // Also attach the www. form so www.<domain> works (best-effort).
+  const www = wwwVariant(domain);
+  if (www) await addDomainToProject(www).catch(() => {});
 
   const { error } = await db
     .from("vendors")
@@ -144,6 +151,8 @@ export async function DELETE(request: Request) {
 
   if (v?.custom_domain && vercelConfigured()) {
     await removeDomainFromProject(v.custom_domain).catch(() => {});
+    const www = wwwVariant(v.custom_domain);
+    if (www) await removeDomainFromProject(www).catch(() => {});
   }
 
   await db
