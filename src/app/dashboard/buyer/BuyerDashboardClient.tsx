@@ -45,6 +45,7 @@ type RentalBooking = {
   start_time: string;
   end_date: string | null;
   signed_waiver_pdf_url: string | null;
+  payment_status: string | null;
   created_at: string;
   vendor: { business_name: string; slug: string } | null;
   listing: { title: string } | null;
@@ -824,6 +825,9 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                             <p className="text-xs text-gray-500 mt-1">{r.vendor?.business_name}</p>
                             <p className="text-sm text-gray-600 mt-1">📅 {range}{r.start_time && r.start_time !== "00:00" ? ` · ${r.start_time}` : ""}</p>
                             <p className="text-xs text-gray-400 mt-0.5">{r.duration_label} ({r.duration_hours}h)</p>
+                            {(r.payment_status === "deposit_paid" || r.payment_status === "paid") && (
+                              <p className="text-xs text-green-600 font-medium mt-0.5">💳 {r.payment_status === "paid" ? "Paid in full" : "Deposit paid"}</p>
+                            )}
                           </div>
                           <p className="font-bold text-gray-900 shrink-0">${Number(r.total_price).toFixed(2)}</p>
                         </div>

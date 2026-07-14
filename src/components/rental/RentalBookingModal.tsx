@@ -16,6 +16,8 @@ interface Props {
     rental_mode?: string | null;      // 'hourly' | 'daily'
     rental_quantity?: number | null;
     rental_buffer_hours?: number | null;
+    rental_deposit_type?: string | null;   // 'none' | 'percent' | 'full'
+    rental_deposit_value?: number | null;  // percent when type = 'percent'
   };
   vendor: { id: string; business_name: string };
   durations: Duration[];
@@ -109,6 +111,13 @@ export default function RentalBookingModal({ listing, vendor, durations, current
   // Daily rentals priced per-day multiply by the number of days; hourly/flat use the set price.
   const totalPrice = selectedDuration
     ? (isDaily && selectedDuration.hours <= 24 ? selectedDuration.price * numDays : selectedDuration.price)
+    : 0;
+
+  // Card deposit config (charged at booking via Stripe Connect).
+  const depositType = listing.rental_deposit_type ?? "none";
+  const depositValue = Number(listing.rental_deposit_value ?? 0);
+  const depositDue = depositType === "full" ? totalPrice
+    : depositType === "percent" ? Math.round(totalPrice * (depositValue / 100) * 100) / 100
     : 0;
 
   function onDayClick(dateStr: string) {
@@ -265,6 +274,23 @@ export default function RentalBookingModal({ listing, vendor, durations, current
         notes: notes.trim() || null,
       }),
     }).catch(() => {});
+
+    // If the vendor takes a card deposit, hand off to Stripe Checkout. The route
+    // recomputes the amount and returns { skip: true } when nothing is due or the
+    // vendor isn't set up for cards — in which case we just show the pending screen.
+    if (depositType === "percent" || depositType === "full") {
+      try {
+        const res = await fetch("/api/rental/deposit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bookingId }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (json?.url) { window.location.href = json.url; return; }
+      } catch (e) {
+        console.warn("Rental deposit request error:", e);
+      }
+    }
 
     setStep("done");
     setSubmitting(false);
@@ -469,12 +495,19 @@ export default function RentalBookingModal({ listing, vendor, durations, current
                   <span className="font-bold text-gray-900">Total</span>
                   <span className="font-bold text-green-700 text-lg">${totalPrice.toFixed(2)}</span>
                 </div>
+                {depositDue > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">{depositType === "full" ? "Due now (card)" : `Deposit due now (${depositValue}%)`}</span>
+                    <span className="font-bold text-gray-900">${depositDue.toFixed(2)}</span>
+                  </div>
+                )}
               </div>
 
-              {/* TODO(payments): tie into Stripe Connect deposit/checkout here — collect a
-                  deposit % or full payment to the vendor's connected account before/at
-                  confirm. Booking stays "pending" until the vendor confirms for now. */}
-              <p className="text-xs text-gray-400 text-center">Payment is collected by {vendor.business_name} directly. This booking is pending until they confirm.</p>
+              <p className="text-xs text-gray-400 text-center">
+                {depositDue > 0
+                  ? `You'll pay $${depositDue.toFixed(2)} now by card${depositType === "full" ? "" : ` (deposit); the balance is due to ${vendor.business_name}`}. This booking is pending until ${vendor.business_name} confirms.`
+                  : `Payment is collected by ${vendor.business_name} directly. This booking is pending until they confirm.`}
+              </p>
 
               {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -482,7 +515,7 @@ export default function RentalBookingModal({ listing, vendor, durations, current
                 <button type="button" onClick={() => setStep("waiver")} className="flex-1 py-3 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">← Back</button>
                 <button type="button" onClick={submitBooking} disabled={submitting}
                   className="flex-1 py-3 rounded-xl bg-green-600 text-white text-sm font-semibold hover:bg-green-700 disabled:opacity-40 transition-colors">
-                  {submitting ? "Submitting..." : "Confirm Booking ✓"}
+                  {submitting ? "Submitting..." : depositDue > 0 ? `Confirm & Pay $${depositDue.toFixed(2)} →` : "Confirm Booking ✓"}
                 </button>
               </div>
             </div>

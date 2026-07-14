@@ -82,6 +82,8 @@ type Listing = {
   rental_quantity?: number | null;
   fareharbor_shortname?: string | null;
   fareharbor_flow?: string | null;
+  rental_deposit_type?: string | null;
+  rental_deposit_value?: number | null;
   cta_type?: string | null;
   created_at: string;
 };
@@ -125,6 +127,8 @@ type RentalBooking = {
   notes: string | null;
   waiver_signer_name: string | null;
   signed_waiver_pdf_url: string | null;
+  payment_status: string | null;
+  deposit_amount: number | null;
   created_at: string;
   customer: { full_name: string | null; email: string } | null;
   listing: { title: string } | null;
@@ -1276,6 +1280,7 @@ function ListingsTab({
   const [rentalSettings, setRentalSettings] = useState<import("@/components/rental/RentalSetup").RentalSettings>({
     rental_mode: "hourly", rental_buffer_hours: "0", rental_quantity: "1",
     waiver_body: "", fareharbor_shortname: "", fareharbor_flow: "",
+    rental_deposit_type: "none", rental_deposit_value: "50",
   });
   const [thriftAddress, setThriftAddress] = useState("");
   const [housing, setHousing] = useState({
@@ -1335,6 +1340,8 @@ function ListingsTab({
           waiver_body: editingListing.waiver_body ?? "",
           fareharbor_shortname: editingListing.fareharbor_shortname ?? "",
           fareharbor_flow: editingListing.fareharbor_flow ?? "",
+          rental_deposit_type: editingListing.rental_deposit_type ?? "none",
+          rental_deposit_value: String(editingListing.rental_deposit_value ?? 50),
         });
       }
       onShowNew(true);
@@ -1463,6 +1470,8 @@ function ListingsTab({
         rental_quantity: Math.max(1, Number(rentalSettings.rental_quantity) || 1),
         fareharbor_shortname: rentalSettings.fareharbor_shortname || null,
         fareharbor_flow: rentalSettings.fareharbor_flow || null,
+        rental_deposit_type: rentalSettings.rental_deposit_type || "none",
+        rental_deposit_value: Number(rentalSettings.rental_deposit_value) || 0,
       } : {}),
     };
 
@@ -1507,7 +1516,7 @@ function ListingsTab({
     setRentalDurations([]);
     setRentalWaiverUrl(null);
     setRentalWaiverFilename(null);
-    setRentalSettings({ rental_mode: "hourly", rental_buffer_hours: "0", rental_quantity: "1", waiver_body: "", fareharbor_shortname: "", fareharbor_flow: "" });
+    setRentalSettings({ rental_mode: "hourly", rental_buffer_hours: "0", rental_quantity: "1", waiver_body: "", fareharbor_shortname: "", fareharbor_flow: "", rental_deposit_type: "none", rental_deposit_value: "50" });
     setThriftAddress("");
     setThriftHours([
       { day: "Monday", open: "", close: "", closed: false },
@@ -2396,6 +2405,11 @@ function RentalsTab({ bookings, loading, onUpdateStatus }: {
                   {b.listing && <p className="text-xs text-gray-500 mb-0.5">📦 {b.listing.title}</p>}
                   <p className="text-xs text-gray-500">📅 {dateRange(b)}{b.start_time && b.start_time !== "00:00" ? ` · ${b.start_time}` : ""}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{b.duration_label} ({b.duration_hours}h)</p>
+                  {(b.payment_status === "deposit_paid" || b.payment_status === "paid") && (
+                    <p className="text-xs text-green-600 font-medium mt-0.5">
+                      💳 {b.payment_status === "paid" ? "Paid in full" : "Deposit paid"}{b.deposit_amount ? ` · ${formatPrice(b.deposit_amount)}` : ""}
+                    </p>
+                  )}
                   {b.notes && <p className="text-xs text-gray-400 mt-1 italic">&quot;{b.notes}&quot;</p>}
                 </div>
                 <div className="text-right shrink-0">

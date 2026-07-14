@@ -12,6 +12,8 @@ export type RentalSettings = {
   waiver_body: string;
   fareharbor_shortname: string;
   fareharbor_flow: string;
+  rental_deposit_type: string;   // 'none' | 'percent' | 'full'
+  rental_deposit_value: string;  // percent when type = 'percent'
 };
 
 interface Props {
@@ -37,6 +39,8 @@ const DEFAULTS: RentalSettings = {
   waiver_body: "",
   fareharbor_shortname: "",
   fareharbor_flow: "",
+  rental_deposit_type: "none",
+  rental_deposit_value: "50",
 };
 
 export default function RentalSetup({ listingId, supabase, waiverUrl, waiverFilename, vendorId, initialSettings, onWaiverUploaded, onDurationsChange, onSettingsChange }: Props) {
@@ -243,6 +247,34 @@ export default function RentalSetup({ listingId, supabase, waiverUrl, waiverFile
             className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           <p className="text-[11px] text-gray-400 mt-1">Auto-blocked after each booking.</p>
         </div>
+      </div>
+
+      {/* Deposit / payment */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-2">Deposit at booking (card)</label>
+        <div className="flex gap-2">
+          {[["none","No deposit"],["percent","Percentage"],["full","Full amount"]].map(([val, lbl]) => (
+            <button key={val} type="button" onClick={() => updateSettings({ rental_deposit_type: val })}
+              className={`flex-1 px-3 py-2 rounded-xl border text-xs font-semibold transition-colors ${
+                settings.rental_deposit_type === val ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600"
+              }`}>
+              {lbl}
+            </button>
+          ))}
+        </div>
+        {settings.rental_deposit_type === "percent" && (
+          <div className="relative w-28 mt-2">
+            <input type="number" min="1" max="100" step="1" value={settings.rental_deposit_value}
+              onChange={(e) => updateSettings({ rental_deposit_value: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
+          </div>
+        )}
+        <p className="text-[11px] text-gray-400 mt-1">
+          {settings.rental_deposit_type === "none"
+            ? "Customers pay you directly; bookings stay pending until you confirm."
+            : `Charged to the customer's card at booking, paid straight to your connected Stripe account. Requires Stripe Connect.`}
+        </p>
       </div>
 
       {/* Blackout dates */}

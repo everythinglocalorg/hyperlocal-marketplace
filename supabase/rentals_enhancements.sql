@@ -13,14 +13,20 @@ alter table public.listings
   add column if not exists rental_quantity int not null default 1,         -- number of identical units available
   add column if not exists waiver_body text,                               -- vendor-pasted waiver text (alt to waiver_url PDF)
   add column if not exists fareharbor_shortname text,                      -- Phase 4 (optional per-vendor embed)
-  add column if not exists fareharbor_flow text;
+  add column if not exists fareharbor_flow text,
+  add column if not exists rental_deposit_type text not null default 'none', -- 'none' | 'percent' | 'full'
+  add column if not exists rental_deposit_value numeric not null default 0;   -- percent when type = 'percent'
 
--- ── Extra signed-waiver columns on bookings (Phase 2) ───────
+-- ── Extra signed-waiver + payment columns on bookings ───────
 alter table public.rental_bookings
-  add column if not exists waiver_signature_url text,  -- captured signature PNG
-  add column if not exists signed_waiver_pdf_url text, -- generated flattened PDF (storage path)
+  add column if not exists waiver_signature_url text,  -- captured signature PNG (Phase 2)
+  add column if not exists signed_waiver_pdf_url text, -- generated flattened PDF (Phase 2)
   add column if not exists waiver_ip text,
-  add column if not exists waiver_user_agent text;
+  add column if not exists waiver_user_agent text,
+  add column if not exists deposit_amount numeric,                          -- amount charged via Stripe (Payments)
+  add column if not exists deposit_paid_at timestamptz,
+  add column if not exists deposit_payment_intent text,
+  add column if not exists payment_status text not null default 'unpaid';   -- 'unpaid' | 'deposit_paid' | 'paid'
 
 -- ── Vendor blackout dates (Phase 3) ─────────────────────────
 create table if not exists public.rental_blackouts (

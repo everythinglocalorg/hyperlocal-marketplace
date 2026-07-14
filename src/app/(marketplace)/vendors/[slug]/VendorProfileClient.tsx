@@ -82,6 +82,7 @@ type Listing = {
   waiver_body?: string | null; rental_mode?: string | null;
   rental_quantity?: number | null; rental_buffer_hours?: number | null;
   fareharbor_shortname?: string | null; fareharbor_flow?: string | null;
+  rental_deposit_type?: string | null; rental_deposit_value?: number | null;
   cta_type?: string | null; listing_category_id?: string | null;
 };
 
@@ -538,7 +539,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
     {estimateListing && <BuyNowModal listing={{ id: estimateListing.id, title: estimateListing.title, price: estimateListing.price, price_label: estimateListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="estimate" onClose={() => setEstimateListing(null)} />}
     {showRefer && <ReferModal vendorId={vendor.id} vendorName={vendor.business_name} currentUserId={currentUserId} onClose={() => setShowRefer(false)} />}
-    {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename, waiver_body: bookingListing.waiver_body, rental_mode: bookingListing.rental_mode, rental_quantity: bookingListing.rental_quantity, rental_buffer_hours: bookingListing.rental_buffer_hours }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
+    {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename, waiver_body: bookingListing.waiver_body, rental_mode: bookingListing.rental_mode, rental_quantity: bookingListing.rental_quantity, rental_buffer_hours: bookingListing.rental_buffer_hours, rental_deposit_type: bookingListing.rental_deposit_type, rental_deposit_value: bookingListing.rental_deposit_value }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
 
     {/* Listing detail popup — full photos/details; its sticky action bar reuses the same CTA handlers */}
     {detailListing && (

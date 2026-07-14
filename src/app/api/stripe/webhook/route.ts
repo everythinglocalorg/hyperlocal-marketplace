@@ -82,6 +82,18 @@ export async function POST(req: NextRequest) {
           .eq("id", session.metadata.estimate_id);
         break;
       }
+      // Rental deposit / full payment paid → record it on the booking.
+      if (session.metadata?.type === "rental_deposit" && session.metadata?.booking_id) {
+        await supabase
+          .from("rental_bookings")
+          .update({
+            payment_status: session.metadata.full === "1" ? "paid" : "deposit_paid",
+            deposit_paid_at: new Date().toISOString(),
+            deposit_payment_intent: (session.payment_intent as string) ?? null,
+          })
+          .eq("id", session.metadata.booking_id);
+        break;
+      }
       // Boost paid → activate the feature placement.
       if (session.metadata?.type === "boost" && session.metadata?.boost_id) {
         await supabase
