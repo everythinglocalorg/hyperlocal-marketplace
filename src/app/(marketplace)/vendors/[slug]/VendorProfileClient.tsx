@@ -7,6 +7,7 @@ import { track } from "@/lib/analytics";
 import { formatPrice } from "@/lib/utils";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
+import MakeOfferModal from "@/components/MakeOfferModal";
 import MessageModal from "@/components/MessageModal";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import FollowButton from "@/components/FollowButton";
@@ -14,6 +15,7 @@ import Top8Button from "@/components/Top8Button";
 import { useFavorites } from "@/lib/favorites";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
 import ReferModal from "@/components/ReferModal";
+import LeafletMap from "@/components/LeafletMap";
 import LocalTop8Badge from "@/components/LocalTop8Badge";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
@@ -35,6 +37,7 @@ type Vendor = {
   logo_url: string | null; banner_url: string | null; tier: string;
   is_verified: boolean; is_claimed: boolean; rating: number; review_count: number;
   local_bucks_earned: number; service_radius_miles: number;
+  latitude?: number | null; longitude?: number | null;
   service_locations?: string[] | null;
   banner_position?: number | null;
   banner_zoom?: number | null;
@@ -160,6 +163,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const [bookingListing, setBookingListing] = useState<Listing | null>(null);
   const [bookingDurations, setBookingDurations] = useState<any[]>([]);
   const [buyListing, setBuyListing] = useState<Listing | null>(null);
+  const [offerListing, setOfferListing] = useState<Listing | null>(null);
   const [estimateListing, setEstimateListing] = useState<Listing | null>(null);
   const [messageListing, setMessageListing] = useState<Listing | null>(null);
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
@@ -557,6 +561,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
       </div>
     )}
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
+    {offerListing && <MakeOfferModal listing={{ id: offerListing.id, title: offerListing.title, price: offerListing.price }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setOfferListing(null)} />}
     {estimateListing && <BuyNowModal listing={{ id: estimateListing.id, title: estimateListing.title, price: estimateListing.price, price_label: estimateListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="estimate" onClose={() => setEstimateListing(null)} />}
     {showRefer && <ReferModal vendorId={vendor.id} vendorName={vendor.business_name} currentUserId={currentUserId} onClose={() => setShowRefer(false)} />}
     {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename, waiver_body: bookingListing.waiver_body, rental_mode: bookingListing.rental_mode, rental_quantity: bookingListing.rental_quantity, rental_buffer_hours: bookingListing.rental_buffer_hours, rental_deposit_type: bookingListing.rental_deposit_type, rental_deposit_value: bookingListing.rental_deposit_value }} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
@@ -572,6 +577,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         onBook={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); openBooking(l); }}
         onBuy={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}
         onOrder={() => { const l = detailListing; if (!l) return; setDetailListing(null); trackClick(l.id); if (ctaOrderUrl) window.open(ctaOrderUrl, "_blank", "noopener,noreferrer"); else setBuyListing(l); }}
+        onMakeOffer={() => { const l = detailListing; if (!l) return; setDetailListing(null); trackClick(l.id); setOfferListing(l); }}
         onEstimate={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setEstimateListing(l); }}
         onMessage={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setMessageListing(l); }}
       />
@@ -1050,6 +1056,22 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
               )}
             </div>
           </div>
+          {vendor.latitude != null && vendor.longitude != null && (
+            <div className="mt-2">
+              <LeafletMap
+                markers={[{ lat: vendor.latitude, lng: vendor.longitude, title: vendor.business_name, subtitle: vendor.address ? `${vendor.address}, ${vendor.city}, ${vendor.state}` : `${vendor.city}, ${vendor.state}` }]}
+                height={240}
+              />
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${vendor.latitude},${vendor.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-sm text-green-600 font-semibold hover:underline"
+              >
+                🧭 Get directions
+              </a>
+            </div>
+          )}
           <div className="bg-gradient-to-br from-green-600 to-emerald-700 rounded-2xl p-6 text-white mt-4">
             <h3 className="font-bold mb-1">Know someone who'd love this business?</h3>
             <p className="text-green-100 text-sm mb-4">Share your link and earn <strong>20 Local Bucks</strong> when they sign up.</p>
