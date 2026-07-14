@@ -48,6 +48,7 @@ type Vendor = {
 const UNSPLASH = (id: string) => `https://images.unsplash.com/photo-${id}?w=1200&q=60&auto=format&fit=crop`;
 const CATEGORY_COVERS: Record<string, string> = {
   "Products": UNSPLASH("1441986300917-64674bd600d8"),
+  "Thrift Sales": UNSPLASH("1489274495757-95c7c837b101"),
   "Services & Trades": UNSPLASH("1504307651254-35680f356dfd"),
   "Restaurants & Food": UNSPLASH("1517248135467-4c7edcad34c4"),
   "Events & Rentals": UNSPLASH("1519671482749-fd09be7ccebf"),

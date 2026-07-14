@@ -121,6 +121,7 @@ export interface UserLocation {
 
 export const CATEGORIES = [
   'Products',
+  'Thrift Sales',
   'Services & Trades',
   'Restaurants & Food',
   'Events & Rentals',
