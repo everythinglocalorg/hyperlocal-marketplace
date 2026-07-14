@@ -13,12 +13,14 @@ import SearchSuggestions from "@/components/SearchSuggestions";
 import CitySelector from "@/components/CitySelector";
 import Link from "next/link";
 import ListingDetailModal, { DetailListing } from "@/components/ListingDetailModal";
+import MakeOfferModal from "@/components/MakeOfferModal";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
 import MessageModal from "@/components/MessageModal";
+import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 
 // Full listing row (plus its vendor) needed by the detail popup and its CTAs.
-const LISTING_SELECT = "id, title, description, type, price, price_label, condition, quantity, images, category, tags, is_featured, cta_type, waiver_url, waiver_filename, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating, phone, menu_pdf_url)";
+const LISTING_SELECT = "id, title, description, type, price, price_label, condition, quantity, images, category, tags, is_featured, cta_type, waiver_url, waiver_filename, sold_at, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating, phone, menu_pdf_url)";
 
 type ListingVendor = {
   id: string; slug: string; business_name: string; city: string; state: string;
@@ -71,6 +73,9 @@ const SORT_OPTIONS = [
 
 function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+  const isThrift = l.type === "thrift";
+  const isSold = !!l.sold_at || l.quantity === 0;
+  const isFree = isThrift && (Number(l.price) === 0);
   return (
     <div
       onClick={onClick}
@@ -78,13 +83,21 @@ function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
     >
       <div className="h-36 bg-gray-100 relative">
         {l.images?.[0] ? (
-          <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+          <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className={`w-full h-full object-cover ${isSold ? "opacity-60" : ""}`} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl">
-            {l.type === "rental" ? "🏠" : l.type === "thrift" ? "🏷️" : "📦"}
+          <div className={`w-full h-full flex items-center justify-center text-4xl ${isSold ? "opacity-60" : ""}`}>
+            {l.type === "rental" ? "🏠" : isThrift ? "🏷️" : "📦"}
           </div>
         )}
         <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600 capitalize">{l.type}</span>
+        {isThrift && l.condition && !isSold && (
+          <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full capitalize">{l.condition}</span>
+        )}
+        {isSold && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="bg-gray-900/85 text-white text-sm font-black tracking-wider px-4 py-1.5 rounded-md -rotate-6 shadow-lg">SOLD</span>
+          </div>
+        )}
       </div>
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 text-sm">{l.title}</h3>
@@ -92,13 +105,15 @@ function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
         {vendor && (
           <p className="text-xs text-gray-500 mt-1">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
         )}
-        {l.price !== null && l.price !== undefined && (
+        {isFree ? (
+          <p className="text-sm font-bold text-green-700 mt-2">FREE</p>
+        ) : l.price !== null && l.price !== undefined && (
           <p className="text-sm font-bold text-green-700 mt-2">${Number(l.price).toFixed(2)}</p>
         )}
-        {l.price_label && !l.price && l.type !== "thrift" && (
+        {l.price_label && !l.price && !isThrift && (
           <p className="text-xs text-gray-500 mt-2">{l.price_label}</p>
         )}
-        {l.type === "thrift" && l.price_label && (
+        {isThrift && l.price_label && (
           <p className="text-xs text-gray-500 mt-2">📍 {l.price_label}</p>
         )}
       </div>
@@ -190,11 +205,19 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
 
   // Products/listings section
   const [listingResults, setListingResults] = useState<any[]>([]);
+  // Thrift-only filters (price bucket / condition / price sort), applied client-side.
+  const [thriftPrice, setThriftPrice] = useState<"" | "free" | "25" | "100">("");
+  const [thriftCond, setThriftCond] = useState("");
+  const [thriftSort, setThriftSort] = useState<"" | "low" | "high">("");
   // Keyword search: split by result_type
   const [kwListings, setKwListings] = useState<SearchResult[]>([]);
   const [kwVendors, setKwVendors] = useState<SearchResult[]>([]);
   // Geo / browse: vendors section
   const [vendors, setVendors] = useState<Vendor[]>([]);
+
+  // Map view of the business results (pins with coords fetched fresh).
+  const [mapView, setMapView] = useState(false);
+  const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -204,6 +227,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string } | null>(null);
   const [detailCtx, setDetailCtx] = useState<ListingCtx | null>(null);
   const [buyCtx, setBuyCtx] = useState<ListingCtx | null>(null);
+  const [offerCtx, setOfferCtx] = useState<ListingCtx | null>(null);
   const [estimateCtx, setEstimateCtx] = useState<ListingCtx | null>(null);
   const [bookCtx, setBookCtx] = useState<ListingCtx | null>(null);
   const [bookDurations, setBookDurations] = useState<any[]>([]);
@@ -498,8 +522,41 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
 
   // Derived counts for results header
   const isKeyword = !!query.trim() && !listingMode;
+  const isThriftView = listingMode && listingType === "thrift";
+
+  // Build map pins for the business results — fetch coords fresh so it works for
+  // browse, radius (RPC has no coords), and keyword paths alike.
+  useEffect(() => {
+    if (!mapView) { return; }
+    const list: any[] = isKeyword ? kwVendors : vendors;
+    const ids = list.map((x) => x.id).filter(Boolean);
+    if (ids.length === 0) { setMapMarkers([]); return; }
+    let cancel = false;
+    supabase.from("vendors").select("id, business_name, slug, latitude, longitude, city, state").in("id", ids)
+      .then(({ data }) => {
+        if (cancel) return;
+        setMapMarkers((data ?? [])
+          .filter((v: any) => v.latitude != null && v.longitude != null)
+          .map((v: any) => ({ lat: v.latitude, lng: v.longitude, title: v.business_name, href: `/vendors/${v.slug}`, subtitle: `${v.city}, ${v.state}` })));
+      });
+    return () => { cancel = true; };
+  }, [mapView, isKeyword, vendors, kwVendors, supabase]);
+
+  // Apply thrift-only price/condition/sort filters to the listing grid.
+  const shownListings = useMemo(() => {
+    if (!isThriftView) return listingResults;
+    let arr = listingResults;
+    if (thriftPrice === "free") arr = arr.filter((l) => Number(l.price) === 0);
+    else if (thriftPrice === "25") arr = arr.filter((l) => l.price != null && Number(l.price) <= 25);
+    else if (thriftPrice === "100") arr = arr.filter((l) => l.price != null && Number(l.price) <= 100);
+    if (thriftCond) arr = arr.filter((l) => (l.condition ?? "").toLowerCase() === thriftCond.toLowerCase());
+    if (thriftSort === "low") arr = [...arr].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    else if (thriftSort === "high") arr = [...arr].sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    return arr;
+  }, [isThriftView, listingResults, thriftPrice, thriftCond, thriftSort]);
+
   const productCount = listingMode
-    ? listingResults.length
+    ? shownListings.length
     : isKeyword
     ? kwListings.length
     : listingResults.length;
@@ -520,7 +577,16 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           onBook={() => { const ctx = detailCtx; setDetailCtx(null); openBooking(ctx); }}
           onBuy={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setBuyCtx(ctx); }}
           onEstimate={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setEstimateCtx(ctx); }}
+          onMakeOffer={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setOfferCtx(ctx); }}
           onMessage={() => { const ctx = detailCtx; setDetailCtx(null); trackListingClick(ctx.listing.id); setMsgCtx(ctx); }}
+        />
+      )}
+      {offerCtx && (
+        <MakeOfferModal
+          listing={{ id: offerCtx.listing.id, title: offerCtx.listing.title, price: offerCtx.listing.price }}
+          vendor={{ id: offerCtx.vendor.id, business_name: offerCtx.vendor.business_name }}
+          currentUser={currentUser}
+          onClose={() => setOfferCtx(null)}
         />
       )}
       {buyCtx && (
@@ -689,6 +755,36 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         </div>
       </div>
 
+      {/* Thrift-only filter bar: price bucket, condition, price sort */}
+      {isThriftView && (
+        <div className="bg-amber-50/60 border-b border-amber-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex gap-2 overflow-x-auto scrollbar-hide items-center">
+            <span className="shrink-0 text-xs font-bold text-amber-700 mr-1">🏷️ Thrift</span>
+            {([["", "Any price"], ["free", "Free"], ["25", "Under $25"], ["100", "Under $100"]] as const).map(([val, label]) => (
+              <button key={val || "any"} onClick={() => setThriftPrice(val)}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${thriftPrice === val ? "bg-amber-500 text-white" : "bg-white text-gray-600 border border-amber-200 hover:bg-amber-100"}`}>
+                {label}
+              </button>
+            ))}
+            <span className="shrink-0 w-px h-5 bg-amber-200 mx-1" />
+            <select value={thriftCond} onChange={(e) => setThriftCond(e.target.value)}
+              className="shrink-0 text-xs font-medium bg-white border border-amber-200 rounded-full px-3 py-1.5 text-gray-600 focus:outline-none">
+              <option value="">Any condition</option>
+              <option value="New">New</option>
+              <option value="Like New">Like New</option>
+              <option value="Good">Good</option>
+              <option value="Fair">Fair</option>
+            </select>
+            <select value={thriftSort} onChange={(e) => setThriftSort(e.target.value as "" | "low" | "high")}
+              className="shrink-0 text-xs font-medium bg-white border border-amber-200 rounded-full px-3 py-1.5 text-gray-600 focus:outline-none">
+              <option value="">Sort</option>
+              <option value="low">Price: Low → High</option>
+              <option value="high">Price: High → Low</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
 
@@ -707,7 +803,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
         ) : (
           <>
             {/* ── PRODUCTS / LISTINGS SECTION ── */}
-            {(listingMode ? listingResults : isKeyword ? kwListings : listingResults).length > 0 ? (
+            {(listingMode ? shownListings : isKeyword ? kwListings : listingResults).length > 0 ? (
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <div>
@@ -743,14 +839,14 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {listingMode
-                    ? listingResults.map((l: any, i: number) => (
+                    ? shownListings.map((l: any, i: number) => (
                         <ListingCard key={l.id} l={l} onClick={() => { track("search_result_click", {
                           query: "",
                           mode: "listings",
                           result_type: "listing",
                           result_id: l.id,
                           position: i + 1,
-                          total_results: listingResults.length,
+                          total_results: shownListings.length,
                         }); openDetail(l); }} />
                       ))
                     : isKeyword
@@ -787,7 +883,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
             {/* ── LOCAL BUSINESSES SECTION ── */}
             {!listingMode && (isKeyword ? kwVendors : vendors).length > 0 && (
               <section>
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center justify-between gap-3 mb-4">
                   <div>
                     <h2 className="text-lg font-bold text-gray-900">Local Businesses</h2>
                     <p className="text-sm text-gray-400 mt-0.5">
@@ -795,7 +891,18 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                       {activeCityObj ? ` within ${radius} mi of ${activeCityObj.label}` : resolvedCoords ? ` near ${resolvedCoords.label}` : ""} · Featured first
                     </p>
                   </div>
+                  <div className="shrink-0 inline-flex rounded-xl border border-gray-200 overflow-hidden text-sm font-semibold">
+                    <button onClick={() => setMapView(false)} className={`px-3 py-1.5 transition-colors ${!mapView ? "bg-green-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}>List</button>
+                    <button onClick={() => setMapView(true)} className={`px-3 py-1.5 transition-colors ${mapView ? "bg-green-600 text-white" : "text-gray-600 hover:bg-gray-50"}`}>🗺️ Map</button>
+                  </div>
                 </div>
+                {mapView ? (
+                  mapMarkers.length > 0 ? (
+                    <LeafletMap markers={mapMarkers} height={520} />
+                  ) : (
+                    <div className="h-40 flex items-center justify-center text-sm text-gray-400 bg-gray-50 rounded-2xl">No mapped locations for these businesses.</div>
+                  )
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {isKeyword
                     ? kwVendors.map((r, i) => (
@@ -825,6 +932,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                         </div>
                       ))}
                 </div>
+                )}
               </section>
             )}
 
