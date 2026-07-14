@@ -496,7 +496,11 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         )}
       </div>
       <button
-        onClick={() => { if (requireAccount()) return; if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true); }}
+        onClick={() => {
+          if (effectiveCta === "order" && ctaOrderUrl) { window.open(ctaOrderUrl, "_blank", "noopener,noreferrer"); return; }
+          if (requireAccount()) return;
+          if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true);
+        }}
         className="shrink-0 bg-gray-900 text-white font-semibold text-sm px-6 py-3 rounded-full hover:bg-gray-800 transition-colors"
       >
         {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"}
