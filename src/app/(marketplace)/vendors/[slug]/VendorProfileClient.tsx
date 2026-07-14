@@ -14,17 +14,6 @@ import Top8Button from "@/components/Top8Button";
 import { useFavorites } from "@/lib/favorites";
 import ListingDetailModal, { TYPE_ICON, parseHousing, parseThrift, derivePriceLabel, resolveListingCta } from "@/components/ListingDetailModal";
 import ReferModal from "@/components/ReferModal";
-
-// TEMP INSTRUMENTATION — capture the component stack for the "deps changed size" warning.
-if (typeof window !== "undefined" && !(window as any).__ceHooked) {
-  (window as any).__ceHooked = true;
-  (window as any).__caught = [];
-  const _e = console.error;
-  console.error = function (...a: any[]) {
-    try { if (a.some((x) => typeof x === "string" && x.includes("changed size between renders"))) (window as any).__caught.push(new Error("cap").stack); } catch {}
-    return _e.apply(this, a as any);
-  };
-}
 import LocalTop8Badge from "@/components/LocalTop8Badge";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
