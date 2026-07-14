@@ -72,9 +72,12 @@ export default function ConnectDomainPage() {
             <p>Find your domain and click <strong>DNS</strong> (or <strong>Manage DNS</strong>), then <strong>Add New Record</strong>.</p>
             <p>Fill it in to match what Everything Local showed you (Type, Name, Value), leave <strong>TTL</strong> at its default, and click <strong>Save</strong>.</p>
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-[13px] text-amber-800">
-              ⚠️ <strong>If GoDaddy already has an &quot;A&quot; record for @</strong>, don&apos;t add a second one —
-              click the pencil/edit icon on the existing one and change its value to{" "}
-              <span className="font-mono">76.76.21.21</span>, then save.
+              ⚠️ <strong>Delete GoDaddy&apos;s default &quot;parked&quot; records first.</strong> A new GoDaddy
+              domain comes with a default <span className="font-mono">A</span> record (Name{" "}
+              <span className="font-mono">@</span>) and a <span className="font-mono">CNAME</span> (Name{" "}
+              <span className="font-mono">www</span>) that point to a parking page. Use the trash/delete
+              icon to remove both — if you leave them, your new records conflict and the domain won&apos;t
+              work. Then add the records above.
             </div>
           </Step>
 

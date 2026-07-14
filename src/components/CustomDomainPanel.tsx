@@ -207,7 +207,8 @@ export default function CustomDomainPanel({
               </p>
               <ol className="text-sm text-amber-800 list-decimal list-inside space-y-1 mb-3">
                 <li>Sign in to GoDaddy → <span className="font-medium">My Products</span> → your domain → <span className="font-medium">DNS</span>.</li>
-                <li>Add a new record with the values below, then save.</li>
+                <li><span className="font-medium">Delete GoDaddy&apos;s default &quot;parked&quot; records first</span> — the existing A record (Name <span className="font-mono">@</span>) and CNAME (Name <span className="font-mono">www</span>). If you leave them, the new records conflict and the domain won&apos;t work.</li>
+                <li>Add the records below, then save.</li>
                 <li>Come back and click <span className="font-medium">Check status</span> (DNS can take up to a few hours).</li>
               </ol>
               <div className="grid grid-cols-3 gap-2 bg-white rounded-lg p-3 text-sm">
