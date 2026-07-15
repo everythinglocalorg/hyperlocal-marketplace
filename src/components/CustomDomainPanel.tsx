@@ -265,13 +265,48 @@ export default function CustomDomainPanel({
           )}
 
           {verified && (
-            <p className="text-sm text-green-700">
-              🎉 Your domain is live. Visitors to{" "}
-              <a href={`https://${domain}`} target="_blank" rel="noreferrer" className="underline font-medium">
-                {domain}
-              </a>{" "}
-              now see your page.
-            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-green-700">
+                🎉 Your domain is live. Visitors to{" "}
+                <a href={`https://${domain}`} target="_blank" rel="noreferrer" className="underline font-medium">
+                  {domain}
+                </a>{" "}
+                now see your page.
+              </p>
+
+              {/* SEO boost: the vendor's own domain is now the canonical, so help
+                  them get it indexed on their own Google Search Console. */}
+              <div className="border border-green-200 bg-green-50 rounded-xl p-4">
+                <p className="text-sm font-semibold text-green-900 mb-1">
+                  🚀 Get {domain} ranking on Google (2 minutes)
+                </p>
+                <p className="text-sm text-green-800 mb-2 leading-relaxed">
+                  Your page is already SEO-optimized for <span className="font-medium">{domain}</span> —
+                  Google will credit the ranking to <span className="font-medium">your</span> domain, not ours.
+                  To get found faster, tell Google your site exists:
+                </p>
+                <ol className="text-sm text-green-800 list-decimal list-inside space-y-1 mb-3">
+                  <li>
+                    Go to{" "}
+                    <a href="https://search.google.com/search-console" target="_blank" rel="noreferrer" className="underline font-medium">
+                      Google Search Console
+                    </a>{" "}
+                    and sign in.
+                  </li>
+                  <li>Add a property → choose <span className="font-medium">Domain</span> → enter <span className="font-mono">{domain}</span>.</li>
+                  <li>Verify with the TXT record it gives you (add it at your domain provider, same place as the records above).</li>
+                  <li>Once verified, open <span className="font-medium">URL Inspection</span>, paste <span className="font-mono">https://{domain}</span>, and click <span className="font-medium">Request Indexing</span>.</li>
+                </ol>
+                <a
+                  href="https://search.google.com/search-console"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-sm font-medium text-green-700 hover:underline"
+                >
+                  Open Google Search Console →
+                </a>
+              </div>
+            </div>
           )}
         </div>
       )}
