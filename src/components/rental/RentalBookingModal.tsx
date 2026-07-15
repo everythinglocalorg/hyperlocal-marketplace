@@ -10,6 +10,7 @@ interface Props {
   listing: {
     id: string;
     title: string;
+    price?: number | null;
     waiver_url: string | null;
     waiver_filename: string | null;
     waiver_body?: string | null;
@@ -22,6 +23,8 @@ interface Props {
   vendor: { id: string; business_name: string };
   durations: Duration[];
   currentUser: { id: string; full_name: string | null } | null;
+  // "rental" = duration + waiver flow; "service" = date/time appointment (salon, spa, etc.)
+  kind?: "rental" | "service";
   onClose: () => void;
 }
 
@@ -53,9 +56,11 @@ function daysBetween(a: string, b: string): string[] {
   return out;
 }
 
-export default function RentalBookingModal({ listing, vendor, durations, currentUser, onClose }: Props) {
+export default function RentalBookingModal({ listing, vendor, durations, currentUser, kind = "rental", onClose }: Props) {
   const supabase = createClient();
-  const isDaily = (listing.rental_mode ?? "hourly") === "daily";
+  const isService = kind === "service";
+  // Services are single date/time appointments — never the daily-range flow.
+  const isDaily = !isService && (listing.rental_mode ?? "hourly") === "daily";
 
   const [step, setStep] = useState<"pick" | "waiver" | "confirm" | "done">("pick");
   const [selectedDuration, setSelectedDuration] = useState<Duration | null>(durations[0] ?? null);
@@ -108,8 +113,10 @@ export default function RentalBookingModal({ listing, vendor, durations, current
     : selectedDate ? [selectedDate] : [];
   const numDays = rangeDays.length || 1;
 
-  // Daily rentals priced per-day multiply by the number of days; hourly/flat use the set price.
-  const totalPrice = selectedDuration
+  // Services are priced by the listing itself; daily rentals multiply per-day; hourly/flat use the set price.
+  const totalPrice = isService
+    ? Number(listing.price ?? 0)
+    : selectedDuration
     ? (isDaily && selectedDuration.hours <= 24 ? selectedDuration.price * numDays : selectedDuration.price)
     : 0;
 
@@ -203,29 +210,35 @@ export default function RentalBookingModal({ listing, vendor, durations, current
   }
 
   const hasWaiverDoc = !!listing.waiver_url || !!(listing.waiver_body && listing.waiver_body.trim());
-  const canContinuePick = !!selectedDuration && !!selectedDate && (!isDaily || !!rangeEnd);
+  // Rentals always take a waiver; services only when the vendor attached one.
+  const needsWaiver = !isService || hasWaiverDoc;
+  const canContinuePick = isService
+    ? !!selectedDate
+    : !!selectedDuration && !!selectedDate && (!isDaily || !!rangeEnd);
   const canSign = scrolledWaiver && !!waiverName.trim() && !!signatureDataUrl;
 
   async function submitBooking() {
-    if (!currentUser || !selectedDuration || !selectedDate) return;
-    if (!canSign) { setError("Please read the waiver and add your signature."); return; }
+    if (!currentUser || !selectedDate) return;
+    if (!isService && !selectedDuration) return;
+    if (needsWaiver && !canSign) { setError("Please read the waiver and add your signature."); return; }
     setSubmitting(true);
     setError("");
 
     const endDate = isDaily ? (rangeEnd || selectedDate) : selectedDate;
 
-    // Race-safe insert with server-side availability re-validation.
+    // Race-safe insert with server-side availability re-validation. Services have
+    // no rental duration — pass the service name + a nominal 1h to satisfy the schema.
     const { data: bookingId, error: rpcErr } = await supabase.rpc("create_rental_booking", {
       p_listing_id: listing.id,
-      p_duration_id: selectedDuration.id,
-      p_duration_label: selectedDuration.label,
-      p_duration_hours: selectedDuration.hours,
+      p_duration_id: selectedDuration?.id ?? null,
+      p_duration_label: selectedDuration?.label ?? listing.title,
+      p_duration_hours: selectedDuration?.hours ?? 1,
       p_total_price: totalPrice,
       p_start_date: selectedDate,
       p_start_time: isDaily ? "00:00" : selectedTime,
       p_end_date: endDate,
       p_notes: notes.trim() || null,
-      p_waiver_signer_name: waiverName.trim(),
+      p_waiver_signer_name: (waiverName.trim() || currentUser.full_name || "").trim(),
     });
 
     if (rpcErr || !bookingId) {
@@ -241,7 +254,8 @@ export default function RentalBookingModal({ listing, vendor, durations, current
     }
 
     // Generate + store the signed waiver PDF (best-effort — booking already exists).
-    try {
+    // Only when an actual signature was captured (services without a waiver skip this).
+    if (signatureDataUrl) try {
       const res = await fetch("/api/rental/sign-waiver", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -269,7 +283,7 @@ export default function RentalBookingModal({ listing, vendor, durations, current
         listingTitle: listing.title,
         date: new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + (isDaily && rangeEnd && rangeEnd !== selectedDate ? ` – ${new Date(rangeEnd + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}` : ""),
         time: isDaily ? "All day" : to12Hour(selectedTime),
-        duration: isDaily ? `${numDays} day${numDays > 1 ? "s" : ""} (${selectedDuration.label})` : `${selectedDuration.label} (${selectedDuration.hours}h)`,
+        duration: isService ? listing.title : isDaily ? `${numDays} day${numDays > 1 ? "s" : ""} (${selectedDuration?.label ?? ""})` : `${selectedDuration?.label ?? ""} (${selectedDuration?.hours ?? 0}h)`,
         price: `$${totalPrice.toFixed(2)}`,
         notes: notes.trim() || null,
       }),
@@ -308,7 +322,7 @@ export default function RentalBookingModal({ listing, vendor, durations, current
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="font-bold text-gray-900">Book a Rental</h2>
+            <h2 className="font-bold text-gray-900">{isService ? "Book Now" : "Book a Rental"}</h2>
             <p className="text-xs text-gray-400">{listing.title} · {vendor.business_name}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
@@ -319,29 +333,38 @@ export default function RentalBookingModal({ listing, vendor, durations, current
           {/* ── Step 1: Pick ── */}
           {step === "pick" && (
             <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Select Duration</label>
-                {durations.length === 0 ? (
-                  <p className="text-sm text-gray-400 italic">No durations set up yet by the vendor.</p>
-                ) : (
-                  <div className="grid grid-cols-1 gap-2">
-                    {durations.map((d) => (
-                      <button key={d.id} type="button" onClick={() => setSelectedDuration(d)}
-                        className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-colors ${
-                          selectedDuration?.id === d.id
-                            ? "bg-green-50 border-green-400 text-green-800"
-                            : "border-gray-200 text-gray-700 hover:border-green-300"
-                        }`}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold">{d.label}</span>
-                          <span className="text-gray-400 text-xs">({d.hours}h)</span>
-                        </div>
-                        <span className="font-bold text-green-700">${Number(d.price).toFixed(2)}{isDaily && d.hours <= 24 ? "/day" : ""}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {isService ? (
+                <div className="flex items-center justify-between bg-green-50 border border-green-100 rounded-xl px-4 py-3">
+                  <span className="text-sm font-semibold text-gray-800">{listing.title}</span>
+                  {Number(listing.price ?? 0) > 0 && (
+                    <span className="font-bold text-green-700">${Number(listing.price).toFixed(2)}</span>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Select Duration</label>
+                  {durations.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic">No durations set up yet by the vendor.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2">
+                      {durations.map((d) => (
+                        <button key={d.id} type="button" onClick={() => setSelectedDuration(d)}
+                          className={`flex items-center justify-between px-4 py-3 rounded-xl border text-sm transition-colors ${
+                            selectedDuration?.id === d.id
+                              ? "bg-green-50 border-green-400 text-green-800"
+                              : "border-gray-200 text-gray-700 hover:border-green-300"
+                          }`}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{d.label}</span>
+                            <span className="text-gray-400 text-xs">({d.hours}h)</span>
+                          </div>
+                          <span className="font-bold text-green-700">${Number(d.price).toFixed(2)}{isDaily && d.hours <= 24 ? "/day" : ""}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -384,9 +407,9 @@ export default function RentalBookingModal({ listing, vendor, durations, current
               <button
                 type="button"
                 disabled={!canContinuePick}
-                onClick={() => { setError(""); setStep("waiver"); }}
+                onClick={() => { setError(""); setStep(needsWaiver ? "waiver" : "confirm"); }}
                 className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl hover:bg-green-700 disabled:opacity-40 transition-colors">
-                Continue to Waiver →
+                {needsWaiver ? "Continue to Waiver →" : "Review Booking →"}
               </button>
             </div>
           )}
@@ -469,16 +492,16 @@ export default function RentalBookingModal({ listing, vendor, durations, current
           )}
 
           {/* ── Step 3: Confirm ── */}
-          {step === "confirm" && selectedDuration && (
+          {step === "confirm" && (isService || selectedDuration) && (
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-xl p-4 space-y-3">
                 <h3 className="font-bold text-gray-900 text-sm mb-3">Booking Summary</h3>
                 {[
-                  ["Listing", listing.title],
-                  ["Duration", isDaily ? `${numDays} day${numDays > 1 ? "s" : ""} (${selectedDuration.label})` : `${selectedDuration.label} (${selectedDuration.hours}h)`],
+                  [isService ? "Service" : "Listing", listing.title],
+                  ...(isService ? [] as [string,string][] : [["Duration", isDaily ? `${numDays} day${numDays > 1 ? "s" : ""} (${selectedDuration?.label ?? ""})` : `${selectedDuration?.label ?? ""} (${selectedDuration?.hours ?? 0}h)`] as [string,string]]),
                   [isDaily ? "Dates" : "Date", dateLabel],
                   ...(isDaily ? [] as [string,string][] : [["Start time", to12Hour(selectedTime)] as [string,string]]),
-                  ["Signed by", waiverName],
+                  ...(waiverName.trim() ? [["Signed by", waiverName] as [string,string]] : []),
                 ].map(([label, value]) => (
                   <div key={label} className="flex justify-between text-sm">
                     <span className="text-gray-500">{label}</span>
@@ -491,10 +514,16 @@ export default function RentalBookingModal({ listing, vendor, durations, current
                     <span className="font-medium text-gray-900 text-right max-w-[60%]">{notes}</span>
                   </div>
                 )}
-                <div className="border-t border-gray-200 pt-3 flex justify-between">
-                  <span className="font-bold text-gray-900">Total</span>
-                  <span className="font-bold text-green-700 text-lg">${totalPrice.toFixed(2)}</span>
-                </div>
+                {totalPrice > 0 ? (
+                  <div className="border-t border-gray-200 pt-3 flex justify-between">
+                    <span className="font-bold text-gray-900">Total</span>
+                    <span className="font-bold text-green-700 text-lg">${totalPrice.toFixed(2)}</span>
+                  </div>
+                ) : isService ? (
+                  <div className="border-t border-gray-200 pt-3">
+                    <span className="text-xs text-gray-500">{vendor.business_name} will confirm pricing when they accept your appointment.</span>
+                  </div>
+                ) : null}
                 {depositDue > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">{depositType === "full" ? "Due now (card)" : `Deposit due now (${depositValue}%)`}</span>
@@ -527,7 +556,9 @@ export default function RentalBookingModal({ listing, vendor, durations, current
               <div className="text-5xl mb-4">🎉</div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Booking Requested!</h3>
               <p className="text-sm text-gray-500 mb-1">{vendor.business_name} will confirm your booking shortly.</p>
-              <p className="text-xs text-gray-400 mb-6">Your signed waiver was submitted as <strong>{waiverName}</strong>. You can download it from your dashboard.</p>
+              {signatureDataUrl && waiverName.trim()
+                ? <p className="text-xs text-gray-400 mb-6">Your signed waiver was submitted as <strong>{waiverName}</strong>. You can download it from your dashboard.</p>
+                : <p className="text-xs text-gray-400 mb-6">You&apos;ll see this booking in your dashboard.</p>}
               <button onClick={onClose} className="bg-green-600 text-white font-semibold px-8 py-3 rounded-full hover:bg-green-700 transition-colors">
                 Done
               </button>
