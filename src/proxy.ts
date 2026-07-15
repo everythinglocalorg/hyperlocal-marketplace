@@ -4,8 +4,25 @@ import { isPlatformHost, lookupVendorSlugByDomain, BRAND_ORIGIN } from '@/lib/do
 
 // Renamed from `middleware` in Next.js 16 (the `middleware` file convention is
 // deprecated -> `proxy`). Runs on the Node.js runtime by default.
+// Legacy / non-canonical brand hosts that should 308 (permanent) to the
+// canonical apex everythinglocal.org — one host for SEO, and the interim
+// .shop domain forwards its link equity to .org. GET pages only (skip /api so
+// data calls on these hosts still work while DNS/clients transition).
+const CANONICAL_BRAND_HOST = 'everythinglocal.org'
+const REDIRECT_BRAND_HOSTS = new Set([
+  'www.everythinglocal.org',
+  'everythinglocal.shop',
+  'www.everythinglocal.shop',
+])
+
 export async function proxy(request: NextRequest) {
   const host = (request.headers.get('host') ?? '').split(':')[0].toLowerCase()
+
+  // Canonicalize brand hosts (SEO): permanent-redirect to the apex .org.
+  if (REDIRECT_BRAND_HOSTS.has(host) && !request.nextUrl.pathname.startsWith('/api')) {
+    const { pathname, search } = request.nextUrl
+    return NextResponse.redirect(new URL(pathname + search, `https://${CANONICAL_BRAND_HOST}`), 308)
+  }
 
   // A vendor's own (vanity) domain — e.g. 4kegs.com or www.4kegs.com — should
   // ONLY ever show that vendor's storefront. The homepage maps to their page;
