@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createClient();
   const { data: vendor } = await supabase
     .from("vendors")
-    .select("business_name, description, category, city, state, logo_url, banner_url")
+    .select("business_name, description, category, city, state, logo_url, banner_url, custom_domain, domain_verified")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -28,12 +28,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Business logo/banner → branded card as last resort
   const image = vendor.logo_url || vendor.banner_url || "/api/og";
 
+  // Canonical: if this vendor has a verified custom domain, THAT domain is the
+  // single authoritative URL (so their own domain earns the SEO, and the
+  // platform copy points to it — no duplicate-content split). Otherwise the
+  // canonical stays on everythinglocal.org.
+  const canonical =
+    vendor.custom_domain && vendor.domain_verified
+      ? `https://${vendor.custom_domain}/`
+      : `/vendors/${slug}`;
+
   return {
     title,
     description,
-    // Canonical on the main domain — vendor pages also render on vanity custom
-    // domains, so this consolidates ranking signals to everythinglocal.org.
-    alternates: { canonical: `/vendors/${slug}` },
+    alternates: { canonical },
     openGraph: {
       title,
       description,
