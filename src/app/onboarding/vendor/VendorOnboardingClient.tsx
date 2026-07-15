@@ -149,6 +149,12 @@ export default function VendorOnboardingClient() {
       return;
     }
 
+    // Refine map coordinates from the street address (fire-and-forget; the
+    // insert seeds city-center coords, this pins the real address).
+    if (form.address && form.address.trim().length > 3) {
+      fetch("/api/vendors/geocode", { method: "POST" }).catch(() => {});
+    }
+
     // Update profile role to vendor
     await supabase
       .from("profiles")
