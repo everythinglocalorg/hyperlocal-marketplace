@@ -1,12 +1,22 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import HomeClient from "./HomeClient";
 
 // Revalidate the seed content periodically; the client island still
-// re-personalizes to the visitor's saved city on mount.
+// re-personalizes to the visitor's saved city on mount. We use a cookieless
+// anon client (seed data is all public) so this page stays statically
+// cacheable (ISR) — reading auth cookies here would force dynamic rendering
+// and make every homepage hit run the server + Supabase live.
 export const revalidate = 300;
 
+// Explicit canonical for the homepage (resolved against metadataBase = .org).
+export const metadata = { alternates: { canonical: "/" } };
+
 export default async function HomePage() {
-  const supabase = await createClient();
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false } }
+  );
 
   const [{ data: blog }, { data: listings }, { data: vendors }] = await Promise.all([
     supabase

@@ -31,6 +31,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
+    // Canonical on the main domain — vendor pages also render on vanity custom
+    // domains, so this consolidates ranking signals to everythinglocal.org.
+    alternates: { canonical: `/vendors/${slug}` },
     openGraph: {
       title,
       description,
