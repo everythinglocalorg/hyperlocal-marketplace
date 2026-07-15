@@ -3344,6 +3344,10 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
       setSaved(true); setTimeout(() => setSaved(false), 3000);
+      // Re-geocode map coordinates when the address changed (fire-and-forget).
+      if (address.trim() && address.trim() !== (vendor.address ?? "")) {
+        fetch("/api/vendors/geocode", { method: "POST" }).catch(() => {});
+      }
       // Redirect to the new URL if the slug changed
       if (newSlug !== vendor.slug) {
         window.location.href = `/dashboard/vendor`;

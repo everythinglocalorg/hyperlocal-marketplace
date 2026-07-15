@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
     ]);
 
     if (vendor) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://everythinglocal.shop";
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://everythinglocal.org";
       const refCode = referrer?.referral_code ?? "";
       // Land on the business, tagged with the referrer's code so the invitee's
       // eventual signup also credits the referrer (20 LB on signup).

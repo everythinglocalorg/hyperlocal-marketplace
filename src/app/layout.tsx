@@ -11,7 +11,7 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://everythinglocal.shop"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://everythinglocal.org"),
   title: "Rent, Shop, Sell and Discover Everything in Your Town!",
   description:
     "The #1 community-driven hyper-local marketplace. Discover local vendors, earn Local Bucks, and support your community.",

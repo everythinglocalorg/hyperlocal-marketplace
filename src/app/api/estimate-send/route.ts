@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     shareToken = crypto.randomUUID().replace(/-/g, "");
     await admin.from("estimates").update({ share_token: shareToken }).eq("id", est.id);
   }
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://everythinglocal.shop";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://everythinglocal.org";
   const proposalUrl = `${appUrl}/proposal/${shareToken}`;
 
   // ── EMAIL THE CUSTOMER ────────────────────────────────────────────────

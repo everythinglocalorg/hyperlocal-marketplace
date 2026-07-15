@@ -1,13 +1,16 @@
 // Helpers for routing custom vendor domains, used by the proxy (src/proxy.ts).
 
 // Where to send visitors when they navigate off a vendor's vanity domain —
-// browsing continues on the main brand site. www is the canonical brand host
-// (the apex everythinglocal.shop 308-redirects to it).
+// browsing continues on the main brand site. everythinglocal.org (apex) is the
+// canonical brand host; www + the legacy .shop domain redirect to it.
 export const BRAND_ORIGIN =
-  process.env.NEXT_PUBLIC_BRAND_URL ?? "https://www.everythinglocal.shop";
+  process.env.NEXT_PUBLIC_BRAND_URL ?? "https://everythinglocal.org";
 
 // The platform's own hostnames — never treated as a vendor custom domain.
+// .shop is kept during the migration off it; every1local.com is the old brand.
 const BRAND_HOSTS = new Set([
+  "everythinglocal.org",
+  "www.everythinglocal.org",
   "everythinglocal.shop",
   "www.everythinglocal.shop",
   "every1local.com",

@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { createClient } from "@/lib/supabase/server";
 
-const BASE = (process.env.NEXT_PUBLIC_APP_URL || "https://everythinglocal.shop").replace(/\/$/, "");
+const BASE = (process.env.NEXT_PUBLIC_APP_URL || "https://everythinglocal.org").replace(/\/$/, "");
 
 export const revalidate = 3600;
 
