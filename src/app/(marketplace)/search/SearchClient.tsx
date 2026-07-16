@@ -402,6 +402,7 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
           p_type: "all",
           p_limit: 40,
           p_offset: 0,
+          p_radius_miles: radius,
         });
         const results: SearchResult[] = data ?? [];
         const listings = results.filter((r) => r.result_type === "listing");
@@ -561,6 +562,18 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     ? kwListings.length
     : listingResults.length;
   const bizCount = isKeyword ? kwVendors.length : vendors.length;
+
+  // Radius control: users pick how far out to look; "See more further away"
+  // widens it in steps and re-runs the search (radius is a runSearch dep).
+  const RADIUS_STEPS = [10, 25, 50, 100, 200, 500];
+  const hasLocationContext = !!(activeCityObj || resolvedCoords);
+  const locationLabel = activeCityObj?.label ?? resolvedCoords?.label ?? "";
+  function setRadiusTo(next: number) { setRadius(next); updateURL({ radius: String(next) }); }
+  function seeFurther() {
+    const next = RADIUS_STEPS.find((r) => r > radius) ?? RADIUS_STEPS[RADIUS_STEPS.length - 1];
+    setRadiusTo(next);
+  }
+  const canSeeFurther = radius < RADIUS_STEPS[RADIUS_STEPS.length - 1];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -822,8 +835,30 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                     </h2>
                     <p className="text-sm text-gray-400 mt-0.5">
                       {productCount} {productCount === 1 ? "result" : "results"}
-                      {activeCityObj && !isKeyword ? ` within ${radius} mi of ${activeCityObj.label}` : resolvedCoords && !listingMode && !activeCityObj ? ` near ${resolvedCoords.label}` : ""}
+                      {hasLocationContext ? ` within ${radius} mi of ${locationLabel}` : ""}
                     </p>
+                    {hasLocationContext && (
+                      <div className="flex items-center flex-wrap gap-2 mt-2">
+                        <span className="text-xs text-gray-400">Distance:</span>
+                        <select
+                          value={radius}
+                          onChange={(e) => setRadiusTo(Number(e.target.value))}
+                          className="text-xs font-medium border border-gray-200 rounded-full px-2.5 py-1 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                        >
+                          {RADIUS_STEPS.map((r) => (
+                            <option key={r} value={r}>Within {r} mi</option>
+                          ))}
+                        </select>
+                        {canSeeFurther && (
+                          <button
+                            onClick={seeFurther}
+                            className="text-xs font-semibold text-green-600 hover:text-green-700 hover:underline"
+                          >
+                            See more further away →
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                   {!listingMode && !isKeyword && !showFilters && (
                     <select
@@ -943,9 +978,19 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No results found</h3>
                 <p className="text-gray-500 text-sm mb-6">
                   {query
-                    ? `No products or businesses matched "${query}". Try different keywords.`
+                    ? hasLocationContext
+                      ? `No matches for "${query}" within ${radius} mi of ${locationLabel}.`
+                      : `No products or businesses matched "${query}". Try different keywords.`
                     : "No listings in this area yet. Be the first to list your business!"}
                 </p>
+                {hasLocationContext && canSeeFurther && (
+                  <button
+                    onClick={seeFurther}
+                    className="inline-block mb-4 mr-2 border border-green-300 text-green-700 px-5 py-2.5 rounded-full text-sm font-semibold hover:bg-green-50 transition-colors"
+                  >
+                    🔎 See more further away →
+                  </button>
+                )}
                 <Link
                   href="/signup?role=vendor"
                   className="inline-block bg-green-600 text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-green-700 transition-colors"
