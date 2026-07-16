@@ -18,6 +18,7 @@ import PlacesManager from "@/components/admin/PlacesManager";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
+import { STORE_FONTS, HEADING_FONT_KEYS, BODY_FONT_KEYS, TEXT_SCALE_LABEL, normalizeTheme, buildGoogleFontsHref } from "@/lib/fonts";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
 
@@ -161,7 +162,6 @@ type Customer = {
 const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
   { id: "store", label: "Store Settings", icon: "🏪" },
-  { id: "pagecontent", label: "Page Content", icon: "🖼️" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "referrals", label: "Referrals", icon: "🤝" },
   { id: "notifications", label: "Notifications", icon: "🔔" },
@@ -1089,14 +1089,6 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 initialDomain={vendor.custom_domain ?? null}
                 initialVerified={vendor.domain_verified ?? false}
               />
-            </div>
-          )}
-
-          {tab === "pagecontent" && (
-            <div className="p-6 max-w-2xl">
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Page Content</h2>
-              <p className="text-sm text-gray-500 mb-6">Add photo and text sections to your public business page.</p>
-              <PageBlocksEditor vendorId={vendor.id} initialBlocks={Array.isArray(vendor.page_blocks) ? vendor.page_blocks : []} supabase={supabase} />
             </div>
           )}
 
@@ -3206,6 +3198,10 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [showBoost, setShowBoost] = useState(false);
   const [businessName, setBusinessName] = useState(vendor.business_name ?? "");
   const [description, setDescription] = useState(vendor.description ?? "");
+  const initialTheme = normalizeTheme(vendor.theme);
+  const [headingFont, setHeadingFont] = useState(initialTheme.heading_font);
+  const [bodyFont, setBodyFont] = useState(initialTheme.body_font);
+  const [textScale, setTextScale] = useState<"sm" | "base" | "lg">(initialTheme.text_scale);
   const [category, setCategory] = useState(vendor.category ?? "");
   const [phone, setPhone] = useState(vendor.phone ?? "");
   const [website, setWebsite] = useState(vendor.website ?? "");
@@ -3356,6 +3352,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       banner_position: bannerPosition,
       banner_zoom: 1,
       logo_zoom: logoZoom,
+      theme: { heading_font: headingFont, body_font: bodyFont, text_scale: textScale },
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
       setSaved(true); setTimeout(() => setSaved(false), 3000);
@@ -3445,6 +3442,38 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           <label className="block text-sm font-semibold text-gray-700 mb-1">Description</label>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} placeholder="Tell customers what makes your business special..." className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
         </div>
+
+        {/* Typography — fonts + text size for the public storefront */}
+        <div className="border-t border-gray-100 pt-5">
+          <link rel="stylesheet" href={buildGoogleFontsHref([...HEADING_FONT_KEYS, ...BODY_FONT_KEYS]) ?? ""} />
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Typography</label>
+          <p className="text-xs text-gray-400 mb-3">Fonts and text size for your public page.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Heading font</label>
+              <select value={headingFont} onChange={(e) => setHeadingFont(e.target.value)} style={{ fontFamily: STORE_FONTS[headingFont]?.stack }} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                {HEADING_FONT_KEYS.map((k) => <option key={k} value={k} style={{ fontFamily: STORE_FONTS[k].stack }}>{STORE_FONTS[k].label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Body font</label>
+              <select value={bodyFont} onChange={(e) => setBodyFont(e.target.value)} style={{ fontFamily: STORE_FONTS[bodyFont]?.stack }} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                {BODY_FONT_KEYS.map((k) => <option key={k} value={k} style={{ fontFamily: STORE_FONTS[k].stack }}>{STORE_FONTS[k].label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Text size</label>
+              <select value={textScale} onChange={(e) => setTextScale(e.target.value as "sm" | "base" | "lg")} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                {(["sm", "base", "lg"] as const).map((s) => <option key={s} value={s}>{TEXT_SCALE_LABEL[s]}</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="mt-3 rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
+            <p className="text-2xl text-gray-900 leading-tight" style={{ fontFamily: STORE_FONTS[headingFont]?.stack }}>The quick brown fox</p>
+            <p className="text-sm text-gray-600 mt-0.5" style={{ fontFamily: STORE_FONTS[bodyFont]?.stack }}>Preview of your headings and body text as customers will see them.</p>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1">Category</label>
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 bg-white">
@@ -3500,6 +3529,10 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           {saving ? "Saving..." : saved ? "Saved!" : "Save store settings"}
         </button>
       </form>
+
+      {/* Page Content — the visual page builder (saves on its own button below) */}
+      <PageBlocksEditor vendorId={vendor.id} initialBlocks={Array.isArray(vendor.page_blocks) ? vendor.page_blocks : []} supabase={supabase} />
+
       <div className="mt-6 p-4 bg-gray-50 rounded-xl">
         <p className="text-xs text-gray-500">Your public storefront: <a href={`/vendors/${vendor.slug}`} target="_blank" rel="noreferrer" className="text-green-600 hover:underline font-medium">/vendors/{vendor.slug}</a></p>
       </div>
@@ -3680,6 +3713,17 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
 
   function removeBlock(id: string) { setBlocks((prev) => prev.filter((b) => b.id !== id)); }
 
+  function cloneBlock(id: string) {
+    setBlocks((prev) => {
+      const idx = prev.findIndex((b) => b.id === id);
+      if (idx < 0) return prev;
+      const copy = { ...prev[idx], id: crypto.randomUUID() };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
+  }
+
   function updateBlock(id: string, patch: Partial<PageBlock>) { setBlocks((prev) => prev.map((b) => b.id === id ? { ...b, ...patch } : b)); }
 
   function moveBlock(id: string, dir: -1 | 1) {
@@ -3707,7 +3751,7 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
           <h3 className="text-lg font-bold text-gray-900">Page Content Blocks</h3>
           <p className="text-sm text-gray-400 mt-0.5">Add photos with text to your public business page. Drag to reorder.</p>
         </div>
-        <button onClick={addBlock} className="text-sm bg-gray-900 text-white px-4 py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">+ Add Block</button>
+        <button type="button" onClick={addBlock} className="text-sm bg-gray-900 text-white px-4 py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">+ Add Block</button>
       </div>
 
       {blocks.length === 0 && (
@@ -3723,9 +3767,10 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Block {idx + 1}</span>
               <div className="flex gap-2">
-                {idx > 0 && <button onClick={() => moveBlock(block.id, -1)} className="text-xs text-gray-400 hover:text-gray-700 px-2">↑</button>}
-                {idx < blocks.length - 1 && <button onClick={() => moveBlock(block.id, 1)} className="text-xs text-gray-400 hover:text-gray-700 px-2">↓</button>}
-                <button onClick={() => removeBlock(block.id)} className="text-xs text-red-400 hover:text-red-600 px-2">Remove</button>
+                {idx > 0 && <button type="button" onClick={() => moveBlock(block.id, -1)} className="text-xs text-gray-400 hover:text-gray-700 px-2">↑</button>}
+                {idx < blocks.length - 1 && <button type="button" onClick={() => moveBlock(block.id, 1)} className="text-xs text-gray-400 hover:text-gray-700 px-2">↓</button>}
+                <button type="button" onClick={() => cloneBlock(block.id)} className="text-xs text-gray-500 hover:text-green-700 px-2 font-medium">⧉ Clone</button>
+                <button type="button" onClick={() => removeBlock(block.id)} className="text-xs text-red-400 hover:text-red-600 px-2">Remove</button>
               </div>
             </div>
 
@@ -3813,7 +3858,7 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
       </div>
 
       {blocks.length > 0 && (
-        <button onClick={saveBlocks} disabled={saving}
+        <button type="button" onClick={saveBlocks} disabled={saving}
           className={`mt-6 w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${saved ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}>
           {saving ? "Saving..." : saved ? "Saved! ✓" : "Save page blocks"}
         </button>

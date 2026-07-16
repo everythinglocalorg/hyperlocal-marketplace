@@ -18,6 +18,7 @@ import ReferModal from "@/components/ReferModal";
 import LeafletMap from "@/components/LeafletMap";
 import LocalTop8Badge from "@/components/LocalTop8Badge";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
+import { StoreTheme, normalizeTheme, fontStack, textScalePx, buildGoogleFontsHref } from "@/lib/fonts";
 
 type PageBlock = {
   id: string;
@@ -44,6 +45,7 @@ type Vendor = {
   page_blocks?: PageBlock[] | null;
   menu_pdf_url?: string | null;
   cta_button?: { action?: "call" | "estimate" | "order"; url?: string } | null;
+  theme?: StoreTheme | null;
 };
 
 // Category cover photos (hand-verified Unsplash) — used as the hero cover when
@@ -109,6 +111,18 @@ interface Props {
 
 export default function VendorProfileClient({ vendor, listings, listingCategories = [], reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank, isFoundingMember }: Props) {
   const supabase = createClient();
+
+  // Store typography (fonts + text size) chosen in Store Settings → vendors.theme.
+  // Only applied when the vendor actually set a theme, so untouched stores keep
+  // their current editorial defaults (serif headings, system body).
+  const rawTheme = vendor.theme;
+  const hasCustomTheme = !!rawTheme && typeof rawTheme === "object" && Object.keys(rawTheme).length > 0;
+  const theme = normalizeTheme(rawTheme);
+  const fontsHref = hasCustomTheme ? buildGoogleFontsHref([theme.heading_font, theme.body_font]) : null;
+  const storeStyle = hasCustomTheme
+    ? ({ fontFamily: fontStack(theme.body_font), fontSize: textScalePx(theme.text_scale), ["--sf-heading" as string]: fontStack(theme.heading_font) } as React.CSSProperties)
+    : undefined;
+  const headingStyle = hasCustomTheme ? ({ fontFamily: "var(--sf-heading)" } as React.CSSProperties) : undefined;
   const favorites = useFavorites();
   const [activeSection, setActiveSection] = useState<Section>("services");
   const [activeProductCat, setActiveProductCat] = useState<string | null>(null);
@@ -583,7 +597,8 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
       />
     )}
 
-    <div className="min-h-screen bg-white">
+    {fontsHref && <link rel="stylesheet" href={fontsHref} />}
+    <div className="min-h-screen bg-white" style={storeStyle}>
 
       {/* ── UNCLAIMED BUSINESS BANNER ─────────────────────────────── */}
       {!vendor.is_claimed && (
@@ -747,7 +762,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                   : <span className="font-black text-2xl text-green-600">{vendor.business_name[0]}</span>}
               </div>
               <div className="min-w-0 pb-0.5">
-                <h1 className="font-serif text-2xl sm:text-4xl font-black text-white leading-tight drop-shadow">{vendor.business_name}</h1>
+                <h1 className="font-serif text-2xl sm:text-4xl font-black text-white leading-tight drop-shadow" style={headingStyle}>{vendor.business_name}</h1>
                 <div className="flex items-center gap-2 mt-1 text-sm text-white/90 flex-wrap">
                   <span className="font-bold">★ {(vendor.rating ?? 5).toFixed(1)}</span>
                   <span className="text-white/70">{vendor.review_count > 0 ? `(${vendor.review_count} reviews)` : "New"}</span>
@@ -863,7 +878,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
         {/* ── ABOUT ─────────────────────────────────────────────── */}
         <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className="max-w-2xl mb-12">
-          <h2 className="font-serif text-xl font-black text-gray-900 mb-3">About {vendor.business_name}</h2>
+          <h2 className="font-serif text-xl font-black text-gray-900 mb-3" style={headingStyle}>About {vendor.business_name}</h2>
           {vendor.description
             ? <p className="text-gray-600 leading-relaxed whitespace-pre-line">{vendor.description}</p>
             : <p className="text-gray-400">No description provided yet.</p>}
@@ -1038,7 +1053,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
         {/* ── CONTACT & LOCATION (bottom of page) ────────────────── */}
         <div className="max-w-2xl mt-16 pt-8 border-t border-gray-100 space-y-4">
-          <h2 className="font-serif text-xl font-black text-gray-900">Contact & Location</h2>
+          <h2 className="font-serif text-xl font-black text-gray-900" style={headingStyle}>Contact & Location</h2>
           {vendor.address && (
             <div className="flex items-start gap-3 text-sm">
               <span className="text-xl">📍</span>
