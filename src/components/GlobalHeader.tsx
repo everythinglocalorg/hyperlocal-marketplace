@@ -59,8 +59,8 @@ export default function GlobalHeader() {
             <div className="w-24 h-8 bg-gray-100 rounded-full animate-pulse" />
           ) : user ? (
             <>
-              <span className="text-sm text-gray-600 hidden sm:block">
-                Hello, <strong>{user.name?.split(" ")[0]}</strong>
+              <span className="text-sm text-gray-600 hidden sm:block max-w-[220px] truncate">
+                Hello, <strong>{user.name}</strong>
               </span>
               <Link
                 href={user.role === "vendor" ? "/dashboard/vendor?tab=messages" : "/dashboard/buyer?tab=messages"}
