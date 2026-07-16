@@ -1088,6 +1088,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               userId={vendor.user_id}
               referralCode={profile?.referral_code ?? ""}
               businessName={vendor.business_name}
+              vendorSlug={vendor.slug}
             />
           )}
 
@@ -2988,10 +2989,11 @@ function ReferralCopyButton({ referralCode }: { referralCode: string }) {
   );
 }
 
-function ReferralsTab({ userId, referralCode, businessName }: {
+function ReferralsTab({ userId, referralCode, businessName, vendorSlug }: {
   userId: string;
   referralCode: string;
   businessName: string;
+  vendorSlug: string;
 }) {
   const supabase = createClient();
   const [referrals, setReferrals] = useState<Referral[]>([]);
@@ -3001,8 +3003,10 @@ function ReferralsTab({ userId, referralCode, businessName }: {
   const [loading, setLoading] = useState(true);
 
   const appUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const slugifiedName = businessName.toLowerCase().replace(/\s+/g, "-");
-  const profileLink = `${appUrl}/vendors/${slugifiedName}?ref=${referralCode}`;
+  // Use the vendor's real slug — deriving it from the business name breaks on
+  // punctuation ("Local Blue Collar Websites." -> a trailing dot -> 404) and on
+  // any vendor whose slug was customised or de-duplicated.
+  const profileLink = `${appUrl}/vendors/${vendorSlug}?ref=${referralCode}`;
   const signupLink = `${appUrl}/signup?ref=${referralCode}`;
 
   useEffect(() => {
@@ -3113,7 +3117,7 @@ function ReferralsTab({ userId, referralCode, businessName }: {
                 value={profileLink}
                 size={104}
                 alt={`QR code to ${businessName}'s storefront`}
-                downloadName={`${slugifiedName}-storefront-qr`}
+                downloadName={`${vendorSlug}-storefront-qr`}
               />
             </div>
             <div>
