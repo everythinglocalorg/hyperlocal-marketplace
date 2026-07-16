@@ -44,7 +44,9 @@ begin
   --     select 1 from public.vendors
   --     where user_id = v_referrer_id and subscription_status = 'active'
   --   ) then return; end if;
-  perform award_local_bucks(
+  -- NOTE: schema-qualified + pinned search_path — this runs inside the auth
+  -- signup trigger where search_path is 'auth' (see fix_signup_bonus.sql).
+  perform public.award_local_bucks(
     v_referrer_id,
     20,
     'referral_signup',
@@ -52,7 +54,7 @@ begin
     'referral'
   );
 end;
-$$ language plpgsql security definer;
+$$ language plpgsql security definer set search_path = public;
 
 -- The old purchase-conversion payout is retired: referrals now pay
 -- out at signup, inside process_referral above.
