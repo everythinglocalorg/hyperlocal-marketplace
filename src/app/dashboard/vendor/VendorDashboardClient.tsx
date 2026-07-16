@@ -765,8 +765,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           {/* ── OVERVIEW ── */}
           {tab === "overview" && (
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                <div className="min-w-0">
                   <h1 className="text-2xl font-bold text-gray-900">Welcome back, {profile?.full_name ?? "there"} 👋</h1>
                   <p className="text-gray-500 text-sm mt-0.5">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
                   {vendorOptions && vendorOptions.length > 1 && (
@@ -784,7 +784,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <ReferralCopyButton referralCode={profile?.referral_code ?? ""} />
                   <button
                     onClick={() => { goToTab("listings"); setShowNewListing(true); }}
