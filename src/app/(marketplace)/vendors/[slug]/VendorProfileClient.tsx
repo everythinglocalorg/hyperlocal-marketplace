@@ -19,7 +19,9 @@ import LeafletMap from "@/components/LeafletMap";
 import LocalTop8Badge from "@/components/LocalTop8Badge";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { StoreTheme, normalizeTheme, fontStack, textScalePx, buildGoogleFontsHref } from "@/lib/fonts";
+import { renderRichText } from "@/lib/richtext";
 
+type BlockKind = "heading" | "text" | "image" | "image-text" | "quote" | "button";
 type PageBlock = {
   id: string;
   image_url: string;
@@ -29,6 +31,12 @@ type PageBlock = {
   bold: boolean;
   align: "left" | "center" | "right";
   layout: "image-left" | "image-right" | "image-top" | "image-only";
+  kind?: BlockKind;              // absent → legacy image+text block (rendered via layout)
+  eyebrow?: string;              // small label above a heading
+  attribution?: string;         // quote author
+  href?: string;                // button link
+  object_position?: number;     // 0–100 vertical focal point for images
+  fit?: "cover" | "contain";    // image fit
 };
 
 type Vendor = {
@@ -443,19 +451,58 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const FONT_SIZE_MAP: Record<string, string> = { sm: "text-sm", base: "text-base", lg: "text-lg", xl: "text-xl", "2xl": "text-2xl" };
 
   const renderPhotoBlocks = () => (
-    <div>
+    <div className="space-y-1">
       {pageBlocks.map((block) => {
-        const textClass = [
-          FONT_SIZE_MAP[block.font_size] ?? "text-base",
-          block.bold ? "font-bold" : "font-normal",
-          block.align === "center" ? "text-center" : block.align === "right" ? "text-right" : "text-left",
-        ].join(" ");
+        const alignClass = block.align === "center" ? "text-center" : block.align === "right" ? "text-right" : "text-left";
+        const sizeClass = FONT_SIZE_MAP[block.font_size] ?? "text-base";
+        const textClass = `${sizeClass} ${block.bold ? "font-bold" : "font-normal"} ${alignClass} leading-relaxed`;
+        const imgStyle = { objectPosition: `center ${block.object_position ?? 50}%` } as React.CSSProperties;
+        const fitClass = block.fit === "contain" ? "object-contain bg-gray-50" : "object-cover";
+        const headingFam = hasCustomTheme ? { fontFamily: "var(--sf-heading)" } : undefined;
+        const kind: BlockKind = block.kind ?? (block.layout === "image-only" ? "image" : "image-text");
 
-        if (block.layout === "image-only") {
+        if (kind === "heading") {
           return (
-            <div key={block.id} className="w-full mb-6">
-              <img src={block.image_url} alt="" className="w-full max-h-[500px] object-cover rounded-2xl" />
-              {block.text && <p className={`mt-4 ${textClass}`} style={{ color: block.color }}>{block.text}</p>}
+            <div key={block.id} className={`py-6 ${alignClass}`}>
+              {block.eyebrow && <p className="text-[11px] font-bold tracking-[0.2em] uppercase text-gray-400 mb-2">{block.eyebrow}</p>}
+              <h3 className={`${sizeClass === "text-base" ? "text-3xl" : sizeClass} font-black leading-tight`} style={{ color: block.color, ...headingFam }}>{block.text}</h3>
+            </div>
+          );
+        }
+
+        if (kind === "quote") {
+          return (
+            <div key={block.id} className="py-6">
+              <blockquote className="border-l-4 border-gray-900 pl-5">
+                <p className="italic text-xl leading-relaxed" style={{ color: block.color, ...(headingFam ?? { fontFamily: "Georgia, serif" }) }}>{block.text}</p>
+                {block.attribution && <footer className="mt-2 text-sm text-gray-500">— {block.attribution}</footer>}
+              </blockquote>
+            </div>
+          );
+        }
+
+        if (kind === "button") {
+          return (
+            <div key={block.id} className={`py-5 ${alignClass}`}>
+              <a href={block.href || "#"} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 bg-gray-900 text-white font-bold px-6 py-3 rounded-xl hover:bg-gray-700 transition-colors">
+                {block.text || "Learn more"} <span aria-hidden="true">→</span>
+              </a>
+            </div>
+          );
+        }
+
+        if (kind === "text") {
+          return (
+            <div key={block.id} className={`py-4 ${textClass}`} style={{ color: block.color }}>{renderRichText(block.text)}</div>
+          );
+        }
+
+        if (kind === "image") {
+          return (
+            <div key={block.id} className="w-full py-4">
+              {block.image_url && <img src={block.image_url} alt="" style={imgStyle} className={`w-full max-h-[520px] ${fitClass} rounded-2xl`} />}
+              {block.text && <div className={`mt-3 ${textClass}`} style={{ color: block.color }}>{renderRichText(block.text)}</div>}
             </div>
           );
         }
@@ -463,22 +510,22 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         if (block.layout === "image-top") {
           return (
             <div key={block.id} className="py-6">
-              <img src={block.image_url} alt="" className="w-full rounded-2xl max-h-96 object-cover mb-5" />
-              {block.text && <p className={textClass} style={{ color: block.color }}>{block.text}</p>}
+              {block.image_url && <img src={block.image_url} alt="" style={imgStyle} className={`w-full rounded-2xl max-h-96 ${fitClass} mb-5`} />}
+              {block.text && <div className={textClass} style={{ color: block.color }}>{renderRichText(block.text)}</div>}
             </div>
           );
         }
 
-        const isLeft = block.layout === "image-left";
+        const isLeft = block.layout !== "image-right";
         return (
           <div key={block.id} className={`py-8 flex flex-col ${isLeft ? "sm:flex-row" : "sm:flex-row-reverse"} gap-6 sm:gap-10 items-center`}>
-            <div className="w-full sm:w-1/2 shrink-0">
-              <img src={block.image_url} alt="" className="w-full rounded-2xl object-cover max-h-80 sm:max-h-96" />
-            </div>
-            {block.text && (
-              <div className="flex-1">
-                <p className={textClass} style={{ color: block.color }}>{block.text}</p>
+            {block.image_url && (
+              <div className="w-full sm:w-1/2 shrink-0">
+                <img src={block.image_url} alt="" style={imgStyle} className={`w-full rounded-2xl ${fitClass} max-h-80 sm:max-h-96`} />
               </div>
+            )}
+            {block.text && (
+              <div className={`flex-1 ${textClass}`} style={{ color: block.color }}>{renderRichText(block.text)}</div>
             )}
           </div>
         );

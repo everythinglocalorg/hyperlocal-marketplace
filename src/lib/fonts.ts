@@ -51,11 +51,11 @@ export function buildGoogleFontsHref(keys: Array<string | null | undefined>): st
   return `https://fonts.googleapis.com/css2?${params.map((p) => `family=${p}`).join("&")}&display=swap`;
 }
 
-// Normalize a raw vendors.theme value into a safe StoreTheme.
-export function normalizeTheme(raw: unknown): Required<StoreTheme> {
+// Normalize a raw vendors.theme value into a safe, fully-populated theme.
+export function normalizeTheme(raw: unknown): { heading_font: string; body_font: string; text_scale: "sm" | "base" | "lg" } {
   const t = (raw ?? {}) as StoreTheme;
   const heading = t.heading_font && STORE_FONTS[t.heading_font] ? t.heading_font : DEFAULT_HEADING_FONT;
   const body = t.body_font && STORE_FONTS[t.body_font] ? t.body_font : DEFAULT_BODY_FONT;
-  const scale = t.text_scale && TEXT_SCALE_PX[t.text_scale] ? t.text_scale : "base";
+  const scale: "sm" | "base" | "lg" = t.text_scale === "sm" || t.text_scale === "lg" ? t.text_scale : "base";
   return { heading_font: heading, body_font: body, text_scale: scale };
 }

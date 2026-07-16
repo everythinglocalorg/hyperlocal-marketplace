@@ -3679,13 +3679,42 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
 }
 
 /* ─── PAGE BLOCKS EDITOR ─────────────────────────────────────────── */
+type BlockKind = "heading" | "text" | "image" | "image-text" | "quote" | "button";
 type PageBlock = {
   id: string; image_url: string; text: string;
   font_size: "sm" | "base" | "lg" | "xl" | "2xl";
   color: string; bold: boolean;
   align: "left" | "center" | "right";
   layout: "image-left" | "image-right" | "image-top" | "image-only";
+  kind?: BlockKind;
+  eyebrow?: string;
+  attribution?: string;
+  href?: string;
+  object_position?: number;
+  fit?: "cover" | "contain";
 };
+
+const BLOCK_FORMATS: { kind: BlockKind; label: string; icon: string }[] = [
+  { kind: "text", label: "Text", icon: "📝" },
+  { kind: "heading", label: "Heading", icon: "🔠" },
+  { kind: "image", label: "Image", icon: "🖼️" },
+  { kind: "image-text", label: "Image + Text", icon: "🧩" },
+  { kind: "quote", label: "Quote", icon: "❝" },
+  { kind: "button", label: "Button", icon: "🔘" },
+];
+
+// Wrap or prefix the current textarea selection with markdown-lite syntax.
+function applyMarkdown(el: HTMLTextAreaElement, tool: "bold" | "italic" | "link" | "list" | "heading"): string {
+  const { value, selectionStart: s, selectionEnd: e } = el;
+  const sel = value.slice(s, e) || (tool === "link" ? "link text" : tool === "list" ? "List item" : "text");
+  let insert = sel;
+  if (tool === "bold") insert = `**${sel}**`;
+  else if (tool === "italic") insert = `*${sel}*`;
+  else if (tool === "link") insert = `[${sel}](https://)`;
+  else if (tool === "list") insert = sel.split("\n").map((l) => (l.startsWith("- ") ? l : `- ${l}`)).join("\n");
+  else if (tool === "heading") insert = `# ${sel}`;
+  return value.slice(0, s) + insert + value.slice(e);
+}
 
 function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: string; initialBlocks: PageBlock[]; supabase: any }) {
   const [blocks, setBlocks] = useState<PageBlock[]>(initialBlocks);
@@ -3706,9 +3735,18 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
     setUploading(null);
   }
 
+  const textRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+
   function addBlock() {
     const id = crypto.randomUUID();
-    setBlocks((prev) => [...prev, { id, image_url: "", text: "", font_size: "lg", color: "#111827", bold: false, align: "left", layout: "image-left" }]);
+    setBlocks((prev) => [...prev, { id, image_url: "", text: "", font_size: "lg", color: "#111827", bold: false, align: "left", layout: "image-left", kind: "image-text", object_position: 50, fit: "cover" }]);
+  }
+
+  function runTool(blockId: string, tool: "bold" | "italic" | "link" | "list" | "heading") {
+    const el = textRefs.current[blockId];
+    if (!el) return;
+    updateBlock(blockId, { text: applyMarkdown(el, tool) });
+    requestAnimationFrame(() => el.focus());
   }
 
   function removeBlock(id: string) { setBlocks((prev) => prev.filter((b) => b.id !== id)); }
@@ -3761,7 +3799,9 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
       )}
 
       <div className="space-y-6 mt-4">
-        {blocks.map((block, idx) => (
+        {blocks.map((block, idx) => {
+          const kind: BlockKind = block.kind ?? "image-text";
+          return (
           <div key={block.id} className="border border-gray-100 rounded-2xl p-5 bg-gray-50 space-y-4">
             {/* Header row */}
             <div className="flex items-center justify-between">
@@ -3774,87 +3814,148 @@ function PageBlocksEditor({ vendorId, initialBlocks, supabase }: { vendorId: str
               </div>
             </div>
 
-            {/* Image upload */}
+            {/* Format selector */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Photo</label>
-              <div
-                onClick={() => fileRefs.current[block.id]?.click()}
-                className="w-full h-40 rounded-xl overflow-hidden bg-white border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center relative"
-              >
-                {block.image_url
-                  ? <img src={block.image_url} alt="" className="w-full h-full object-cover" />
-                  : <span className="text-gray-400 text-sm">{uploading === block.id ? "Uploading..." : "Click to upload photo"}</span>}
-              </div>
-              <input
-                ref={(el) => { fileRefs.current[block.id] = el; }}
-                type="file" accept="image/*" className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(block.id, f); }}
-              />
-            </div>
-
-            {/* Layout */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Layout</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {(["image-left", "image-right", "image-top", "image-only"] as const).map((l) => (
-                  <button key={l} type="button" onClick={() => updateBlock(block.id, { layout: l })}
-                    className={`text-xs py-2 rounded-xl border font-medium transition-colors ${block.layout === l ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>
-                    {l === "image-left" ? "← Photo" : l === "image-right" ? "Photo →" : l === "image-top" ? "Photo ↑" : "Full Photo"}
+              <label className="block text-xs font-semibold text-gray-600 mb-1.5">Format</label>
+              <div className="flex flex-wrap gap-1.5">
+                {BLOCK_FORMATS.map((f) => (
+                  <button key={f.kind} type="button" onClick={() => updateBlock(block.id, { kind: f.kind })}
+                    className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-colors ${kind === f.kind ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>
+                    {f.icon} {f.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Text (hidden for image-only) */}
-            {block.layout !== "image-only" && (
+            {/* Photo (image / image + text) */}
+            {(kind === "image" || kind === "image-text") && (
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Caption / Text</label>
-                <textarea value={block.text} onChange={(e) => updateBlock(block.id, { text: e.target.value })} rows={3}
-                  placeholder="Add a caption, tagline, or story..." className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
-
-                {/* Text style controls */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2">
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Size</label>
-                    <select value={block.font_size} onChange={(e) => updateBlock(block.id, { font_size: e.target.value as any })}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
-                      <option value="sm">Small</option>
-                      <option value="base">Normal</option>
-                      <option value="lg">Large</option>
-                      <option value="xl">X-Large</option>
-                      <option value="2xl">2X-Large</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Color</label>
-                    <div className="flex items-center gap-2">
-                      <input type="color" value={block.color} onChange={(e) => updateBlock(block.id, { color: e.target.value })}
-                        className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
-                      <input type="text" value={block.color} onChange={(e) => updateBlock(block.id, { color: e.target.value })}
-                        className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none" />
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Photo</label>
+                <div onClick={() => fileRefs.current[block.id]?.click()}
+                  className="w-full h-40 rounded-xl overflow-hidden bg-white border-2 border-dashed border-gray-200 hover:border-green-400 cursor-pointer transition-colors flex items-center justify-center">
+                  {block.image_url
+                    ? <img src={block.image_url} alt="" className={`w-full h-full ${block.fit === "contain" ? "object-contain" : "object-cover"}`} style={{ objectPosition: `center ${block.object_position ?? 50}%` }} />
+                    : <span className="text-gray-400 text-sm">{uploading === block.id ? "Uploading..." : "Click to upload photo"}</span>}
+                </div>
+                <input ref={(el) => { fileRefs.current[block.id] = el; }} type="file" accept="image/*" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(block.id, f); }} />
+                {block.image_url && (
+                  <div className="grid grid-cols-2 gap-3 mt-2">
+                    <div>
+                      <label className="flex items-center justify-between text-xs text-gray-400 mb-1"><span>Position</span><span>{(block.object_position ?? 50) < 34 ? "Top" : (block.object_position ?? 50) > 66 ? "Bottom" : "Center"}</span></label>
+                      <input type="range" min={0} max={100} value={block.object_position ?? 50} onChange={(e) => updateBlock(block.id, { object_position: Number(e.target.value) })} className="w-full accent-green-600" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-400 mb-1">Fit</label>
+                      <div className="flex gap-1.5">
+                        {(["cover", "contain"] as const).map((ft) => (
+                          <button key={ft} type="button" onClick={() => updateBlock(block.id, { fit: ft })}
+                            className={`flex-1 py-1.5 rounded-lg border text-xs capitalize transition-colors ${(block.fit ?? "cover") === ft ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>{ft}</button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Align</label>
-                    <select value={block.align} onChange={(e) => updateBlock(block.id, { align: e.target.value as any })}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
-                      <option value="left">Left</option>
-                      <option value="center">Center</option>
-                      <option value="right">Right</option>
-                    </select>
+                )}
+              </div>
+            )}
+
+            {/* Photo side (image + text) */}
+            {kind === "image-text" && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Photo side</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([["image-left", "← Left"], ["image-right", "Right →"], ["image-top", "Top ↑"]] as const).map(([l, lbl]) => (
+                    <button key={l} type="button" onClick={() => updateBlock(block.id, { layout: l })}
+                      className={`text-xs py-2 rounded-xl border font-medium transition-colors ${block.layout === l ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>{lbl}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Eyebrow (heading) */}
+            {kind === "heading" && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Eyebrow <span className="text-gray-400 font-normal">(small label above)</span></label>
+                <input type="text" value={block.eyebrow ?? ""} onChange={(e) => updateBlock(block.id, { eyebrow: e.target.value })} placeholder="ABOUT US" className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+            )}
+
+            {/* Text + format toolbar (all kinds except pure image) */}
+            {kind !== "image" && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+                  {kind === "heading" ? "Heading text" : kind === "button" ? "Button label" : kind === "quote" ? "Quote" : "Text"}
+                </label>
+                {(kind === "text" || kind === "image-text") && (
+                  <div className="flex gap-1 mb-1.5">
+                    {([["bold", "B", "font-bold"], ["italic", "I", "italic"], ["link", "🔗", ""], ["list", "• List", ""], ["heading", "H", "font-bold"]] as const).map(([tool, label, cls]) => (
+                      <button key={tool} type="button" onClick={() => runTool(block.id, tool)} title={tool}
+                        className={`px-2.5 py-1 rounded-md border border-gray-200 bg-white text-xs text-gray-600 hover:border-gray-400 ${cls}`}>{label}</button>
+                    ))}
                   </div>
-                  <div>
-                    <label className="block text-xs text-gray-400 mb-1">Style</label>
-                    <button type="button" onClick={() => updateBlock(block.id, { bold: !block.bold })}
-                      className={`w-full py-1.5 rounded-lg border text-xs font-bold transition-colors ${block.bold ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>
-                      Bold
-                    </button>
+                )}
+                <textarea ref={(el) => { textRefs.current[block.id] = el; }} value={block.text} onChange={(e) => updateBlock(block.id, { text: e.target.value })} rows={kind === "button" ? 1 : 3}
+                  placeholder={kind === "button" ? "Learn more" : kind === "quote" ? "Best food in town!" : "Add your text… use **bold**, *italic*, [link](https://…)"}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+              </div>
+            )}
+
+            {/* Button URL */}
+            {kind === "button" && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Button link (URL)</label>
+                <input type="url" value={block.href ?? ""} onChange={(e) => updateBlock(block.id, { href: e.target.value })} placeholder="https://…" className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+            )}
+
+            {/* Attribution (quote) */}
+            {kind === "quote" && (
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1.5">Attribution <span className="text-gray-400 font-normal">(optional)</span></label>
+                <input type="text" value={block.attribution ?? ""} onChange={(e) => updateBlock(block.id, { attribution: e.target.value })} placeholder="A happy customer" className="w-full border border-gray-200 rounded-xl px-4 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
+              </div>
+            )}
+
+            {/* Style controls (size / color / align / bold) */}
+            {kind !== "button" && kind !== "image" && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Size</label>
+                  <select value={block.font_size} onChange={(e) => updateBlock(block.id, { font_size: e.target.value as any })}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <option value="sm">Small</option>
+                    <option value="base">Normal</option>
+                    <option value="lg">Large</option>
+                    <option value="xl">X-Large</option>
+                    <option value="2xl">2X-Large</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Color</label>
+                  <div className="flex items-center gap-2">
+                    <input type="color" value={block.color} onChange={(e) => updateBlock(block.id, { color: e.target.value })} className="w-8 h-8 rounded cursor-pointer border border-gray-200" />
+                    <input type="text" value={block.color} onChange={(e) => updateBlock(block.id, { color: e.target.value })} className="flex-1 border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none" />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Align</label>
+                  <select value={block.align} onChange={(e) => updateBlock(block.id, { align: e.target.value as any })}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1">Style</label>
+                  <button type="button" onClick={() => updateBlock(block.id, { bold: !block.bold })}
+                    className={`w-full py-1.5 rounded-lg border text-xs font-bold transition-colors ${block.bold ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-200 hover:border-gray-400"}`}>Bold</button>
                 </div>
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {blocks.length > 0 && (
