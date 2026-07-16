@@ -34,16 +34,17 @@ export default function Logo({
   return (
     <svg
       viewBox="0 0 560 130"
-      className={`${h} w-auto ${className}`}
+      className={`${h} w-auto text-green-600 ${className}`}
       role="img"
       aria-label="Everything Local"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect x="4" y="4" width="552" height="122" rx="18" fill="#16a34a" />
+      {/* currentColor = the exact green-600 token used by buttons site-wide */}
+      <rect x="4" y="4" width="552" height="122" rx="18" fill="currentColor" />
       <rect x="15" y="15" width="530" height="100" rx="11" fill="none" stroke="#ffffff" strokeWidth="3.5" />
       {/* pin: white marker, house shows the sign green through it, white door */}
       <g transform="translate(43,31) scale(1.3)">
-        <Pin pinFill="#ffffff" houseFill="#16a34a" doorFill="#ffffff" />
+        <Pin pinFill="#ffffff" houseFill="currentColor" doorFill="#ffffff" />
       </g>
       <text
         x="108"
@@ -93,8 +94,8 @@ export function LogoV2({
 // Bare pin — green marker, white house, green door.
 export function LogoMark({ className = "h-10 w-auto" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 40 52" className={className} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <Pin pinFill="#16a34a" houseFill="#ffffff" doorFill="#16a34a" />
+    <svg viewBox="0 0 40 52" className={`${className} text-green-600`} xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <Pin pinFill="currentColor" houseFill="#ffffff" doorFill="currentColor" />
     </svg>
   );
 }
