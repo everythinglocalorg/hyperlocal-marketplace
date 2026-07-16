@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -23,6 +23,17 @@ export default function GlobalHeader() {
   const [notifUnread, setNotifUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close the mobile menu on outside click or when the route changes.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDown = (e: MouseEvent) => { if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [menuOpen]);
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -76,35 +87,35 @@ export default function GlobalHeader() {
                   </span>
                 )}
               </Link>
-              {/* Neighborhood icon: mobile only (desktop uses the pill) */}
-              <Link href={`/community/${activeCity}`} title="Local Pages" className="relative text-xl leading-none lg:hidden">
-                🏘️
-              </Link>
-              <Link
-                href={`/community/${activeCity}`}
-                className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block"
-              >
+              {/* Desktop: nav pills + Dashboard button */}
+              <Link href={`/community/${activeCity}`} className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block">
                 🏘️ Local Pages
               </Link>
-              <Link
-                href={`/jobs/${activeCity}`}
-                className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block"
-              >
+              <Link href={`/jobs/${activeCity}`} className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block">
                 💼 Local Jobs
               </Link>
-              <Link
-                href={`/explore/${activeCity}`}
-                className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block"
-              >
+              <Link href={`/explore/${activeCity}`} className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block">
                 🌿 Explore
               </Link>
-              <Link
-                href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
-                className="text-sm bg-green-600 text-white px-3 sm:px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap"
-              >
-                <span className="hidden sm:inline">Dashboard →</span>
-                <span className="sm:hidden">Dashboard →</span>
+              <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap hidden lg:block">
+                Dashboard →
               </Link>
+
+              {/* Mobile: ☰ menu — Dashboard + nav in one place */}
+              <div className="relative lg:hidden" ref={menuRef}>
+                <button onClick={() => setMenuOpen((v) => !v)} aria-label="Menu" aria-expanded={menuOpen} className="p-1 -mr-1 text-gray-700 hover:text-gray-900 transition-colors">
+                  <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" /></svg>
+                </button>
+                {menuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                    <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">📊 Dashboard →</Link>
+                    <div className="border-t border-gray-100 my-1" />
+                    <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
+                    <Link href={`/jobs/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
+                    <Link href={`/explore/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <>
