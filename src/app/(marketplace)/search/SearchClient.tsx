@@ -329,6 +329,16 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Remember the last place they searched — persist the active city to their
+  // profile (and localStorage for guests) on any change, not just when they use
+  // the selector. This is what restores their location on login / return.
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem(LS_CITY_KEY, citySlug);
+    if (userId) {
+      supabase.from("profiles").update({ default_city: citySlug }).eq("id", userId).then(() => {});
+    }
+  }, [citySlug, userId, supabase]);
+
   const updateURL = useCallback((params: Record<string, string>) => {
     const current = new URLSearchParams(searchParams.toString());
     Object.entries(params).forEach(([k, v]) => {
