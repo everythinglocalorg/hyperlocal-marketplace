@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Plus, Search, Tent, Trees, Star, Compass, Truck, Map as MapIcon, Clock } from "lucide-react";
 import CitySelector from "@/components/CitySelector";
+import BoardTabs from "@/components/BoardTabs";
 import { LS_CITY_KEY } from "@/lib/cities";
 import { useRouter } from "next/navigation";
 import type { Place, PlaceType } from "@/types";
@@ -90,19 +91,7 @@ export default function ExploreCityClient({
 
       {/* Board tabs */}
       <div className="max-w-2xl mx-auto px-4 pt-5">
-        <div className="flex gap-2 mb-4">
-          <Link href={`/community/${citySlug}`}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
-            🏘️ Local Loop
-          </Link>
-          <Link href={`/jobs/${citySlug}`}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
-            💼 Local Jobs
-          </Link>
-          <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
-            🌿 Explore
-          </span>
-        </div>
+        <BoardTabs citySlug={citySlug} active="explore" />
       </div>
 
       {/* Header */}

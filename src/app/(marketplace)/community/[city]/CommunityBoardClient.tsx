@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LS_CITY_KEY } from "@/lib/cities";
 import CitySelector from "@/components/CitySelector";
+import BoardTabs from "@/components/BoardTabs";
 
 const TYPE_CONFIG = {
   general:  { label: "General",         icon: "💬", color: "bg-gray-100 text-gray-600" },
@@ -542,20 +543,7 @@ export default function CommunityBoardClient({
           </div>
         )}
 
-        {/* Board tabs — siblings: Local Loop, Local Jobs, Explore */}
-        <div className="flex gap-2 mb-4">
-          <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
-            🏘️ Local Loop
-          </span>
-          <Link href={`/jobs/${citySlug}`}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
-            💼 Local Jobs
-          </Link>
-          <Link href={`/explore/${citySlug}`}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
-            🌿 Explore
-          </Link>
-        </div>
+        <BoardTabs citySlug={citySlug} active="community" />
 
         <h1 className="text-2xl font-bold text-gray-900 mb-5">
           Local Loop in {cityName}

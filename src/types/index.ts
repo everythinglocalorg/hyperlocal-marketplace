@@ -124,6 +124,9 @@ export const CATEGORIES = [
   'Thrift Sales',
   'Services & Trades',
   'Restaurants & Food',
+  // Food trucks get their own category so they can be pulled onto the
+  // /food-trucks/[city] board — they're businesses, not places.
+  'Food Trucks',
   'Events & Rentals',
   'Health & Beauty',
   'Home & Garden',
@@ -179,15 +182,17 @@ export interface Place {
   distance_miles?: number
 }
 
+// 'food_truck' is intentionally absent: food trucks are businesses now and live
+// on their own board (/food-trucks/[city]), not in Explore. The PlaceType union
+// keeps the value so pre-existing (now inactive) place rows still typecheck.
 export const PLACE_TYPES: { value: PlaceType; label: string; paid?: boolean }[] = [
   { value: 'park',        label: 'Park' },
   { value: 'campground',  label: 'Campground' },
   { value: 'attraction',  label: 'Attraction',   paid: true },
   { value: 'thing_to_do', label: 'Thing to Do',  paid: true },
-  { value: 'food_truck',  label: 'Food Truck',   paid: true },
 ]
 
-export const PAID_PLACE_TYPES: PlaceType[] = ['attraction', 'thing_to_do', 'food_truck']
+export const PAID_PLACE_TYPES: PlaceType[] = ['attraction', 'thing_to_do']
 
 export const PLACE_AMENITIES = [
   'Restrooms', 'Parking', 'Trails', 'Water Access', 'Playground',

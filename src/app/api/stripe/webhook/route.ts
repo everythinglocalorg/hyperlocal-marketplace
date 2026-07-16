@@ -60,7 +60,17 @@ export async function POST(req: NextRequest) {
         await spendLb(supabase, session.metadata.user_id, session.metadata.lb, session.metadata.job_id, "job");
         break;
       }
-      // Place listing paid (attraction / thing_to_do / food_truck) → publish.
+      // Featured food truck paid → pin it to the top of its city board.
+      if (session.metadata?.type === "food_truck_feature" && session.metadata?.vendor_id) {
+        const vendorId = session.metadata.vendor_id as string;
+        await supabase
+          .from("vendors")
+          .update({ food_truck_featured: true, food_truck_subscription_id: session.subscription as string })
+          .eq("id", vendorId);
+        await spendLb(supabase, session.metadata.user_id, session.metadata.lb, vendorId, "food_truck_feature");
+        break;
+      }
+      // Place listing paid (attraction / thing_to_do) → publish.
       if (session.metadata?.type === "place_post" && session.metadata?.place_id) {
         await supabase
           .from("places")
@@ -187,6 +197,15 @@ export async function POST(req: NextRequest) {
         if (p?.linked_job_id) {
           await supabase.from("jobs").update({ is_active: false }).eq("id", p.linked_job_id);
         }
+        break;
+      }
+      // Featured food truck subscription ended → unpin it. The truck stays
+      // listed for free; it just loses the featured spot.
+      if (sub.metadata?.type === "food_truck_feature" && sub.metadata?.vendor_id) {
+        await supabase
+          .from("vendors")
+          .update({ food_truck_featured: false, food_truck_subscription_id: null })
+          .eq("id", sub.metadata.vendor_id);
         break;
       }
       // Place listing subscription ended → take the place down.
