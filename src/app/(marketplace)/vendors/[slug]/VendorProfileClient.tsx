@@ -800,25 +800,40 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
               <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
                 {CTA_LABELS.order} →
               </a>
-            ) : (
+            ) : effectiveCta ? (
               <button
                 onClick={() => { if (requireAccount()) return; if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true); }}
                 className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
               >
-                {effectiveCta ? CTA_LABELS[effectiveCta] : `Contact ${vendor.business_name.split(" ")[0]}`} →
+                {CTA_LABELS[effectiveCta]} →
+              </button>
+            ) : vendor.phone ? (
+              /* No CTA set → Call is the primary green action */
+              <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
+                📞 Call now →
+              </a>
+            ) : (
+              /* No CTA and no phone → Message is the primary green action */
+              <button
+                onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
+                className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
+              >
+                💬 Message →
               </button>
             )}
-            {vendor.phone && ctaAction !== "call" && (
+            {vendor.phone && ctaAction !== "call" && effectiveCta && (
               <a href={`tel:${vendor.phone.replace(/[^\d+]/g, "")}`} className="border-2 border-gray-200 text-gray-800 font-bold px-6 py-3 rounded-xl hover:border-gray-400 transition-colors">
                 📞 Call
               </a>
             )}
-            <button
-              onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
-              className="border-2 border-gray-200 text-gray-800 font-bold px-6 py-3 rounded-xl hover:border-gray-400 transition-colors"
-            >
-              💬 Message
-            </button>
+            {(effectiveCta || vendor.phone) && (
+              <button
+                onClick={() => { if (requireAccount()) return; setShowMessageModal(true); }}
+                className="border-2 border-gray-200 text-gray-800 font-bold px-6 py-3 rounded-xl hover:border-gray-400 transition-colors"
+              >
+                💬 Message
+              </button>
+            )}
           </div>
 
           {/* Trust stats bar */}
