@@ -32,9 +32,16 @@ model is **Book Now** — a buyer books the experience for a date; the Guide con
   request flow the cart uses.
 
 ## Two separate money flows
-1. **Release fee — $50 to the PLATFORM, per Experience, one‑time.** Reuse the
-   Jobs/Boosts Stripe pattern: on "Publish," create a $50 Stripe Checkout (platform
-   account) → `checkout.session.completed` webhook flips `is_published = true`.
+1. **Release fee to the PLATFORM.** Reuse the Jobs/Boosts Stripe pattern: on release,
+   a Stripe Checkout (platform account) → `checkout.session.completed` webhook flips
+   `is_published = true`.
+   - **First publish = $50.** Once live it **stays live indefinitely** (no recurring/
+     expiry fee).
+   - The Guide can **Pause** an Experience anytime (takes it off the market) — **free**.
+   - **Re‑publishing from paused = $10 each time** (another Checkout → webhook).
+   - Track: `first_published_at` (set once) so the fee is $50 only on the very first
+     release and $10 on every re‑publish thereafter. Editing while live does not
+     re‑charge.
 2. **Booking price — set by the GUIDE, paid to the GUIDE** via their Stripe Connect.
 
 ## Model it like a product (max reuse of Explore)
@@ -88,7 +95,8 @@ Connect + the Jobs/Boosts webhook pattern, `isPaidTier`/tier gating, `FavoritesP
 ## Resolved
 - **Eligibility = ANY paid membership** (Local Pro **or** Local Pro+) can create and
   sell Experiences — gate on `isPaidTier(vendor.tier)`, not `isPlusTier`.
+- **Lifecycle & fees:** first publish **$50**; stays live as long as the Guide wants;
+  **Pause is free**; each **re‑publish from paused = $10**. Editing while live is free.
 
 ## Open decisions
-- Does re‑publishing after edits re‑charge the $50? (Default: no — one fee per Experience.)
 - Deposit vs full payment at booking time.
