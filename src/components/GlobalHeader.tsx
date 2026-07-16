@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
-import ShareQrModal, { type ShareSlide } from "@/components/ShareQrModal";
+import ShareQrModal, { QrGlyph, type ShareSlide } from "@/components/ShareQrModal";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { BRAND_ORIGIN } from "@/lib/domains";
 
@@ -19,15 +19,6 @@ const HIDDEN_PREFIXES = [
   // Storefront pages render their own unified header with a site menu (hamburger)
   "/vendors/",
 ];
-
-// Small QR glyph for the Share menu item.
-function QrGlyph({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
-      <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8 5h2v-2h-2v2zm4-4h-2v2h2v-2zm0 4h2v-2h-2v2zm4-4h-2v2h2v-2zm0 4h-2v2h2v-2zm-4-8h2v2h-2v-2zm4 0h2v2h-2v-2z" />
-    </svg>
-  );
-}
 
 export default function GlobalHeader() {
   const pathname = usePathname() || "/";

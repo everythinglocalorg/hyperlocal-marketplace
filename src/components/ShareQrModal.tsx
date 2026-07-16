@@ -7,6 +7,15 @@ import QrCode from "@/components/QrCode";
 // profile, and (if they run a business) their storefront. Built on CSS
 // scroll-snap so the swipe is native on touch, with dots + arrows for desktop.
 
+// Shared QR glyph for the "Share" menu entries.
+export function QrGlyph({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8 5h2v-2h-2v2zm4-4h-2v2h2v-2zm0 4h2v-2h-2v2zm4-4h-2v2h2v-2zm0 4h-2v2h2v-2zm-4-8h2v2h-2v-2zm4 0h2v2h-2v-2z" />
+    </svg>
+  );
+}
+
 export type ShareSlide = {
   key: string;
   label: string;      // dot / header label

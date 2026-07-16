@@ -8,6 +8,8 @@ import { formatPrice } from "@/lib/utils";
 import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
 import MakeOfferModal from "@/components/MakeOfferModal";
+import ShareQrModal, { QrGlyph, type ShareSlide } from "@/components/ShareQrModal";
+import { BRAND_ORIGIN } from "@/lib/domains";
 import MessageModal from "@/components/MessageModal";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import FollowButton from "@/components/FollowButton";
@@ -192,6 +194,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const [showRefer, setShowRefer] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string; role?: string | null } | null>(null);
   const [siteMenuOpen, setSiteMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [citySlug, setCitySlug] = useState(DEFAULT_CITY_SLUG);
   const siteMenuRef = useRef<HTMLDivElement>(null);
   const [showMessageModal, setShowMessageModal] = useState(false);
@@ -218,7 +221,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
   // Hide the "website" link when it just points back to Everything Local itself
   // (imported vendors default their website to our own domain /vendors/…).
-  const externalWebsite = vendor.website && !/every1local\.com|everythinglocal\.(shop|org)/i.test(vendor.website) ? vendor.website : null;
+  const externalWebsite = vendor.website && !/everythinglocal\.(shop|org)/i.test(vendor.website) ? vendor.website : null;
 
   // Service-based businesses request estimates; product/food/retail businesses "get in touch".
   const isServiceBased = SERVICE_CATEGORIES.has(vendor.category);
@@ -327,6 +330,40 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
   // The vendor owner viewing their own store shouldn't inflate their stats.
   const isOwner = !!currentUserId && currentUserId === vendor.user_id;
+
+  // Share sheet (QR wallet). GlobalHeader is hidden on storefronts, so the
+  // storefront's own menu carries it. The business slide only appears when the
+  // viewer owns THIS store — otherwise they just get their own refer/profile.
+  const shareSlides: ShareSlide[] = currentUserId
+    ? [
+        ...(currentUserReferralCode
+          ? [{
+              key: "referral",
+              label: "Refer",
+              title: "Refer & earn",
+              blurb: "Earn 20 Local Bucks when someone joins with your link — they get 10.",
+              link: `${BRAND_ORIGIN}/signup?ref=${currentUserReferralCode}`,
+            }]
+          : []),
+        {
+          key: "profile",
+          label: "Profile",
+          title: "My profile",
+          blurb: "Your public Everything Local profile.",
+          link: `${BRAND_ORIGIN}/u/${currentUserId}`,
+        },
+        ...(isOwner
+          ? [{
+              key: "business",
+              label: "Business",
+              title: vendor.business_name,
+              blurb: "Your storefront — download and print it for your counter.",
+              link: `${BRAND_ORIGIN}/vendors/${vendor.slug}${currentUserReferralCode ? `?ref=${currentUserReferralCode}` : ""}`,
+              downloadName: `${vendor.slug}-storefront-qr`,
+            }]
+          : []),
+      ]
+    : [];
 
   // Track a store-page visit once per browser session (this is "Store Visits").
   // Per-listing views are tracked separately, only when an item is actually opened.
@@ -623,6 +660,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     )}
     {buyListing && <BuyNowModal listing={{ id: buyListing.id, title: buyListing.title, price: buyListing.price, price_label: buyListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="buy" onClose={() => setBuyListing(null)} />}
     {offerListing && <MakeOfferModal listing={{ id: offerListing.id, title: offerListing.title, price: offerListing.price }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setOfferListing(null)} />}
+    {shareOpen && shareSlides.length > 0 && <ShareQrModal slides={shareSlides} onClose={() => setShareOpen(false)} />}
     {estimateListing && <BuyNowModal listing={{ id: estimateListing.id, title: estimateListing.title, price: estimateListing.price, price_label: estimateListing.price_label }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} inquiryType="estimate" onClose={() => setEstimateListing(null)} />}
     {showRefer && <ReferModal vendorId={vendor.id} vendorName={vendor.business_name} currentUserId={currentUserId} onClose={() => setShowRefer(false)} />}
     {bookingListing && <RentalBookingModal listing={{ id: bookingListing.id, title: bookingListing.title, price: bookingListing.price, waiver_url: bookingListing.waiver_url, waiver_filename: bookingListing.waiver_filename, waiver_body: bookingListing.waiver_body, rental_mode: bookingListing.rental_mode, rental_quantity: bookingListing.rental_quantity, rental_buffer_hours: bookingListing.rental_buffer_hours, rental_deposit_type: bookingListing.rental_deposit_type, rental_deposit_value: bookingListing.rental_deposit_value }} kind={(bookingListing.type === "rental" || bookingListing.type === "housing_rent" || bookingListing.cta_type === "rent") ? "rental" : "service"} vendor={{ id: vendor.id, business_name: vendor.business_name }} durations={bookingDurations} currentUser={currentUser} onClose={() => setBookingListing(null)} />}
@@ -739,6 +777,17 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                   <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Loop</Link>
                   <Link href={`/jobs/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
                   <Link href={`/explore/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
+                  {shareSlides.length > 0 && (
+                    <>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        onClick={() => { setShareOpen(true); setSiteMenuOpen(false); }}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+                      >
+                        <QrGlyph className="w-4 h-4 text-gray-700 shrink-0" /> Share
+                      </button>
+                    </>
+                  )}
                   {currentUserId && (
                     <>
                       <div className="border-t border-gray-100 my-1" />
