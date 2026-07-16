@@ -16,7 +16,13 @@ export default async function VendorDashboardPage({ searchParams }: { searchPara
     .eq("user_id", user.id)
     .single();
 
-  if (!vendor) redirect("/onboarding/vendor");
+  if (!vendor) {
+    // Admins don't necessarily own a business of their own — send them to the
+    // admin console instead of forcing them through vendor onboarding.
+    const { data: adminCheck } = await supabase
+      .from("profiles").select("is_admin").eq("id", user.id).single();
+    redirect(adminCheck?.is_admin ? "/admin" : "/onboarding/vendor");
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
