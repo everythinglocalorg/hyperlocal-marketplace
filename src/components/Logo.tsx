@@ -39,11 +39,11 @@ export default function Logo({
       aria-label="Everything Local"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <rect x="4" y="4" width="552" height="122" rx="18" fill="#0c7a3c" />
+      <rect x="4" y="4" width="552" height="122" rx="18" fill="#16a34a" />
       <rect x="15" y="15" width="530" height="100" rx="11" fill="none" stroke="#ffffff" strokeWidth="3.5" />
       {/* pin: white marker, house shows the sign green through it, white door */}
       <g transform="translate(43,31) scale(1.3)">
-        <Pin pinFill="#ffffff" houseFill="#0c7a3c" doorFill="#ffffff" />
+        <Pin pinFill="#ffffff" houseFill="#16a34a" doorFill="#ffffff" />
       </g>
       <text
         x="108"
