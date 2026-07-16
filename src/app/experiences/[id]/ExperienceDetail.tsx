@@ -46,6 +46,19 @@ export default function ExperienceDetail({ listing, meta, stops, currentUser }: 
           vendor={{ id: vendor.id, business_name: vendor.business_name }}
           currentUser={currentUser}
           inquiryType="book"
+          ctaLabel={listing.price ? `Book & Pay ${priceLabel}` : undefined}
+          // Paid Experiences are paid in full to the Guide before it's booked.
+          // Free ones (or a Guide without payouts connected) skip straight to
+          // the confirmation — the API tells us which.
+          afterCreate={async (inquiryId) => {
+            const res = await fetch("/api/experiences/book", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ inquiry_id: inquiryId }),
+            });
+            const data = await res.json().catch(() => ({}));
+            return data.url ?? null;
+          }}
           onClose={() => setBooking(false)}
         />
       )}

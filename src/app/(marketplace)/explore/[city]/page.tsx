@@ -3,6 +3,20 @@ import { createClient } from "@/lib/supabase/server";
 import { resolveCity } from "@/lib/cities";
 import ExploreCityClient from "./ExploreCityClient";
 
+// Miles between two lat/lng points. Places get their radius from the
+// places_nearby RPC; Experiences are listings, so we scope them here instead of
+// adding a second RPC.
+function milesBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const R = 3958.8;
+  const dLat = toRad(bLat - aLat);
+  const dLng = toRad(bLng - aLng);
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 function cityLabel(citySlug: string) {
   const parts = citySlug.split("-");
   const stateCode = parts[parts.length - 1].toUpperCase();
@@ -78,6 +92,50 @@ export default async function ExploreCityPage({ params }: { params: Promise<{ ci
       places = (data ?? []).map((p: any) => ({ ...p, distance_miles: 0 }));
     }
 
+    // Published Experiences from Local Guides around this city.
+    const { data: expRows } = await supabase
+      .from("listings")
+      .select(
+        "id, title, description, images, price, vendor:vendors(business_name, slug, city, state, latitude, longitude), meta:experience_meta(duration_label, theme, best_for, is_published)"
+      )
+      .eq("type", "experience")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(100);
+
+    const experiences = (expRows ?? [])
+      .map((row: any) => {
+        const v = Array.isArray(row.vendor) ? row.vendor[0] : row.vendor;
+        const m = Array.isArray(row.meta) ? row.meta[0] : row.meta;
+        const distance =
+          center && v?.latitude != null && v?.longitude != null
+            ? milesBetween(center.latitude, center.longitude, v.latitude, v.longitude)
+            : null;
+        return {
+          id: row.id,
+          title: row.title,
+          description: row.description,
+          images: row.images ?? [],
+          price: row.price,
+          guide_name: v?.business_name ?? "Local Guide",
+          guide_slug: v?.slug ?? null,
+          city: v?.city ?? null,
+          state: v?.state ?? null,
+          duration_label: m?.duration_label ?? null,
+          theme: m?.theme ?? [],
+          distance_miles: distance,
+        };
+      })
+      .filter((e) =>
+        center
+          ? // Un-geocoded Guides fall back to a city/state match so they still surface.
+            e.distance_miles != null
+            ? e.distance_miles <= 50
+            : e.city?.toLowerCase() === cityName.toLowerCase() && e.state === stateCode
+          : e.city?.toLowerCase() === cityName.toLowerCase() && e.state === stateCode
+      )
+      .sort((a, b) => (a.distance_miles ?? 999) - (b.distance_miles ?? 999));
+
     return (
       <ExploreCityClient
         citySlug={citySlug}
@@ -85,6 +143,7 @@ export default async function ExploreCityPage({ params }: { params: Promise<{ ci
         stateCode={stateCode}
         center={center}
         places={places}
+        experiences={experiences}
         currentUserId={user?.id ?? null}
       />
     );
@@ -97,6 +156,7 @@ export default async function ExploreCityPage({ params }: { params: Promise<{ ci
         stateCode={stateCode}
         center={null}
         places={[]}
+        experiences={[]}
         currentUserId={null}
       />
     );

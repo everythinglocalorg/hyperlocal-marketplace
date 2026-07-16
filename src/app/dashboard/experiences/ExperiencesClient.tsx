@@ -151,18 +151,46 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
+  const [firstPublishedAt, setFirstPublishedAt] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     (async () => {
       const { data: l } = await supabase.from("listings").select("title, price, description, images").eq("id", listingId).single();
-      const { data: m } = await supabase.from("experience_meta").select("theme, duration_label, best_for").eq("listing_id", listingId).maybeSingle();
+      const { data: m } = await supabase.from("experience_meta").select("theme, duration_label, best_for, is_published, first_published_at").eq("listing_id", listingId).maybeSingle();
       const { data: s } = await supabase.from("experience_stops").select("*").eq("listing_id", listingId).order("day").order("position");
       if (l) { setTitle(l.title === "Untitled Experience" ? "" : l.title); setPrice(l.price?.toString() ?? ""); setSummary(l.description ?? ""); setImages(l.images ?? []); }
-      if (m) { setTheme(m.theme ?? []); setDuration(m.duration_label ?? ""); setBestFor(m.best_for ?? ""); }
+      if (m) {
+        setTheme(m.theme ?? []); setDuration(m.duration_label ?? ""); setBestFor(m.best_for ?? "");
+        setIsPublished(!!m.is_published); setFirstPublishedAt(m.first_published_at ?? null);
+      }
       setStops((s ?? []) as Stop[]);
       setLoaded(true);
     })();
   }, [supabase, listingId]);
+
+  // Releasing costs $50 the first time ever, $10 for each re-publish after a pause.
+  const releaseFee = firstPublishedAt ? 10 : 50;
+
+  async function publish() {
+    setPublishing(true);
+    await save();
+    const res = await fetch("/api/experiences/publish", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ listing_id: listingId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) { setPublishing(false); alert(data.error ?? "Couldn't start checkout."); return; }
+    window.location.href = data.url;
+  }
+
+  async function pause() {
+    if (!confirm("Pause this Experience? It comes off the market. Re-publishing later costs $10.")) return;
+    await supabase.from("listings").update({ is_active: false }).eq("id", listingId);
+    await supabase.from("experience_meta").update({ is_published: false, updated_at: new Date().toISOString() }).eq("listing_id", listingId);
+    setIsPublished(false);
+  }
 
   const days = Array.from(new Set(stops.map((s) => s.day))).sort((a, b) => a - b);
   const maxDay = days.length ? Math.max(...days) : 1;
@@ -288,12 +316,29 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
           </button>
         </div>
 
-        <div className="sticky bottom-0 mt-6 -mx-4 px-4 py-3 bg-gray-50/95 backdrop-blur border-t border-gray-200 flex items-center gap-3">
-          <button onClick={save} disabled={saving} className="bg-green-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors">
-            {saving ? "Saving…" : "Save draft"}
+        <div className="sticky bottom-0 mt-6 -mx-4 px-4 py-3 bg-gray-50/95 backdrop-blur border-t border-gray-200 flex flex-wrap items-center gap-3">
+          <button onClick={save} disabled={saving} className="border-2 border-gray-200 text-gray-800 font-semibold px-5 py-2.5 rounded-xl hover:border-gray-400 disabled:opacity-50 transition-colors">
+            {saving ? "Saving…" : "Save"}
           </button>
           {saved && <span className="text-sm text-green-600 font-medium">✓ Saved</span>}
-          <span className="ml-auto text-xs text-gray-400">Publishing (with the $50 release fee) comes next.</span>
+
+          {isPublished ? (
+            <>
+              <a href={`/experiences/${listingId}`} target="_blank" rel="noopener noreferrer" className="text-sm text-green-700 font-semibold hover:underline">View live →</a>
+              <button onClick={pause} className="ml-auto border-2 border-amber-300 text-amber-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-amber-50 transition-colors">
+                Pause
+              </button>
+            </>
+          ) : (
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-xs text-gray-400">
+                {firstPublishedAt ? "Re-publish fee" : "One-time release fee"}: <strong className="text-gray-600">${releaseFee}</strong>
+              </span>
+              <button onClick={publish} disabled={publishing || saving} className="bg-green-600 text-white font-black px-6 py-2.5 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors">
+                {publishing ? "Starting checkout…" : `Publish · $${releaseFee}`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </main>

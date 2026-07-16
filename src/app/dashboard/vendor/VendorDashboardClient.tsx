@@ -786,6 +786,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 </div>
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <ReferralCopyButton referralCode={profile?.referral_code ?? ""} />
+                  <Link href="/dashboard/experiences" className="text-sm border-2 border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-semibold hover:border-gray-400 transition-colors whitespace-nowrap">
+                    🗺️ Experiences
+                  </Link>
                   <button
                     onClick={() => { goToTab("listings"); setShowNewListing(true); }}
                     className="bg-green-600 text-white px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors whitespace-nowrap"
