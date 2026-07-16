@@ -17,7 +17,7 @@ function urlBase64ToUint8Array(base64String: string) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
-type State = "loading" | "unsupported" | "ios-needs-install" | "denied" | "off" | "on";
+type State = "loading" | "unsupported" | "misconfigured" | "ios-needs-install" | "denied" | "off" | "on";
 
 export default function PushToggle() {
   const [state, setState] = useState<State>("loading");
@@ -45,14 +45,16 @@ export default function PushToggle() {
   async function enable() {
     setBusy(true);
     try {
+      // Check config BEFORE prompting — otherwise we'd ask for permission and
+      // then bail, which looks like success but saves nothing.
+      const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+      if (!key) { setState("misconfigured"); return; }
+
       const permission = await Notification.requestPermission();
       if (permission !== "granted") { setState(permission === "denied" ? "denied" : "off"); return; }
 
       const reg = await navigator.serviceWorker.register("/sw.js");
       await navigator.serviceWorker.ready;
-
-      const key = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-      if (!key) { setState("unsupported"); return; }
 
       const sub =
         (await reg.pushManager.getSubscription()) ??
@@ -121,6 +123,20 @@ export default function PushToggle() {
           <p className="text-xs text-gray-500 mt-0.5">
             Re-enable them for this site in your browser&apos;s site settings, then reload.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Push keys missing from the build (NEXT_PUBLIC_* are inlined at build time,
+  // so this means the app was built before the VAPID key was set).
+  if (state === "misconfigured") {
+    return (
+      <div className={box}>
+        <span className="text-xl leading-none">⚙️</span>
+        <div>
+          <p className="text-sm font-semibold text-gray-900">Notifications aren&apos;t set up yet</p>
+          <p className="text-xs text-gray-500 mt-0.5">Push isn&apos;t configured for this build. Please try again later.</p>
         </div>
       </div>
     );
