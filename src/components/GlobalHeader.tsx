@@ -89,7 +89,7 @@ export default function GlobalHeader() {
               </Link>
               {/* Desktop: nav pills + Dashboard button */}
               <Link href={`/community/${activeCity}`} className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block">
-                🏘️ Local Pages
+                🏘️ Local Loop
               </Link>
               <Link href={`/jobs/${activeCity}`} className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block">
                 💼 Local Jobs
@@ -110,7 +110,7 @@ export default function GlobalHeader() {
                   <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
                     <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">📊 Dashboard →</Link>
                     <div className="border-t border-gray-100 my-1" />
-                    <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
+                    <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Loop</Link>
                     <Link href={`/jobs/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
                     <Link href={`/explore/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
                   </div>

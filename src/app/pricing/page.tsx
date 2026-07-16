@@ -35,7 +35,7 @@ export default function PricingPage() {
                 "Up to 5 active listings",
                 "Buyer messaging",
                 "Booking requests",
-                "Local Pages access",
+                "Local Loop access",
                 "Basic profile with photos",
               ].map((f) => (
                 <li key={f} className="flex items-start gap-2"><span className="text-green-500 mt-0.5">✓</span>{f}</li>

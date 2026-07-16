@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 import { computeLbDiscount } from "@/lib/lb-discount";
 
-// $5/month keeps a business post (Hiring / Offer) live on Local Pages — the same
+// $5/month keeps a business post (Hiring / Offer) live on Local Loop — the same
 // fee and subscription model as a Local Jobs listing. Mirrors /api/jobs/checkout.
 const POST_PRICE_CENTS = 500;
 const PAID_TYPES = ["hiring", "offer"];
@@ -70,8 +70,8 @@ export async function POST(req: Request) {
     }
 
     const productName = post.type === "hiring"
-      ? "Everything Local — Local Pages hiring post"
-      : "Everything Local — Local Pages offer";
+      ? "Everything Local — Local Loop hiring post"
+      : "Everything Local — Local Loop offer";
     const meta = { type: "local_pages_post", post_id: post.id, user_id: user.id, lb: String(charge.appliedLB) };
 
     const session = await stripe.checkout.sessions.create({
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: session.url });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Local Pages checkout error:", message);
+    console.error("Local Loop checkout error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -560,7 +560,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 href={`/community/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
                 className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-green-300 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-50 transition-colors"
               >
-                🏘️ Local Pages
+                🏘️ Local Loop
               </Link>
               <Link
                 href={`/jobs/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
@@ -3552,7 +3552,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
         <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
           <div>
             <p className="font-bold text-gray-900 text-sm">🚀 Boost your business</p>
-            <p className="text-xs text-gray-500 mt-0.5">Feature in <strong>New Businesses</strong> on the homepage ($5/mo) or pin to your town's <strong>Local Pages</strong> ($10/mo). Cancel anytime.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Feature in <strong>New Businesses</strong> on the homepage ($5/mo) or pin to your town's <strong>Local Loop</strong> ($10/mo). Cancel anytime.</p>
           </div>
           <button type="button" onClick={() => setShowBoost(true)} className="shrink-0 bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors">
             Boost →

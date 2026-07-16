@@ -17,7 +17,7 @@ const STEPS = [
   { n: "1", icon: "💡", title: "Shape your idea", body: "Validate what your town actually needs. Browse local demand, see what's missing, and define your offer." },
   { n: "2", icon: "📋", title: "Set up the basics", body: "Name, structure, and the essentials. We point you to the right local + state resources so nothing gets missed." },
   { n: "3", icon: "🏪", title: "Build your storefront", body: "Create your free Everything Local page in minutes — logo, listings, services, and pricing. No website needed." },
-  { n: "4", icon: "📣", title: "Reach your neighbors", body: "Get discovered in local search, Local Pages, and Local Jobs — in front of people already shopping local." },
+  { n: "4", icon: "📣", title: "Reach your neighbors", body: "Get discovered in local search, Local Loop, and Local Jobs — in front of people already shopping local." },
   { n: "5", icon: "📈", title: "Run & grow", body: "Take bookings, send estimates, manage customers with the built-in CRM, and reward loyalty with Local Bucks." },
 ];
 
@@ -25,7 +25,7 @@ const RESOURCES = [
   { icon: "🧭", title: "Idea & validation guide", body: "How to test demand for your product or service in your town before you spend a dollar.", href: "/incubator/guides/idea-and-validation" },
   { icon: "🧾", title: "Getting-started checklist", body: "The practical steps to register, price, and prepare to open — in plain English.", href: "/incubator/guides/getting-started" },
   { icon: "🖼️", title: "Storefront best practices", body: "Photos, descriptions, and offers that convert browsers into paying local customers.", href: "/incubator/guides/storefront" },
-  { icon: "💬", title: "Winning your first customers", body: "Use reviews, referrals, and Local Pages to land your first sales fast.", href: "/incubator/guides/first-customers" },
+  { icon: "💬", title: "Winning your first customers", body: "Use reviews, referrals, and Local Loop to land your first sales fast.", href: "/incubator/guides/first-customers" },
   { icon: "🪙", title: "Local Bucks playbook", body: "Turn the rewards system into repeat business and word-of-mouth growth.", href: "/incubator/guides/local-bucks" },
   { icon: "🤝", title: "1-on-1 support", body: "Questions as you go? Reach out and a real person helps you get set up right.", href: "/contact" },
 ];
@@ -70,7 +70,7 @@ export default function IncubatorPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-left">
             {[
               { icon: "🏪", t: "We build it", b: "Your storefront, set up and ready to sell." },
-              { icon: "📣", t: "We market it", b: "Local search, Local Pages, and referrals." },
+              { icon: "📣", t: "We market it", b: "Local search, Local Loop, and referrals." },
               { icon: "🛠️", t: "We run the tools", b: "Bookings, estimates, and CRM handled." },
               { icon: "🔑", t: "You stay in control", b: "Approve everything. Own your brand." },
             ].map((c) => (

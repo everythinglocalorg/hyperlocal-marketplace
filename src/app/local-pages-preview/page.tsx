@@ -1,6 +1,6 @@
 "use client";
 
-// Static prototype — Local Pages + Ask Mike, Hiring, and Offers.
+// Static prototype — Local Loop + Ask Mike, Hiring, and Offers.
 // Isolated at /local-pages-preview. Uses the live site's real Tailwind style.
 // No data fetching, no backend, no shared imports. Safe to delete anytime.
 
@@ -130,7 +130,7 @@ export default function LocalPagesPreview() {
         {/* Board tabs */}
         <div className="flex gap-2 mb-4">
           <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
-            🏘️ Local Pages
+            🏘️ Local Loop
           </span>
           <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors cursor-pointer">
             💼 Local Jobs
@@ -140,7 +140,7 @@ export default function LocalPagesPreview() {
           </span>
         </div>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-5">Local Pages in Eau Claire</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-5">Local Loop in Eau Claire</h1>
 
         {/* Ask Mike concierge */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">

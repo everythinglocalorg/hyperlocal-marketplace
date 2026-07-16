@@ -51,8 +51,8 @@ export default function BoostModal({ entityType, entityId, homepageLabel, return
 
   const options = (["homepage", "local_pages"] as const).map((placement) => ({
     placement,
-    title: placement === "homepage" ? `Feature in ${homepageLabel}` : "Feature on Local Pages",
-    sub: placement === "homepage" ? "Shown first on the homepage for your town." : "Pinned on your town's Local Pages board.",
+    title: placement === "homepage" ? `Feature in ${homepageLabel}` : "Feature on Local Loop",
+    sub: placement === "homepage" ? "Shown first on the homepage for your town." : "Pinned on your town's Local Loop board.",
     charge: computeBoostCharge(placement, useLB ? balance : 0, balance),
   }));
   const anyLbEligible = options.some((o) => computeBoostCharge(o.placement, balance, balance).maxLB > 0);

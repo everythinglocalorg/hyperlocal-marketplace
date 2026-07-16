@@ -3,11 +3,11 @@
 // blend into the same rows as naturally-new items, shown first.
 //
 //   homepage    → Featured Gems (products) / New Businesses (vendors), $5/mo
-//   local_pages → the city's Local Pages board, $10/mo
+//   local_pages → the city's Local Loop board, $10/mo
 
 export const BOOST_PLACEMENTS = {
   homepage: { label: "Homepage feature", priceCents: 500, priceLabel: "$5/mo" },
-  local_pages: { label: "Local Pages feature", priceCents: 1000, priceLabel: "$10/mo" },
+  local_pages: { label: "Local Loop feature", priceCents: 1000, priceLabel: "$10/mo" },
 } as const;
 
 export type BoostPlacement = keyof typeof BOOST_PLACEMENTS;

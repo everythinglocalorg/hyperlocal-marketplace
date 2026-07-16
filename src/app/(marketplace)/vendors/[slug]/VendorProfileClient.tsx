@@ -736,7 +736,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
                   <Link href="/" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏠 Home</Link>
                   <Link href="/search" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🔍 Browse local</Link>
-                  <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
+                  <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Loop</Link>
                   <Link href={`/jobs/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
                   <Link href={`/explore/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
                   {currentUserId && (

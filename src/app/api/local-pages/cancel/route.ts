@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 
-// Cancel a paid Local Pages post's $5/month subscription and remove it (plus its
+// Cancel a paid Local Loop post's $5/month subscription and remove it (plus its
 // cross-posted job, if any). Called when the business deletes the post so they
 // stop being billed. Mirrors /api/jobs/cancel.
 export async function POST(req: Request) {
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         await stripe.subscriptions.cancel(post.stripe_subscription_id);
       } catch (e) {
         // Already canceled / not found — safe to continue with the delete.
-        console.error("Local Pages subscription cancel failed:", e instanceof Error ? e.message : e);
+        console.error("Local Loop subscription cancel failed:", e instanceof Error ? e.message : e);
       }
     }
 
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Local Pages cancel error:", message);
+    console.error("Local Loop cancel error:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

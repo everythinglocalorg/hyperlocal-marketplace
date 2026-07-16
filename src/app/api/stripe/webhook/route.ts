@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
         await spendLb(supabase, session.metadata.user_id, session.metadata.lb, session.metadata.boost_id, "boost");
         break;
       }
-      // Paid Local Pages business post (Hiring / Offer) → publish it.
+      // Paid Local Loop business post (Hiring / Offer) → publish it.
       if (session.metadata?.type === "local_pages_post" && session.metadata?.post_id) {
         const postId = session.metadata.post_id as string;
         const { data: post } = await supabase
@@ -178,7 +178,7 @@ export async function POST(req: NextRequest) {
           .eq("id", sub.metadata.job_id);
         break;
       }
-      // Paid Local Pages post subscription ended → unpublish it (and its job).
+      // Paid Local Loop post subscription ended → unpublish it (and its job).
       if (sub.metadata?.type === "local_pages_post" && sub.metadata?.post_id) {
         const postId = sub.metadata.post_id as string;
         const { data: p } = await supabase

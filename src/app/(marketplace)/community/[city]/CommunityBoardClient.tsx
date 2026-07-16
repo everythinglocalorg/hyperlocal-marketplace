@@ -95,7 +95,7 @@ export default function CommunityBoardClient({
   const [responses, setResponses] = useState<Record<string, any[]>>({});
   const [loadingResponses, setLoadingResponses] = useState<string | null>(null);
 
-  // Paid "Local Pages" boosts — featured products & businesses pinned to the top.
+  // Paid "Local Loop" boosts — featured products & businesses pinned to the top.
   const [featured, setFeatured] = useState<{ id: string; slug: string; title: string; image: string | null; kind: "listing" | "vendor" }[]>([]);
   useEffect(() => {
     (async () => {
@@ -533,7 +533,7 @@ export default function CommunityBoardClient({
         {/* Return from Stripe Checkout */}
         {payToast === "posted" && (
           <div className="mb-5 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 text-sm text-green-800">
-            🎉 Your post is live on Local Pages. Thanks for supporting local.
+            🎉 Your post is live on Local Loop. Thanks for supporting local.
           </div>
         )}
         {payToast === "cancelled" && (
@@ -542,10 +542,10 @@ export default function CommunityBoardClient({
           </div>
         )}
 
-        {/* Board tabs — siblings: Local Pages, Local Jobs, Explore */}
+        {/* Board tabs — siblings: Local Loop, Local Jobs, Explore */}
         <div className="flex gap-2 mb-4">
           <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-green-600 text-white">
-            🏘️ Local Pages
+            🏘️ Local Loop
           </span>
           <Link href={`/jobs/${citySlug}`}
             className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
@@ -558,10 +558,10 @@ export default function CommunityBoardClient({
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 mb-5">
-          Local Pages in {cityName}
+          Local Loop in {cityName}
         </h1>
 
-        {/* Featured locally — paid Local Pages boosts */}
+        {/* Featured locally — paid Local Loop boosts */}
         {featured.length > 0 && (
           <div className="mb-6">
             <p className="text-xs font-bold uppercase tracking-wide text-amber-600 mb-2">🚀 Featured locally</p>
@@ -677,7 +677,7 @@ export default function CommunityBoardClient({
           <div className="text-center py-16">
             <p className="text-4xl mb-3">📋</p>
             <p className="text-gray-600 font-semibold mb-1">No posts yet</p>
-            <p className="text-gray-400 text-sm">Be the first to post on your town&apos;s Local Pages!</p>
+            <p className="text-gray-400 text-sm">Be the first to post on your town&apos;s Local Loop!</p>
           </div>
         ) : (
           <div className="space-y-3">

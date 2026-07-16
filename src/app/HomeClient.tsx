@@ -553,13 +553,13 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
         </section>
 
 
-        {/* Local Pages + Local Jobs */}
+        {/* Local Loop + Local Jobs */}
         <section className="py-14 px-4 bg-white border-t border-gray-100">
           <div className="max-w-3xl mx-auto text-center">
             <p className="text-3xl mb-3">🏘️</p>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Your town&apos;s Local Pages</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Your town&apos;s Local Loop</h2>
             <p className="text-gray-500 text-base mb-6">
-              Post to {resolveCity(activeCity)?.label ?? activeCity} Local Pages — ask for help, find a product, request a service, or browse local jobs.
+              Post to {resolveCity(activeCity)?.label ?? activeCity} Local Loop — ask for help, find a product, request a service, or browse local jobs.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
@@ -567,7 +567,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                 onClick={(e) => { if (gate(`/community/${activeCity}`)) e.preventDefault(); }}
                 className="inline-block bg-green-600 text-white font-bold px-8 py-3.5 rounded-full hover:bg-green-700 transition-colors"
               >
-                🏘️ Open Local Pages →
+                🏘️ Open Local Loop →
               </Link>
               <Link
                 href={`/jobs/${activeCity}`}
@@ -584,7 +584,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                 🌿 Explore Places
               </Link>
             </div>
-            <p className="text-xs text-gray-400 mt-3">Switch towns with the city selector above to browse other Local Pages</p>
+            <p className="text-xs text-gray-400 mt-3">Switch towns with the city selector above to browse other Local Loop</p>
           </div>
         </section>
 
@@ -707,7 +707,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           <div>
             <p className="font-bold text-gray-900 mb-3">Community</p>
             <ul className="space-y-2">
-              <li><Link href={`/community/${activeCity}`} className="hover:text-green-600">Local Pages</Link></li>
+              <li><Link href={`/community/${activeCity}`} className="hover:text-green-600">Local Loop</Link></li>
               <li><Link href={`/jobs/${activeCity}`} className="hover:text-green-600">Jobs Board</Link></li>
               <li><Link href={`/explore/${activeCity}`} className="hover:text-green-600">Explore Places</Link></li>
               <li><Link href="/signup" className="hover:text-green-600">Join Free</Link></li>
