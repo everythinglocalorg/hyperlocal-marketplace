@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isPlatformHost } from "@/lib/domains";
 import VendorProfileClient from "./VendorProfileClient";
 
 interface Props {
@@ -28,14 +30,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Business logo/banner → branded card as last resort
   const image = vendor.logo_url || vendor.banner_url || "/api/og";
 
-  // Canonical: if this vendor has a verified custom domain, THAT domain is the
-  // single authoritative URL (so their own domain earns the SEO, and the
-  // platform copy points to it — no duplicate-content split). Otherwise the
-  // canonical stays on everythinglocal.org.
-  const canonical =
-    vendor.custom_domain && vendor.domain_verified
-      ? `https://${vendor.custom_domain}/`
-      : `/vendors/${slug}`;
+  // Canonical is host-aware / self-referential so the two never supersede each
+  // other: the platform page (everythinglocal.org) is canonical to itself, and
+  // a vendor's own custom domain is canonical to itself. Neither references the
+  // other, so each ranks independently in Google.
+  const host = ((await headers()).get("host") ?? "").split(":")[0].toLowerCase();
+  const canonical = isPlatformHost(host)
+    ? `/vendors/${slug}`
+    : `https://${vendor.custom_domain || host}/`;
 
   return {
     title,
