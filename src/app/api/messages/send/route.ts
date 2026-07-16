@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import { Resend } from "resend";
+import { sendPushToUser } from "@/lib/push";
 
 function getResend() { return new Resend(process.env.RESEND_API_KEY ?? "placeholder"); }
 function getAdmin() {
@@ -103,6 +104,36 @@ export async function POST(req: NextRequest) {
     last_message_at: new Date().toISOString(),
     last_message_preview: body.trim().slice(0, 100),
   }).eq("id", conversation_id);
+
+  // ── Push the other party (best-effort; never blocks the message) ─────────
+  try {
+    const admin = getAdmin();
+    const { data: convo } = await admin
+      .from("conversations")
+      .select("buyer_id, vendor_id, vendor:vendors(business_name, user_id)")
+      .eq("id", conversation_id)
+      .single();
+
+    if (convo) {
+      const vendor = Array.isArray(convo.vendor) ? convo.vendor[0] : convo.vendor;
+      const senderIsBuyer = convo.buyer_id === user.id;
+      const recipientId = senderIsBuyer ? vendor?.user_id : convo.buyer_id;
+
+      if (recipientId && recipientId !== user.id) {
+        let senderName = senderIsBuyer ? (buyer_name as string | undefined) : vendor?.business_name;
+        if (!senderName) {
+          const { data: me } = await admin.from("profiles").select("full_name").eq("id", user.id).single();
+          senderName = me?.full_name ?? "Someone";
+        }
+        await sendPushToUser(recipientId, {
+          title: `💬 ${senderName}`,
+          body: body.trim().slice(0, 120),
+          url: senderIsBuyer ? "/dashboard/vendor?tab=messages" : "/dashboard/buyer?tab=messages",
+          tag: `msg-${conversation_id}`,   // one badge per conversation
+        });
+      }
+    }
+  } catch { /* push is best-effort */ }
 
   return NextResponse.json({ message, flagged: !!flagId, flag_type: dupeType });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
+import { sendPushToUser } from "@/lib/push";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY ?? "placeholder");
@@ -26,6 +27,16 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (!vendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
+
+  // Push the owner right away — don't make them wait on email.
+  if (vendor.user_id) {
+    await sendPushToUser(vendor.user_id, {
+      title: `📅 New booking request`,
+      body: `${customerName} — ${listingTitle}${date ? ` on ${date}` : ""}`,
+      url: "/dashboard/vendor?tab=rentals",
+      tag: "booking",
+    });
+  }
 
   const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(vendor.user_id);
   const vendorEmail = user?.email;

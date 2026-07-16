@@ -316,6 +316,12 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
     if (status === "countered" && counterAmount != null) patch.counter_amount = counterAmount;
     await supabase.from("thrift_offers").update(patch).eq("id", id);
+    // Let the buyer know we responded (best-effort).
+    fetch("/api/offers/notify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ offerId: id }),
+    }).catch(() => {});
     setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, status, counter_amount: status === "countered" ? (counterAmount ?? o.counter_amount) : o.counter_amount } : o)));
   }, [supabase]);
 

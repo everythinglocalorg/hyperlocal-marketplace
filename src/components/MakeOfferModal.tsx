@@ -27,7 +27,7 @@ export default function MakeOfferModal({ listing, vendor, currentUser, onClose }
     setSubmitting(true);
     setError("");
 
-    const { error: err } = await supabase.from("thrift_offers").insert({
+    const { data: created, error: err } = await supabase.from("thrift_offers").insert({
       listing_id: listing.id,
       vendor_id: vendor.id,
       buyer_id: currentUser?.id ?? null,
@@ -37,9 +37,19 @@ export default function MakeOfferModal({ listing, vendor, currentUser, onClose }
       message: message.trim() || null,
       listing_title: listing.title,
       status: "pending",
-    });
+    }).select("id").single();
 
     if (err) { setError("Something went wrong. Please try again."); setSubmitting(false); return; }
+
+    // Ping the seller (best-effort — the offer is already saved).
+    if (created?.id) {
+      fetch("/api/offers/notify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ offerId: created.id }),
+      }).catch(() => {});
+    }
+
     setDone(true);
     setSubmitting(false);
   }
