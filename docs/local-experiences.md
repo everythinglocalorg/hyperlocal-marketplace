@@ -85,7 +85,10 @@ Connect + the Jobs/Boosts webhook pattern, `isPaidTier`/tier gating, `FavoritesP
 3. **Polish:** theme filters, "Local Guides" directory, share links, printable/PDF
    guide, "clone & customize," Local Bucks rewards for publishing/first booking.
 
+## Resolved
+- **Eligibility = ANY paid membership** (Local Pro **or** Local Pro+) can create and
+  sell Experiences — gate on `isPaidTier(vendor.tier)`, not `isPlusTier`.
+
 ## Open decisions
 - Does re‑publishing after edits re‑charge the $50? (Default: no — one fee per Experience.)
-- Paid = any paid tier, or Pro+ only?
 - Deposit vs full payment at booking time.
