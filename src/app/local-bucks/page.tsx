@@ -62,6 +62,27 @@ export default function LocalBucksPage() {
         </div>
       </section>
 
+      {/* How to spend */}
+      <section className="max-w-3xl mx-auto px-6 py-14">
+        <h2 className="text-2xl font-black text-gray-900 mb-2 text-center">How You Spend Them</h2>
+        <p className="text-center text-gray-400 text-sm mb-8">
+          Use Local Bucks to offset your membership — they come right off your bill.
+        </p>
+        <div className="grid sm:grid-cols-3 gap-5">
+          {[
+            { icon: "💵", title: "1 LB = $1", desc: "Every Local Buck is worth a dollar off boosts, job posts, or your Local Pro membership." },
+            { icon: "🧾", title: "Up to 20% off", desc: "Cover up to 20% of your first month: $1 off a $5 boost, $2 off a $10 job post, up to $9 off Local Pro." },
+            { icon: "✅", title: "Right at checkout", desc: "Flip the Local Bucks toggle when you buy — your bucks are only deducted after the payment clears." },
+          ].map((p) => (
+            <div key={p.title} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <div className="text-3xl mb-3">{p.icon}</div>
+              <p className="font-bold text-gray-900 mb-1">{p.title}</p>
+              <p className="text-sm text-gray-500">{p.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Terms */}
       <section className="bg-gray-50 border-t border-gray-100 py-14">
         <div className="max-w-3xl mx-auto px-6">
