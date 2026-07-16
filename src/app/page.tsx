@@ -44,11 +44,49 @@ export default async function HomePage() {
     (l: any) => (Array.isArray(l.vendor) ? l.vendor[0] : l.vendor)?.slug
   );
 
+  // Brand structured data: identifies Everything Local as an organization and
+  // enables a Google sitelinks search box pointing at /search.
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://everythinglocal.org/#organization",
+        name: "Everything Local",
+        url: "https://everythinglocal.org",
+        logo: "https://everythinglocal.org/icon.svg",
+        description:
+          "The community-driven hyper-local marketplace — discover local businesses, products, services, rentals, and events, and support your town.",
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://everythinglocal.org/#website",
+        url: "https://everythinglocal.org",
+        name: "Everything Local",
+        publisher: { "@id": "https://everythinglocal.org/#organization" },
+        potentialAction: {
+          "@type": "SearchAction",
+          target: {
+            "@type": "EntryPoint",
+            urlTemplate: "https://everythinglocal.org/search?q={search_term_string}",
+          },
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  };
+
   return (
-    <HomeClient
-      initialListings={seedListings}
-      initialVendors={vendors ?? []}
-      initialBlog={blog ?? []}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <HomeClient
+        initialListings={seedListings}
+        initialVendors={vendors ?? []}
+        initialBlog={blog ?? []}
+      />
+    </>
   );
 }
