@@ -17,37 +17,31 @@ export async function GET(request: Request) {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, is_admin")
         .eq("id", data.user.id)
-        .single();
+        .maybeSingle();
 
-      // Check if vendor has a storefront yet
-      if (profile?.role === "vendor") {
-        const { data: vendor } = await supabase
-          .from("vendors")
-          .select("id")
-          .eq("user_id", data.user.id)
-          .single();
+      // Does this user already own a business? A user can own SEVERAL — never
+      // use .single() here (it errors on multiple rows, which made established
+      // owners look like they had none and wrongly dumped them into onboarding).
+      const { data: vendorRows } = await supabase
+        .from("vendors")
+        .select("id")
+        .eq("user_id", data.user.id)
+        .limit(1);
+      const hasVendor = (vendorRows?.length ?? 0) > 0;
 
-        if (!vendor) {
-          return NextResponse.redirect(`${origin}/onboarding/vendor`);
-        }
-        return NextResponse.redirect(`${origin}/dashboard/vendor`);
+      // Only a brand-new signup (account created moments ago, no business yet,
+      // not an admin) still goes through onboarding. Everyone else — returning
+      // users, business owners — lands on the home page.
+      const isNewSignup = Date.now() - new Date(data.user.created_at).getTime() < 2 * 60 * 1000;
+      if (isNewSignup && !hasVendor && !profile?.is_admin) {
+        return NextResponse.redirect(
+          `${origin}${profile?.role === "vendor" ? "/onboarding/vendor" : "/onboarding/buyer"}`
+        );
       }
 
-      if (profile?.role === "admin") {
-        return NextResponse.redirect(`${origin}/admin`);
-      }
-
-      // New buyer — check if they've onboarded (has a city preference saved via phone or visited before)
-      // We use a simple heuristic: if created_at is within the last 2 minutes, they're new
-      const createdAt = new Date(data.user.created_at);
-      const isNewUser = Date.now() - createdAt.getTime() < 2 * 60 * 1000;
-      if (isNewUser) {
-        return NextResponse.redirect(`${origin}/onboarding/buyer`);
-      }
-
-      return NextResponse.redirect(`${origin}/dashboard/buyer`);
+      return NextResponse.redirect(`${origin}/`);
     }
   }
 

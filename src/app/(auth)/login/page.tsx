@@ -57,18 +57,11 @@ export default function LoginPage() {
       } catch {}
     }
 
-    if (profile?.role === "vendor") {
-      const { data: vendor } = await supabase
-        .from("vendors")
-        .select("id")
-        .eq("user_id", data.user.id)
-        .single();
-      router.push(vendor ? "/dashboard/vendor" : "/onboarding/vendor");
-    } else if (profile?.role === "admin") {
-      router.push("/admin");
-    } else {
-      router.push("/dashboard/buyer");
-    }
+    // Signing into an existing account lands on the home page. We never force
+    // onboarding on login, and a user can own multiple businesses (the old
+    // .single() vendor check errored on multiple rows and wrongly redirected
+    // established owners to onboarding).
+    router.push("/");
   }
 
   async function handleGoogleLogin() {
