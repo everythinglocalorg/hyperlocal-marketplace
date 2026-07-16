@@ -767,7 +767,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             <div>
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Welcome back, {profile?.full_name?.split(" ")[0] ?? "there"} 👋</h1>
+                  <h1 className="text-2xl font-bold text-gray-900">Welcome back, {profile?.full_name ?? "there"} 👋</h1>
                   <p className="text-gray-500 text-sm mt-0.5">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
                   {vendorOptions && vendorOptions.length > 1 && (
                     <div className="mt-2 inline-flex items-center gap-2">
