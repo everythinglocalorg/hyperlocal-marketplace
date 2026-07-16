@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import AnalyticsListener from "@/components/AnalyticsListener";
 import GlobalHeader from "@/components/GlobalHeader";
@@ -22,6 +22,17 @@ export const metadata: Metadata = {
     images: [{ url: "/api/og", width: 1200, height: 630, alt: "Everything Local — Browse Local Like Never Before" }],
   },
   twitter: { card: "summary_large_image", images: ["/api/og"] },
+  // Installed-to-home-screen (iOS): launch full-screen, no Safari chrome.
+  appleWebApp: {
+    capable: true,
+    title: "Everything Local",
+    statusBarStyle: "default",
+  },
+};
+
+// Tints the browser/OS UI (Android address bar, iOS PWA status bar) brand green.
+export const viewport: Viewport = {
+  themeColor: "#00a63e",
 };
 
 export default function RootLayout({
