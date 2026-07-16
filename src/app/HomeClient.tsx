@@ -11,10 +11,26 @@ import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import VendorLogo from "@/components/vendor/VendorLogo";
-import TypedText from "@/components/TypedText";
+import TypedRotator from "@/components/TypedRotator";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import SearchSuggestions from "@/components/SearchSuggestions";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
+
+// Rotating hero categories — "Discover the best ___ in {City}." keeps the town
+// fixed and types through these one after another.
+const HERO_PHRASES = [
+  "home services",
+  "coffee shops",
+  "restaurants",
+  "rentals",
+  "hidden gems",
+  "thrift sales",
+  "hair stylists",
+  "wedding venues",
+  "date-night spots",
+  "food trucks",
+  "breweries & taprooms",
+];
 
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
@@ -292,7 +308,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
             </div>
 
             <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 mb-4 leading-[1.1] tracking-tight">
-              Discover the best of <TypedText text={cityName} />.<br />
+              Discover the best <TypedRotator phrases={HERO_PHRASES} className="text-green-600" /> in {cityName}.<br />
               <span className="text-green-600">Get rewarded for shopping local.</span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
