@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
+import ShareQrModal, { type ShareSlide } from "@/components/ShareQrModal";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
+import { BRAND_ORIGIN } from "@/lib/domains";
 
 // Routes that render their own full-page chrome (own nav/sidebar) and should NOT
 // show the global browse header.
@@ -18,13 +20,24 @@ const HIDDEN_PREFIXES = [
   "/vendors/",
 ];
 
+// Small QR glyph for the Share menu item.
+function QrGlyph({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M3 3h8v8H3V3zm2 2v4h4V5H5zm8-2h8v8h-8V3zm2 2v4h4V5h-4zM3 13h8v8H3v-8zm2 2v4h4v-4H5zm8 5h2v-2h-2v2zm4-4h-2v2h2v-2zm0 4h2v-2h-2v2zm4-4h-2v2h2v-2zm0 4h-2v2h2v-2zm-4-8h2v2h-2v-2zm4 0h2v2h-2v-2z" />
+    </svg>
+  );
+}
+
 export default function GlobalHeader() {
   const pathname = usePathname() || "/";
-  const [user, setUser] = useState<{ id: string; name: string | null; role: string | null } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string | null; role: string | null; referralCode?: string | null } | null>(null);
+  const [myVendor, setMyVendor] = useState<{ slug: string; business_name: string } | null>(null);
   const [notifUnread, setNotifUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Close the mobile menu on outside click or when the route changes.
@@ -45,12 +58,23 @@ export default function GlobalHeader() {
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       if (u) {
         const { data: profile } = await supabase
-          .from("profiles").select("full_name, role, default_city").eq("id", u.id).single();
-        setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
+          .from("profiles").select("full_name, role, default_city, referral_code").eq("id", u.id).single();
+        setUser({
+          id: u.id,
+          name: profile?.full_name ?? u.email ?? null,
+          role: profile?.role ?? null,
+          referralCode: profile?.referral_code ?? null,
+        });
         if (profile?.default_city) setActiveCity(profile.default_city);
         supabase.from("notifications").select("id", { count: "exact", head: true })
           .eq("user_id", u.id).eq("is_read", false)
           .then(({ count }) => setNotifUnread(count ?? 0));
+        // Their business (first one) → adds a storefront QR to the share sheet.
+        supabase.from("vendors")
+          .select("slug, business_name")
+          .eq("user_id", u.id).eq("is_active", true)
+          .order("created_at", { ascending: true }).limit(1)
+          .then(({ data }) => setMyVendor(data?.[0] ?? null));
       }
       setAuthChecked(true);
     });
@@ -59,7 +83,45 @@ export default function GlobalHeader() {
   // Hide on routes with their own chrome
   if (HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return null;
 
+  // The user's QR wallet: refer → profile → their storefront (if they have one).
+  const shareSlides: ShareSlide[] = user
+    ? [
+        ...(user.referralCode
+          ? [{
+              key: "referral",
+              label: "Refer",
+              title: "Refer & earn",
+              blurb: "Earn 20 Local Bucks when someone joins with your link — they get 10.",
+              link: `${BRAND_ORIGIN}/signup?ref=${user.referralCode}`,
+            }]
+          : []),
+        {
+          key: "profile",
+          label: "Profile",
+          title: "My profile",
+          blurb: "Your public Everything Local profile.",
+          link: `${BRAND_ORIGIN}/u/${user.id}`,
+        },
+        ...(myVendor
+          ? [{
+              key: "business",
+              label: "Business",
+              title: myVendor.business_name,
+              blurb: "Your storefront — download and print it for your counter.",
+              link: `${BRAND_ORIGIN}/vendors/${myVendor.slug}${user.referralCode ? `?ref=${user.referralCode}` : ""}`,
+              downloadName: `${myVendor.slug}-storefront-qr`,
+            }]
+          : []),
+      ]
+    : [];
+
   return (
+    <>
+      {/* Rendered outside <header> — a sticky parent creates a stacking context
+          that would trap this fixed overlay. */}
+      {shareOpen && shareSlides.length > 0 && (
+        <ShareQrModal slides={shareSlides} onClose={() => setShareOpen(false)} />
+      )}
     <header className="border-b border-gray-100 bg-white sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
         <Link href="/" className="flex items-center min-w-0 shrink" aria-label="Everything Local home">
@@ -108,6 +170,17 @@ export default function GlobalHeader() {
                 </button>
                 {menuOpen && (
                   <div className="absolute right-0 top-full mt-1 w-52 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                    {shareSlides.length > 0 && (
+                      <>
+                        <button
+                          onClick={() => { setShareOpen(true); setMenuOpen(false); }}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50 transition-colors"
+                        >
+                          <QrGlyph className="w-4 h-4 text-gray-700 shrink-0" /> Share
+                        </button>
+                        <div className="border-t border-gray-100 my-1" />
+                      </>
+                    )}
                     <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">📊 Dashboard →</Link>
                     <div className="border-t border-gray-100 my-1" />
                     <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Loop</Link>
@@ -128,5 +201,6 @@ export default function GlobalHeader() {
         </div>
       </div>
     </header>
+    </>
   );
 }
