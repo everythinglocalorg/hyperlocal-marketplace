@@ -34,11 +34,19 @@ function loadLeaflet(): Promise<any> {
 const PIN_HTML =
   '<svg width="30" height="30" viewBox="0 0 24 24" fill="#16a34a" stroke="white" stroke-width="1.5" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="white" stroke="none"/></svg>';
 
-export default function LeafletMap({ markers, height = 288, zoom, className = "" }: {
+// Numbered pin — used for itinerary routes (Local Experiences) so stops read in order.
+const numberedPin = (n: number) =>
+  `<div style="position:relative;width:30px;height:30px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))">
+     <svg width="30" height="30" viewBox="0 0 24 24" fill="#16a34a" stroke="white" stroke-width="1.5"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+     <span style="position:absolute;top:3px;left:0;width:30px;text-align:center;color:#fff;font:700 11px/1.1 system-ui,sans-serif">${n}</span>
+   </div>`;
+
+export default function LeafletMap({ markers, height = 288, zoom, className = "", numbered = false }: {
   markers: MapMarker[];
   height?: number;
   zoom?: number;
   className?: string;
+  numbered?: boolean;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -57,11 +65,15 @@ export default function LeafletMap({ markers, height = 288, zoom, className = ""
         maxZoom: 19,
       }).addTo(map);
 
-      const icon = L.divIcon({ className: "el-pin", html: PIN_HTML, iconSize: [30, 30], iconAnchor: [15, 28], popupAnchor: [0, -26] });
+      const mkIcon = (n: number) => L.divIcon({
+        className: "el-pin",
+        html: numbered ? numberedPin(n) : PIN_HTML,
+        iconSize: [30, 30], iconAnchor: [15, 28], popupAnchor: [0, -26],
+      });
       const pts: [number, number][] = [];
-      markers.forEach((m) => {
+      markers.forEach((m, i) => {
         if (typeof m.lat !== "number" || typeof m.lng !== "number") return;
-        const marker = L.marker([m.lat, m.lng], { icon }).addTo(map);
+        const marker = L.marker([m.lat, m.lng], { icon: mkIcon(i + 1) }).addTo(map);
         const safeTitle = (m.title || "").replace(/</g, "&lt;");
         const safeSub = (m.subtitle || "").replace(/</g, "&lt;");
         const body =
@@ -92,7 +104,7 @@ export default function LeafletMap({ markers, height = 288, zoom, className = ""
       if (roRef.current) { roRef.current.disconnect(); roRef.current = null; }
       if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; }
     };
-  }, [key, zoom]);
+  }, [key, zoom, numbered]);
 
   return <div ref={elRef} style={{ height }} className={`w-full bg-gray-100 rounded-2xl overflow-hidden relative z-0 ${className}`} />;
 }
