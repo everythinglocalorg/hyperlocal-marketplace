@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
+import { sendPushToUser } from "@/lib/push";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY ?? "placeholder");
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     } catch { /* CRM insert is best-effort; never block the application */ }
   }
 
-  // ── Notify the poster in-app ─────────────────────────────────────────────
+  // ── Notify the poster in-app + push ──────────────────────────────────────
   try {
     await supabaseAdmin.from("notifications").insert({
       user_id: job.user_id,
@@ -64,6 +65,14 @@ export async function POST(req: NextRequest) {
       link: `/jobs/${job.city_slug}`,
     });
   } catch { /* best-effort */ }
+  if (job.user_id) {
+    await sendPushToUser(job.user_id, {
+      title: `New applicant for "${job.title}"`,
+      body: `${applicantName} just applied.`,
+      url: `/jobs/${job.city_slug}`,
+      tag: "job-applicant",
+    });
+  }
 
   // ── Email the poster (job contact email, else their account email) ───────
   let toEmail: string | null = job.contact_email ?? null;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
+import { sendPushToUser } from "@/lib/push";
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY ?? "placeholder");
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
     }
   } catch { /* CRM insert is best-effort; never block the inquiry */ }
 
-  // ── Notify the business owner in-app ────────────────────────────────────
+  // ── Notify the business owner in-app + push ─────────────────────────────
   if (vendor.user_id) {
     try {
       await supabaseAdmin.from("notifications").insert({
@@ -70,6 +71,12 @@ export async function POST(req: NextRequest) {
         link: "/dashboard/vendor",
       });
     } catch { /* best-effort */ }
+    await sendPushToUser(vendor.user_id, {
+      title: `${label} from ${buyerName}`,
+      body: message?.slice(0, 120) ?? "Open your dashboard to reply.",
+      url: "/dashboard/vendor",
+      tag: "inquiry",
+    });
   }
 
   const { data: { user } } = vendor.user_id

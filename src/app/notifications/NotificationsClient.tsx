@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import PushToggle from "@/components/PushToggle";
 
 type Notif = {
   id: string;
@@ -58,7 +59,12 @@ export default function NotificationsClient({ initial, userId }: { initial: Noti
 
       <main className="max-w-2xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">🔔 Notifications</h1>
-        <p className="text-sm text-gray-400 mb-5">{unread > 0 ? `${unread} unread` : "You're all caught up."}</p>
+        <p className="text-sm text-gray-400 mb-4">{unread > 0 ? `${unread} unread` : "You're all caught up."}</p>
+
+        {/* Opt in to push so these reach them even when the site is closed. */}
+        <div className="mb-5">
+          <PushToggle />
+        </div>
 
         {items.length === 0 ? (
           <div className="text-center py-20">
