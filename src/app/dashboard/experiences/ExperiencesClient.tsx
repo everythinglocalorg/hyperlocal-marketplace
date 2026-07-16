@@ -122,7 +122,7 @@ export default function ExperiencesClient({ vendors, paidVendorIds }: { vendors:
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-gray-900 truncate">{e.title}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{e.stopCount} stop{e.stopCount === 1 ? "" : "s"}{e.price ? ` · ${formatPrice(e.price)}` : " · Free"}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{e.stopCount} stop{e.stopCount === 1 ? "" : "s"}</p>
                 </div>
                 <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full ${e.meta?.is_published ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                   {e.meta?.is_published ? "Published" : "Draft"}
@@ -152,41 +152,44 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
   const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isPublished, setIsPublished] = useState(false);
-  const [firstPublishedAt, setFirstPublishedAt] = useState<string | null>(null);
   const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const { data: l } = await supabase.from("listings").select("title, price, description, images").eq("id", listingId).single();
-      const { data: m } = await supabase.from("experience_meta").select("theme, duration_label, best_for, is_published, first_published_at").eq("listing_id", listingId).maybeSingle();
+      const { data: l } = await supabase.from("listings").select("title, description, images").eq("id", listingId).single();
+      const { data: m } = await supabase.from("experience_meta").select("theme, duration_label, best_for, is_published").eq("listing_id", listingId).maybeSingle();
       const { data: s } = await supabase.from("experience_stops").select("*").eq("listing_id", listingId).order("day").order("position");
-      if (l) { setTitle(l.title === "Untitled Experience" ? "" : l.title); setPrice(l.price?.toString() ?? ""); setSummary(l.description ?? ""); setImages(l.images ?? []); }
+      if (l) { setTitle(l.title === "Untitled Experience" ? "" : l.title); setSummary(l.description ?? ""); setImages(l.images ?? []); }
       if (m) {
         setTheme(m.theme ?? []); setDuration(m.duration_label ?? ""); setBestFor(m.best_for ?? "");
-        setIsPublished(!!m.is_published); setFirstPublishedAt(m.first_published_at ?? null);
+        setIsPublished(!!m.is_published);
       }
       setStops((s ?? []) as Stop[]);
       setLoaded(true);
     })();
   }, [supabase, listingId]);
 
-  // Releasing costs $50 the first time ever, $10 for each re-publish after a pause.
-  const releaseFee = firstPublishedAt ? 10 : 50;
-
+  // Publishing is free and reversible — it's a membership perk, not a product.
   async function publish() {
     setPublishing(true);
     await save();
-    const res = await fetch("/api/experiences/publish", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ listing_id: listingId }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.url) { setPublishing(false); alert(data.error ?? "Couldn't start checkout."); return; }
-    window.location.href = data.url;
+    await supabase.from("listings").update({ is_active: true }).eq("id", listingId);
+    // first_published_at records when it originally went live — keep the
+    // original date through any later pause/publish cycle.
+    const { data: m } = await supabase
+      .from("experience_meta").select("first_published_at").eq("listing_id", listingId).maybeSingle();
+    await supabase.from("experience_meta").upsert({
+      listing_id: listingId,
+      is_published: true,
+      first_published_at: m?.first_published_at ?? new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "listing_id" });
+    setIsPublished(true);
+    setPublishing(false);
   }
 
   async function pause() {
-    if (!confirm("Pause this Experience? It comes off the market. Re-publishing later costs $10.")) return;
+    if (!confirm("Pause this Experience? It comes off Explore until you publish it again.")) return;
     await supabase.from("listings").update({ is_active: false }).eq("id", listingId);
     await supabase.from("experience_meta").update({ is_published: false, updated_at: new Date().toISOString() }).eq("listing_id", listingId);
     setIsPublished(false);
@@ -228,7 +231,6 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
     setSaving(true);
     await supabase.from("listings").update({
       title: title.trim() || "Untitled Experience",
-      price: price ? Number(price) : null,
       description: summary.trim() || null,
       images,
     }).eq("id", listingId);
@@ -261,15 +263,15 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-500 mb-1">Booking price ($) <span className="font-normal text-gray-400">— blank = free</span></label>
-              <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-            </div>
-            <div>
               <label className="block text-xs font-semibold text-gray-500 mb-1">Duration</label>
               <select value={duration} onChange={(e) => setDuration(e.target.value)} className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
                 <option value="">—</option>
                 {DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1">Best for</label>
+              <input value={bestFor} onChange={(e) => setBestFor(e.target.value)} placeholder="Couples · foodies · a rainy Saturday" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             </div>
           </div>
           <div>
@@ -299,10 +301,6 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
               ))}
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1">Best for</label>
-            <input value={bestFor} onChange={(e) => setBestFor(e.target.value)} placeholder="Couples · foodies · a rainy Saturday" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-          </div>
         </div>
 
         {/* Itinerary */}
@@ -331,11 +329,9 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
             </>
           ) : (
             <div className="ml-auto flex items-center gap-3">
-              <span className="text-xs text-gray-400">
-                {firstPublishedAt ? "Re-publish fee" : "One-time release fee"}: <strong className="text-gray-600">${releaseFee}</strong>
-              </span>
+              <span className="text-xs text-gray-400">Free to publish</span>
               <button onClick={publish} disabled={publishing || saving} className="bg-green-600 text-white font-black px-6 py-2.5 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-colors">
-                {publishing ? "Starting checkout…" : `Publish · $${releaseFee}`}
+                {publishing ? "Publishing…" : "Publish"}
               </button>
             </div>
           )}

@@ -15,7 +15,6 @@ export interface ExploreExperience {
   title: string;
   description: string | null;
   images: string[];
-  price: number | null;
   guide_name: string;
   guide_slug: string | null;
   city: string | null;
@@ -259,7 +258,7 @@ function ExperienceCard({ exp, rail }: { exp: ExploreExperience; rail: boolean }
           Experience
         </span>
         <span className="absolute top-2 right-2 text-xs font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full">
-          {exp.price ? `$${exp.price}` : "Free"}
+          Free
         </span>
       </div>
 

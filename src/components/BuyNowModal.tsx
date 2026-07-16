@@ -8,13 +8,6 @@ interface Props {
   vendor: { id: string; business_name: string };
   currentUser: { id: string; full_name: string | null; email?: string } | null;
   inquiryType: "buy" | "book" | "estimate";
-  /** Overrides the submit button label (e.g. "Book & Pay" when payment follows). */
-  ctaLabel?: string;
-  /**
-   * Runs after the inquiry row is created. Return a URL to send the buyer there
-   * (e.g. Stripe Checkout) instead of showing the "Request Sent!" screen.
-   */
-  afterCreate?: (inquiryId: string) => Promise<string | null>;
   onClose: () => void;
 }
 
@@ -24,7 +17,7 @@ const INQUIRY_COPY = {
   estimate: { heading: "Request a Free Estimate", cta: "Request Free Estimate", done: "will get back to you with a free estimate." },
 } as const;
 
-export default function BuyNowModal({ listing, vendor, currentUser, inquiryType, ctaLabel, afterCreate, onClose }: Props) {
+export default function BuyNowModal({ listing, vendor, currentUser, inquiryType, onClose }: Props) {
   const supabase = createClient();
   const [name, setName] = useState(currentUser?.full_name ?? "");
   const [email, setEmail] = useState(currentUser?.email ?? "");
@@ -39,7 +32,7 @@ export default function BuyNowModal({ listing, vendor, currentUser, inquiryType,
     setSubmitting(true);
     setError("");
 
-    const { data: created, error: err } = await supabase.from("purchase_inquiries").insert({
+    const { error: err } = await supabase.from("purchase_inquiries").insert({
       listing_id: listing.id,
       vendor_id: vendor.id,
       buyer_id: currentUser?.id ?? null,
@@ -50,16 +43,9 @@ export default function BuyNowModal({ listing, vendor, currentUser, inquiryType,
       inquiry_type: inquiryType,
       listing_title: listing.title,
       is_read: false,
-    }).select("id").single();
+    });
 
     if (err) { setError("Something went wrong. Please try again."); setSubmitting(false); return; }
-
-    if (afterCreate && created?.id) {
-      const url = await afterCreate(created.id).catch(() => null);
-      // A URL means payment is due — hand the buyer off and keep the spinner up.
-      if (url) { window.location.href = url; return; }
-    }
-
     setDone(true);
     setSubmitting(false);
   }
@@ -130,7 +116,7 @@ export default function BuyNowModal({ listing, vendor, currentUser, inquiryType,
 
             <button onClick={submit} disabled={submitting}
               className="w-full bg-green-600 text-white font-semibold py-3 rounded-xl hover:bg-green-700 disabled:opacity-40 transition-colors">
-              {submitting ? "Sending..." : ctaLabel ?? copy.cta}
+              {submitting ? "Sending..." : copy.cta}
             </button>
             <p className="text-xs text-gray-400 text-center">{vendor.business_name} {copy.done}</p>
           </div>

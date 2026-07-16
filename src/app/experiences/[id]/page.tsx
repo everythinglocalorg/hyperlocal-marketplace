@@ -59,18 +59,11 @@ export default async function ExperiencePage({ params }: Props) {
   const data = await loadExperience(id);
   if (!data) notFound();
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle()
-    : { data: null };
-
   return (
     <ExperienceDetail
       listing={data.listing as any}
       meta={data.meta as any}
       stops={data.stops as any}
-      currentUser={user ? { id: user.id, full_name: profile?.full_name ?? null, email: profile?.email ?? user.email ?? undefined } : null}
     />
   );
 }

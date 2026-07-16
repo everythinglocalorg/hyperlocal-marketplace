@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
-import BuyNowModal from "@/components/BuyNowModal";
-import { formatPrice } from "@/lib/utils";
+import { useFavorites } from "@/lib/favorites";
 
 type Stop = {
   id: string; day: number; position: number; start_time: string | null; duration_min: number | null;
@@ -13,7 +12,7 @@ type Stop = {
   href: string | null;
 };
 type Vendor = { id: string; business_name: string; slug: string; logo_url: string | null; city: string; state: string };
-type Listing = { id: string; title: string; description: string | null; price: number | null; images: string[] | null; vendor: Vendor | Vendor[] };
+type Listing = { id: string; title: string; description: string | null; images: string[] | null; vendor: Vendor | Vendor[] };
 type Meta = { theme: string[] | null; duration_label: string | null; best_for: string | null; est_cost_cents: number | null } | null;
 
 function fmtTime(t: string | null) {
@@ -24,45 +23,38 @@ function fmtTime(t: string | null) {
   return `${hr}:${String(m).padStart(2, "0")} ${ampm}`;
 }
 
-export default function ExperienceDetail({ listing, meta, stops, currentUser }: {
+export default function ExperienceDetail({ listing, meta, stops }: {
   listing: Listing; meta: Meta; stops: Stop[];
-  currentUser: { id: string; full_name: string | null; email?: string } | null;
 }) {
   const vendor = (Array.isArray(listing.vendor) ? listing.vendor[0] : listing.vendor) as Vendor;
-  const [booking, setBooking] = useState(false);
+  const favorites = useFavorites();
+  const saved = favorites.isSaved(listing.id);
+  const [copied, setCopied] = useState(false);
+
+  async function toggleSave() {
+    const res = await favorites.toggleWishlist(listing.id);
+    if (res === "login") window.location.href = "/login";
+  }
+
+  async function share() {
+    const url = window.location.href;
+    // Native share sheet on mobile; clipboard everywhere else.
+    if (navigator.share) {
+      await navigator.share({ title: listing.title, url }).catch(() => {});
+      return;
+    }
+    await navigator.clipboard.writeText(url).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   const days = Array.from(new Set(stops.map((s) => s.day))).sort((a, b) => a - b);
   const markers: MapMarker[] = stops
     .filter((s) => typeof s.custom_lat === "number" && typeof s.custom_lng === "number")
     .map((s) => ({ lat: s.custom_lat as number, lng: s.custom_lng as number, title: s.title, subtitle: fmtTime(s.start_time) ?? undefined, href: s.href ?? undefined }));
 
-  const priceLabel = listing.price ? formatPrice(listing.price) : "Free";
-
   return (
     <main className="min-h-screen bg-white pb-24">
-      {booking && (
-        <BuyNowModal
-          listing={{ id: listing.id, title: listing.title, price: listing.price, price_label: null }}
-          vendor={{ id: vendor.id, business_name: vendor.business_name }}
-          currentUser={currentUser}
-          inquiryType="book"
-          ctaLabel={listing.price ? `Book & Pay ${priceLabel}` : undefined}
-          // Paid Experiences are paid in full to the Guide before it's booked.
-          // Free ones (or a Guide without payouts connected) skip straight to
-          // the confirmation — the API tells us which.
-          afterCreate={async (inquiryId) => {
-            const res = await fetch("/api/experiences/book", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ inquiry_id: inquiryId }),
-            });
-            const data = await res.json().catch(() => ({}));
-            return data.url ?? null;
-          }}
-          onClose={() => setBooking(false)}
-        />
-      )}
-
       {/* Hero */}
       <div className="relative h-56 sm:h-80 bg-gradient-to-br from-green-600 to-emerald-700 overflow-hidden">
         {listing.images?.[0] && <img src={listing.images[0]} alt="" className="absolute inset-0 w-full h-full object-cover" />}
@@ -85,7 +77,7 @@ export default function ExperienceDetail({ listing, meta, stops, currentUser }: 
           </Link>
           {meta?.duration_label && <span>🕒 {meta.duration_label}</span>}
           {stops.length > 0 && <span>📍 {stops.length} stop{stops.length === 1 ? "" : "s"}</span>}
-          <span className="font-bold text-green-700">{priceLabel}</span>
+          <span className="font-bold text-green-700">Free</span>
         </div>
 
         {(meta?.theme?.length || meta?.best_for) && (
@@ -153,18 +145,29 @@ export default function ExperienceDetail({ listing, meta, stops, currentUser }: 
         )}
       </div>
 
-      {/* Sticky Book Now */}
+      {/* Sticky actions — an Experience is free to follow, so the calls to
+          action are keeping it and passing it on, not buying it. */}
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
         <div className="max-w-4xl mx-auto flex items-center gap-3">
           <div className="min-w-0">
-            <p className="text-lg font-black text-gray-900 leading-none">{priceLabel}</p>
+            <p className="text-lg font-black text-gray-900 leading-none">Free</p>
             {meta?.duration_label && <p className="text-xs text-gray-400 mt-0.5">{meta.duration_label}</p>}
           </div>
           <button
-            onClick={() => setBooking(true)}
-            className="ml-auto flex-1 sm:flex-none bg-green-600 text-white font-black px-8 py-3.5 rounded-2xl hover:bg-green-700 active:scale-[0.99] transition-all shadow-lg shadow-green-600/30"
+            onClick={share}
+            className="ml-auto border-2 border-gray-200 text-gray-700 font-semibold px-5 py-3.5 rounded-2xl hover:border-gray-400 transition-colors whitespace-nowrap"
           >
-            Book Now →
+            {copied ? "Link copied ✓" : "Share"}
+          </button>
+          <button
+            onClick={toggleSave}
+            className={`flex-1 sm:flex-none font-black px-8 py-3.5 rounded-2xl active:scale-[0.99] transition-all whitespace-nowrap ${
+              saved
+                ? "bg-white text-green-700 border-2 border-green-600"
+                : "bg-green-600 text-white hover:bg-green-700 shadow-lg shadow-green-600/30"
+            }`}
+          >
+            {saved ? "♥ Saved" : "♡ Save Experience"}
           </button>
         </div>
       </div>

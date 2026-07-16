@@ -96,7 +96,7 @@ export default async function ExploreCityPage({ params }: { params: Promise<{ ci
     const { data: expRows } = await supabase
       .from("listings")
       .select(
-        "id, title, description, images, price, vendor:vendors(business_name, slug, city, state, latitude, longitude), meta:experience_meta(duration_label, theme, best_for, is_published)"
+        "id, title, description, images, vendor:vendors(business_name, slug, city, state, latitude, longitude), meta:experience_meta(duration_label, theme, best_for, is_published)"
       )
       .eq("type", "experience")
       .eq("is_active", true)
@@ -116,7 +116,6 @@ export default async function ExploreCityPage({ params }: { params: Promise<{ ci
           title: row.title,
           description: row.description,
           images: row.images ?? [],
-          price: row.price,
           guide_name: v?.business_name ?? "Local Guide",
           guide_slug: v?.slug ?? null,
           city: v?.city ?? null,

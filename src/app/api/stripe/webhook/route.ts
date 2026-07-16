@@ -60,33 +60,6 @@ export async function POST(req: NextRequest) {
         await spendLb(supabase, session.metadata.user_id, session.metadata.lb, session.metadata.job_id, "job");
         break;
       }
-      // Experience release fee paid ($50 first time, $10 re-publish) → go live.
-      if (session.metadata?.type === "experience_publish" && session.metadata?.listing_id) {
-        const listingId = session.metadata.listing_id as string;
-        await supabase.from("listings").update({ is_active: true }).eq("id", listingId);
-        const { data: m } = await supabase
-          .from("experience_meta").select("first_published_at").eq("listing_id", listingId).maybeSingle();
-        await supabase.from("experience_meta").upsert({
-          listing_id: listingId,
-          is_published: true,
-          // Set once — it's what makes every later release the $10 re-publish.
-          first_published_at: m?.first_published_at ?? new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-        break;
-      }
-      // Experience paid in full → mark the booking paid for the Guide.
-      if (session.metadata?.type === "experience_booking" && session.metadata?.inquiry_id) {
-        await supabase
-          .from("purchase_inquiries")
-          .update({
-            amount_paid: (session.amount_total ?? 0) / 100,
-            paid_at: new Date().toISOString(),
-            payment_intent: (session.payment_intent as string) ?? null,
-          })
-          .eq("id", session.metadata.inquiry_id);
-        break;
-      }
       // Place listing paid (attraction / thing_to_do / food_truck) → publish.
       if (session.metadata?.type === "place_post" && session.metadata?.place_id) {
         await supabase
