@@ -182,7 +182,9 @@ function KeywordVendorCard({ r, onClick }: { r: SearchResult; onClick?: () => vo
   );
 }
 
-export default function SearchClient({ initialCity }: { initialCity?: string }) {
+const LS_RADIUS_KEY = "el_radius";
+
+export default function SearchClient({ initialCity, initialRadius }: { initialCity?: string; initialRadius?: number }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const supabase = createClient();
@@ -199,7 +201,17 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     return initialCity ?? DEFAULT_CITY_SLUG;
   });
   const [category, setCategory] = useState(searchParams.get("category") ?? "");
-  const [radius, setRadius] = useState(Number(searchParams.get("radius") ?? 50));
+  // Radius: URL param > saved profile radius > localStorage (guests) > 50.
+  const [radius, setRadius] = useState<number>(() => {
+    const fromUrl = searchParams.get("radius");
+    if (fromUrl) return Number(fromUrl);
+    if (typeof initialRadius === "number") return initialRadius;
+    if (typeof window !== "undefined") {
+      const fromStorage = localStorage.getItem(LS_RADIUS_KEY);
+      if (fromStorage) return Number(fromStorage);
+    }
+    return 50;
+  });
   const [sort, setSort] = useState(searchParams.get("sort") ?? "rating");
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -329,15 +341,22 @@ export default function SearchClient({ initialCity }: { initialCity?: string }) 
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Remember the last place they searched — persist the active city to their
-  // profile (and localStorage for guests) on any change, not just when they use
-  // the selector. This is what restores their location on login / return.
+  // Remember the last place they searched — persist the active city + radius to
+  // their profile (and localStorage for guests) on any change, not just when
+  // they use the selector. This restores their location on login / return.
   useEffect(() => {
     if (typeof window !== "undefined") localStorage.setItem(LS_CITY_KEY, citySlug);
     if (userId) {
       supabase.from("profiles").update({ default_city: citySlug }).eq("id", userId).then(() => {});
     }
   }, [citySlug, userId, supabase]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") localStorage.setItem(LS_RADIUS_KEY, String(radius));
+    if (userId) {
+      supabase.from("profiles").update({ default_radius: radius }).eq("id", userId).then(() => {});
+    }
+  }, [radius, userId, supabase]);
 
   const updateURL = useCallback((params: Record<string, string>) => {
     const current = new URLSearchParams(searchParams.toString());

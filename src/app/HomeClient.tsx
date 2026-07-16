@@ -104,13 +104,14 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
       if (u) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, role, city, state, default_city")
+          .select("full_name, role, city, state, default_city, default_radius")
           .eq("id", u.id)
           .single();
         setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", u.id).eq("is_read", false)
           .then(({ count }) => setNotifUnread(count ?? 0));
         if (profile?.default_city) resolvedCitySlug = profile.default_city;
+        if (typeof profile?.default_radius === "number") setRadius(profile.default_radius);
       }
       setAuthChecked(true);
       setActiveCity(resolvedCitySlug);
