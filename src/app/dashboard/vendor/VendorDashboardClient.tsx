@@ -55,6 +55,7 @@ interface Props {
   connectEnabled: boolean;
   connectAccountId: string | null;
   initialTab?: string;
+  vendorOptions?: { id: string; business_name: string }[];
 }
 
 type Listing = {
@@ -176,7 +177,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "allplaces", label: "All Places", icon: "🌿", adminOnly: true },
 ];
 
-export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab }: Props) {
+export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab, vendorOptions }: Props) {
   // Local Pro+ exclusive tier (admins always count as top tier).
   const isPlus = isAdmin || isPlusTier(vendor.tier);
   // Features gated to Pro+ only; everything else unlocks for any paid tier.
@@ -768,6 +769,20 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Welcome back, {profile?.full_name?.split(" ")[0] ?? "there"} 👋</h1>
                   <p className="text-gray-500 text-sm mt-0.5">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
+                  {vendorOptions && vendorOptions.length > 1 && (
+                    <div className="mt-2 inline-flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Managing:</span>
+                      <select
+                        value={vendor.id}
+                        onChange={(e) => { window.location.href = `/dashboard/vendor?vendor=${e.target.value}`; }}
+                        className="text-sm font-medium border border-gray-200 rounded-lg px-2.5 py-1 text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        {vendorOptions.map((v) => (
+                          <option key={v.id} value={v.id}>{v.business_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <ReferralCopyButton referralCode={profile?.referral_code ?? ""} />

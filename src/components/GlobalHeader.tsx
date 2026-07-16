@@ -19,7 +19,7 @@ const HIDDEN_PREFIXES = [
 
 export default function GlobalHeader() {
   const pathname = usePathname() || "/";
-  const [user, setUser] = useState<{ id: string; name: string | null; role: string | null; is_admin?: boolean } | null>(null);
+  const [user, setUser] = useState<{ id: string; name: string | null; role: string | null } | null>(null);
   const [notifUnread, setNotifUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
@@ -33,8 +33,8 @@ export default function GlobalHeader() {
     supabase.auth.getUser().then(async ({ data: { user: u } }) => {
       if (u) {
         const { data: profile } = await supabase
-          .from("profiles").select("full_name, role, default_city, is_admin").eq("id", u.id).single();
-        setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null, is_admin: profile?.is_admin === true });
+          .from("profiles").select("full_name, role, default_city").eq("id", u.id).single();
+        setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
         if (profile?.default_city) setActiveCity(profile.default_city);
         supabase.from("notifications").select("id", { count: "exact", head: true })
           .eq("user_id", u.id).eq("is_read", false)
@@ -99,7 +99,7 @@ export default function GlobalHeader() {
                 🌿 Explore
               </Link>
               <Link
-                href={user.is_admin ? "/admin" : user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
+                href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"}
                 className="text-sm bg-green-600 text-white px-3 sm:px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap"
               >
                 <span className="hidden sm:inline">Dashboard →</span>
