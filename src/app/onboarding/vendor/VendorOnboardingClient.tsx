@@ -7,6 +7,8 @@ import { LAUNCH_CITIES, CATEGORIES } from "@/types";
 import { slugify } from "@/lib/utils";
 import { geocodeQuery, getBrowserLocation, reverseGeocode } from "@/lib/geocode";
 import ImageUpload from "@/components/ui/ImageUpload";
+import WelcomeReferralModal from "@/components/WelcomeReferralModal";
+import { BRAND_ORIGIN } from "@/lib/domains";
 
 const STEPS = [
   { id: 1, label: "Business Info" },
@@ -59,6 +61,8 @@ export default function VendorOnboardingClient() {
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Set once onboarding is done → shows the referral/install send-off modal.
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -168,11 +172,27 @@ export default function VendorOnboardingClient() {
       p_reason: "complete_vendor_profile",
     });
 
+    // Send them off with the referral QR + "install the app" prompt.
+    const { data: profile } = await supabase
+      .from("profiles").select("referral_code").eq("id", user.id).single();
+
+    if (profile?.referral_code) {
+      setReferralCode(profile.referral_code);
+      setLoading(false);
+      return;
+    }
+
     router.push("/dashboard/vendor?welcome=1");
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+      {referralCode && (
+        <WelcomeReferralModal
+          referralLink={`${BRAND_ORIGIN}/signup?ref=${referralCode}`}
+          onClose={() => router.push("/dashboard/vendor?welcome=1")}
+        />
+      )}
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">

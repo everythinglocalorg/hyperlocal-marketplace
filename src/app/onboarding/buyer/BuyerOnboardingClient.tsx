@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LAUNCH_CITIES, CATEGORIES } from "@/types";
 import { getBrowserLocation, reverseGeocode, geocodeQuery } from "@/lib/geocode";
+import WelcomeReferralModal from "@/components/WelcomeReferralModal";
+import { BRAND_ORIGIN } from "@/lib/domains";
 
 const STEPS = [
   { id: 1, label: "Your Location" },
@@ -28,6 +30,9 @@ export default function BuyerOnboardingClient() {
   const [location, setLocation] = useState<LocationState>(null);
   const [interests, setInterests] = useState<string[]>([]);
   const [phone, setPhone] = useState("");
+  // Set once onboarding is done → shows the referral/install send-off modal.
+  const [referralCode, setReferralCode] = useState<string | null>(null);
+  const [nextUrl, setNextUrl] = useState<string>("/search");
   const [loading, setLoading] = useState(false);
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
@@ -125,11 +130,29 @@ export default function BuyerOnboardingClient() {
       destination = `/search?${params.toString()}`;
     }
 
+    // Send them off with the referral QR + "install the app" prompt. If we can't
+    // read a referral code, don't block the hand-off — just go.
+    const { data: profile } = await supabase
+      .from("profiles").select("referral_code").eq("id", user.id).single();
+
+    if (profile?.referral_code) {
+      setNextUrl(destination);
+      setReferralCode(profile.referral_code);
+      setLoading(false);
+      return;
+    }
+
     router.push(destination);
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+      {referralCode && (
+        <WelcomeReferralModal
+          referralLink={`${BRAND_ORIGIN}/signup?ref=${referralCode}`}
+          onClose={() => router.push(nextUrl)}
+        />
+      )}
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <span className="text-xl font-bold text-green-600">Everything Local</span>

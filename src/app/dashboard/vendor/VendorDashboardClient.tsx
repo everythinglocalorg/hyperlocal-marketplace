@@ -19,6 +19,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 import { STORE_FONTS, HEADING_FONT_KEYS, BODY_FONT_KEYS, TEXT_SCALE_LABEL, normalizeTheme, buildGoogleFontsHref } from "@/lib/fonts";
+import QrCode from "@/components/QrCode";
 
 type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
 
@@ -3117,6 +3118,20 @@ function ReferralsTab({ userId, referralCode, businessName }: {
               className={`shrink-0 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${copied === "signup" ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}>
               {copied === "signup" ? "Copied! ✓" : "Copy"}
             </button>
+          </div>
+        </div>
+
+        {/* Scannable in person — hand someone your phone at the counter. */}
+        <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-5">
+          <div className="shrink-0 border border-gray-100 rounded-xl p-2">
+            <QrCode value={signupLink} size={104} alt="Your signup referral QR code" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-gray-900">Scan to sign up</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+              Have customers or other business owners scan this with their phone camera — it opens your
+              signup link and credits the referral to you.
+            </p>
           </div>
         </div>
 

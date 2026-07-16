@@ -6,6 +6,7 @@ import AccountSettingsModal from "@/components/AccountSettingsModal";
 import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPicksManager";
 import ProfileDetailsEditor, { normalizeDetails } from "@/components/ProfileDetailsEditor";
 import VendorLogo from "@/components/vendor/VendorLogo";
+import QrCode from "@/components/QrCode";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
@@ -969,6 +970,20 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                 >
                   {copied === "signup" ? "Copied! ✓" : "Copy"}
                 </button>
+              </div>
+
+              {/* Scannable in person — hand someone your phone. */}
+              <div className="mt-5 flex items-center gap-4 border-t border-gray-50 pt-5">
+                <div className="shrink-0 border border-gray-100 rounded-xl p-2">
+                  <QrCode value={signupLink} size={104} alt="Your referral QR code" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Scan to sign up</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                    Have a friend scan this with their phone camera — they&apos;ll land on your signup link
+                    and you&apos;ll earn Local Bucks when they join.
+                  </p>
+                </div>
               </div>
 
               <div className="mt-4 bg-amber-50 border border-amber-100 rounded-xl p-4">
