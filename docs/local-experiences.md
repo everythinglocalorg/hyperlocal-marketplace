@@ -27,9 +27,10 @@ model is **Book Now** — a buyer books the experience for a date; the Guide con
   the Guide confirms. Reuse the existing booking system
   (`RentalBookingModal`, `kind` prop — add/`"experience"` or reuse `"service"`;
   day‑blocking + availability so a Guide can cap capacity/day).
-- Payment routes to the **Guide's Stripe Connect** (destination charge; deposit or
-  full, like rentals/proposals). No Connect yet → fall back to the `purchase_inquiries`
-  request flow the cart uses.
+- **No deposits.** An Experience is either **free** (no charge — just book the date) or
+  **paid in full at booking**. Full payment routes to the **Guide's Stripe Connect**
+  (destination charge). No Connect yet → fall back to the `purchase_inquiries` request
+  flow the cart uses.
 
 ## Two separate money flows
 1. **Release fee to the PLATFORM.** Reuse the Jobs/Boosts Stripe pattern: on release,
@@ -97,6 +98,8 @@ Connect + the Jobs/Boosts webhook pattern, `isPaidTier`/tier gating, `FavoritesP
   sell Experiences — gate on `isPaidTier(vendor.tier)`, not `isPlusTier`.
 - **Lifecycle & fees:** first publish **$50**; stays live as long as the Guide wants;
   **Pause is free**; each **re‑publish from paused = $10**. Editing while live is free.
+- **Booking payment: no deposits** — an Experience is **free** or **paid in full at
+  booking** (full amount to the Guide's Stripe Connect).
 
 ## Open decisions
-- Deposit vs full payment at booking time.
+_None — spec fully resolved; ready to build Phase 1._
