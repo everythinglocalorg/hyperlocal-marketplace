@@ -296,35 +296,25 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
         </div>
 
         {/* Hero */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-green-50 via-white to-emerald-50 pt-14 sm:pt-20 pb-16 px-4">
+        <section className="relative overflow-hidden bg-gradient-to-br from-green-50 via-white to-emerald-50 pt-8 sm:pt-10 pb-12 px-4">
           {/* soft glow accents */}
           <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-green-200/40 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
 
           <div className="relative max-w-3xl mx-auto text-center">
             {/* trust chip */}
-            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-6 shadow-sm">
+            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-4 shadow-sm">
               <span className="text-sm leading-none">🇺🇸</span>
               <span className="text-xs font-semibold text-gray-600">Now live in <span className="text-green-700">4,000+ cities</span> nationwide</span>
             </div>
 
-            <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 mb-4 leading-[1.1] tracking-tight">
+            <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 mb-3 leading-[1.1] tracking-tight">
               Discover the best <TypedRotator phrases={HERO_PHRASES} className="text-green-600" /> in {cityName}.
             </h1>
-            <p className="text-lg sm:text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-gray-500 mb-5 max-w-2xl mx-auto">
               One click searching for every local business, product, and service near you —
               plus <span className="font-semibold text-amber-600">🪙 Local Bucks</span> rewards for supporting local.
             </p>
-
-            {/* City selector */}
-            <div className="flex justify-center mb-3">
-              <CitySelector
-                value={activeCity}
-                onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
-                radius={radius}
-                onRadiusChange={setRadius}
-              />
-            </div>
 
             {/* Ask Mike — concierge framing for the primary search */}
             <div className="flex items-center justify-center gap-2 mb-2">
@@ -332,24 +322,35 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               <span className="text-sm font-semibold text-gray-700">Ask Mike, your local guide — what do you need today?</span>
             </div>
 
-            {/* Search bar — the obvious primary action */}
-            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-3 flex gap-2 mb-4">
-              <div className="relative flex-1">
+            {/* Search bar — query + location + submit on one line (desktop);
+                stacks on mobile so the input keeps full width. */}
+            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+              <div className="relative flex-1 min-w-0">
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder='Try "plumber", "fresh eggs"… or @ a person/business'
-                  className="w-full px-4 py-3.5 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-100"
+                  className="w-full px-4 py-3 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-100"
                 />
                 <AtMentionDropdown query={query} />
               </div>
-              <button
-                type="submit"
-                className="bg-green-600 text-white px-7 py-3.5 rounded-xl text-base font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20 whitespace-nowrap"
-              >
-                Ask Mike →
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="shrink-0 sm:border-l sm:border-gray-100 sm:pl-2">
+                  <CitySelector
+                    value={activeCity}
+                    onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
+                    radius={radius}
+                    onRadiusChange={setRadius}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="flex-1 sm:flex-none bg-green-600 text-white px-5 py-3 rounded-xl text-base font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20 whitespace-nowrap"
+                >
+                  Ask Mike →
+                </button>
+              </div>
             </form>
 
             {/* Ask Mike — location-aware + learned search suggestions */}
