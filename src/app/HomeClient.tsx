@@ -309,11 +309,10 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
             </div>
 
             <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 mb-4 leading-[1.1] tracking-tight">
-              Discover the best <TypedRotator phrases={HERO_PHRASES} className="text-green-600" /> in {cityName}.<br />
-              <span className="text-green-600">Get rewarded for shopping local.</span>
+              Discover the best <TypedRotator phrases={HERO_PHRASES} className="text-green-600" /> in {cityName}.
             </h1>
             <p className="text-lg sm:text-xl text-gray-500 mb-8 max-w-2xl mx-auto">
-              One search for every local business, product, and service near you —
+              One click searching for every local business, product, and service near you —
               plus <span className="font-semibold text-amber-600">🪙 Local Bucks</span> rewards for supporting local.
             </p>
 
