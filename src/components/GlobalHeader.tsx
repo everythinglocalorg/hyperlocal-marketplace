@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import Logo from "@/components/Logo";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
 // Routes that render their own full-page chrome (own nav/sidebar) and should NOT
@@ -61,9 +62,9 @@ export default function GlobalHeader() {
   return (
     <header className="border-b border-gray-100 bg-white sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
-        <Link href="/" className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink">
-          <span className="text-lg sm:text-2xl font-bold text-green-600 truncate">Everything Local</span>
-          <span className="text-[10px] sm:text-xs bg-green-100 text-green-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium shrink-0">BETA</span>
+        <Link href="/" className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink" aria-label="Everything Local home">
+          <Logo size="sm" />
+          <span className="text-[10px] sm:text-xs bg-green-100 text-green-700 px-1.5 sm:px-2 py-0.5 rounded-full font-medium shrink-0 self-start mt-0.5">BETA</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {!authChecked ? (
