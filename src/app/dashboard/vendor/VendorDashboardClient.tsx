@@ -3105,6 +3105,25 @@ function ReferralsTab({ userId, referralCode, businessName }: {
           <p className="text-xs text-gray-400 mt-1">
             Share with other vendors — when they copy <em>their</em> link while logged in, it auto-tags them as referred by you.
           </p>
+
+          {/* Printable storefront QR — for table tents, window decals, cards. */}
+          <div className="mt-4 flex items-center gap-4 bg-gray-50 border border-gray-100 rounded-xl p-4">
+            <div className="shrink-0 bg-white border border-gray-100 rounded-xl p-2">
+              <QrCode
+                value={profileLink}
+                size={104}
+                alt={`QR code to ${businessName}'s storefront`}
+                downloadName={`${slugifiedName}-storefront-qr`}
+              />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">📍 Your storefront QR</p>
+              <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                Print it for your counter, window, or business cards — anyone who scans it lands straight
+                on your Everything Local page. Download saves a high-resolution copy for printing.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div>

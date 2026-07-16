@@ -11,18 +11,23 @@ export default function QrCode({
   size = 180,
   className = "",
   alt = "QR code",
+  downloadName,
 }: {
   value: string;
   size?: number;
   className?: string;
   alt?: string;
+  /** When set, renders a Download link so the QR can be saved and printed. */
+  downloadName?: string;
 }) {
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     QRCode.toDataURL(value, {
-      width: size * 2,          // 2x so it stays crisp on retina
+      // 2x for retina; go big when it's downloadable so the saved file is
+      // print-quality (window decals, table tents).
+      width: downloadName ? 1024 : size * 2,
       margin: 1,
       errorCorrectionLevel: "M",
       color: { dark: "#111827ff", light: "#ffffffff" },
@@ -30,7 +35,7 @@ export default function QrCode({
       .then((url) => { if (!cancelled) setSrc(url); })
       .catch(() => { if (!cancelled) setSrc(null); });
     return () => { cancelled = true; };
-  }, [value, size]);
+  }, [value, size, downloadName]);
 
   // Reserve the space while encoding so the layout doesn't jump.
   if (!src) {
@@ -43,7 +48,7 @@ export default function QrCode({
     );
   }
 
-  return (
+  const img = (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       src={src}
@@ -52,5 +57,20 @@ export default function QrCode({
       height={size}
       className={`rounded-xl bg-white ${className}`}
     />
+  );
+
+  if (!downloadName) return img;
+
+  return (
+    <span className="inline-flex flex-col items-center gap-1.5">
+      {img}
+      <a
+        href={src}
+        download={`${downloadName}.png`}
+        className="text-xs font-semibold text-green-600 hover:text-green-700 hover:underline"
+      >
+        ⬇ Download
+      </a>
+    </span>
   );
 }
