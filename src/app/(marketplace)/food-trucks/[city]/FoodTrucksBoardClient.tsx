@@ -102,9 +102,6 @@ export default function FoodTrucksBoardClient({
               <h1 className="text-2xl font-bold text-gray-900">
                 Food Trucks in {cityName}, {stateCode}
               </h1>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Every truck in town — free to list, always.
-              </p>
             </div>
             {markers.length > 0 && (
               <button
