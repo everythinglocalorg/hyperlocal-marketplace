@@ -90,6 +90,8 @@ type Listing = {
   cta_type?: string | null;
   porch_pickup?: boolean | null;
   local_drop?: boolean | null;
+  pickup_info?: string | null;
+  drop_info?: string | null;
   sold_at?: string | null;
   created_at: string;
 };
@@ -1339,7 +1341,7 @@ function ListingsTab({
   const [form, setForm] = useState({
     title: "", type: "product", price: "", price_label: "", description: "",
     category: "Products", quantity: "", condition: "new", tags: "",
-    porch_pickup: false, local_drop: false,
+    porch_pickup: false, local_drop: false, pickup_info: "", drop_info: "",
   });
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["Products"]);
   const [ctaType, setCtaType] = useState<ListingCtaType>(defaultCtaForListingType("product"));
@@ -1384,6 +1386,8 @@ function ListingsTab({
         tags: editingListing.tags?.join(", ") ?? "",
         porch_pickup: !!editingListing.porch_pickup,
         local_drop: !!editingListing.local_drop,
+        pickup_info: editingListing.pickup_info ?? "",
+        drop_info: editingListing.drop_info ?? "",
       });
       setSelectedCategories(
         editingListing.categories?.length
@@ -1535,9 +1539,11 @@ function ListingsTab({
     const waiverPayload = {
       ...basePayload,
       cta_type: ctaType,
-      // Local fulfillment (needs supabase/local_pickup.sql) — falls back cleanly.
+      // Local fulfillment (needs supabase/local_pickup.sql + fulfillment_locations.sql).
       porch_pickup: form.porch_pickup,
       local_drop: form.local_drop,
+      pickup_info: form.pickup_info.trim() || null,
+      drop_info: form.drop_info.trim() || null,
       ...(form.type === "rental" ? {
         waiver_url: rentalWaiverUrl,
         waiver_filename: rentalWaiverFilename,
@@ -1585,7 +1591,7 @@ function ListingsTab({
       } catch { /* table not yet created — run rentals.sql */ }
     }
 
-    setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "", porch_pickup: false, local_drop: false });
+    setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "", porch_pickup: false, local_drop: false, pickup_info: "", drop_info: "" });
     setCategoryId("");
     setSelectedCategories(["Products"]);
     setCtaType(defaultCtaForListingType("product"));
@@ -1799,6 +1805,22 @@ function ListingsTab({
                       </button>
                     </div>
                     <p className="text-[11px] text-gray-400 mt-1">Buyers choose one at checkout. Leave both off to skip.</p>
+                    {form.porch_pickup && (
+                      <div className="mt-2">
+                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Pickup location for this item <span className="font-normal text-gray-400">— blank uses your store default</span></label>
+                        <textarea value={form.pickup_info} onChange={(e) => setForm((f) => ({ ...f, pickup_info: e.target.value }))} rows={2}
+                          placeholder="Override where/how to pick up this item"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                      </div>
+                    )}
+                    {form.local_drop && (
+                      <div className="mt-2">
+                        <label className="block text-[11px] font-medium text-gray-500 mb-1">Meet-up spot for this item <span className="font-normal text-gray-400">— blank uses your store default</span></label>
+                        <textarea value={form.drop_info} onChange={(e) => setForm((f) => ({ ...f, drop_info: e.target.value }))} rows={2}
+                          placeholder="Override where you meet buyers for this item"
+                          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -3282,6 +3304,9 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [address, setAddress] = useState(vendor.address ?? "");
   const [city, setCity] = useState(vendor.city ?? "");
   const [vendorState, setVendorState] = useState(vendor.state ?? "");
+  // Default fulfillment locations shown to buyers who pick Porch Pickup / Local Drop.
+  const [pickupInfo, setPickupInfo] = useState(vendor.pickup_info ?? "");
+  const [dropInfo, setDropInfo] = useState(vendor.drop_info ?? "");
   // Up to 10 service locations (towns/cities served) for SEO + LocalBusiness schema
   const [serviceLocations, setServiceLocations] = useState<string[]>(() => {
     const existing: string[] = Array.isArray(vendor.service_locations) ? vendor.service_locations : [];
@@ -3420,6 +3445,8 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       address: address.trim() || null,
       city: city.trim(),
       state: vendorState.trim(),
+      pickup_info: pickupInfo.trim() || null,
+      drop_info: dropInfo.trim() || null,
       service_locations: serviceLocations.map((s) => s.trim()).filter(Boolean),
       logo_url: logoUrl,
       banner_url: bannerUrl,
@@ -3569,6 +3596,27 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           <label className="block text-sm font-semibold text-gray-700 mb-1">Street address <span className="text-gray-400 font-normal">(optional)</span></label>
           <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Main St" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
         </div>
+
+        {/* ── LOCAL FULFILLMENT DEFAULTS ───────────────────────────── */}
+        <div className="border border-gray-200 rounded-2xl p-5 bg-white space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-gray-700">Local fulfillment</label>
+            <p className="text-xs text-gray-400 mt-0.5">Shown to a buyer when they choose that method at checkout. Set it once here; a listing can override it. Turn the methods on per product in the listing editor.</p>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">🏡 Porch Pickup — where &amp; how to pick up</label>
+            <textarea value={pickupInfo} onChange={(e) => setPickupInfo(e.target.value)} rows={2}
+              placeholder="e.g. 3801 Dudley Lake Rd — orders in the cooler on the porch, cash box is there"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">🚗 Local Drop — where you meet buyers</label>
+            <textarea value={dropInfo} onChange={(e) => setDropInfo(e.target.value)} rows={2}
+              placeholder="e.g. Central Park lot, Faribault — Saturdays 9–11am"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Phone <span className="text-gray-400 font-normal">(optional)</span></label>

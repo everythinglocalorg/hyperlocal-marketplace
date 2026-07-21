@@ -21,6 +21,8 @@ export default function CartDrawer() {
   const [error, setError] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [fulfillment, setFulfillment] = useState<"porch_pickup" | "local_drop" | "">("");
+  // Captured at order time so the confirmation can show it after the cart clears.
+  const [confirmed, setConfirmed] = useState<{ label: string; locations: string[] } | null>(null);
 
   // A method is only offered if EVERY item in the cart supports it (single store,
   // but items can differ). Porch Pickup = buyer collects; Local Drop = seller drops off.
@@ -51,6 +53,13 @@ export default function CartDrawer() {
   // Auto-select when a single method is offered; otherwise the buyer must pick.
   const chosenFulfillment = fulfillment || (fulfillmentOpts.length === 1 ? fulfillmentOpts[0].id : "");
 
+  // The location(s) to reveal for the chosen method — usually one shared spot.
+  const fLocations: string[] = (() => {
+    if (!chosenFulfillment) return [];
+    const vals = items.map((i) => (chosenFulfillment === "porch_pickup" ? i.pickupInfo : i.dropInfo)).filter(Boolean) as string[];
+    return [...new Set(vals)];
+  })();
+
   async function placeOrder() {
     if (!vendor) return;
     if (!name.trim() || !email.trim()) { setError("Name and email are required."); return; }
@@ -60,6 +69,7 @@ export default function CartDrawer() {
     const fLabel = chosenFulfillment === "porch_pickup" ? "🏡 Porch Pickup" : chosenFulfillment === "local_drop" ? "🚗 Local Drop" : null;
     // One order request per line item so each shows up against its listing.
     const rows = items.map((it) => {
+      const itLoc = chosenFulfillment === "porch_pickup" ? it.pickupInfo : chosenFulfillment === "local_drop" ? it.dropInfo : null;
       const row: Record<string, unknown> = {
         listing_id: it.listingId,
         vendor_id: vendor.id,
@@ -67,7 +77,7 @@ export default function CartDrawer() {
         buyer_name: name.trim(),
         buyer_email: email.trim(),
         buyer_phone: phone.trim() || null,
-        message: `Cart order — Qty ${it.qty} × ${it.title} (${formatPrice(it.price)} ea)${fLabel ? ` · ${fLabel}` : ""}${note.trim() ? ` · ${note.trim()}` : ""}`,
+        message: `Cart order — Qty ${it.qty} × ${it.title} (${formatPrice(it.price)} ea)${fLabel ? ` · ${fLabel}${itLoc ? ` (${itLoc})` : ""}` : ""}${note.trim() ? ` · ${note.trim()}` : ""}`,
         inquiry_type: "buy",
         listing_title: it.title,
         is_read: false,
@@ -80,6 +90,8 @@ export default function CartDrawer() {
     const { error: err } = await supabase.from("purchase_inquiries").insert(rows);
     setSubmitting(false);
     if (err) { setError("Something went wrong. Please try again."); return; }
+    if (fLabel) setConfirmed({ label: fLabel, locations: fLocations });
+    else setConfirmed(null);
     clear();
     setView("done");
   }
@@ -98,6 +110,16 @@ export default function CartDrawer() {
           <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
             <div className="text-5xl mb-4">🎉</div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Order request sent!</h3>
+            {confirmed && (
+              <div className="w-full max-w-xs rounded-xl bg-green-50 border border-green-100 px-4 py-3 mb-4 text-left">
+                <p className="text-xs font-semibold text-green-700 mb-0.5">{confirmed.label}</p>
+                {confirmed.locations.length > 0 ? (
+                  confirmed.locations.map((loc, i) => <p key={i} className="text-sm text-green-800 whitespace-pre-line">{loc}</p>)
+                ) : (
+                  <p className="text-sm text-green-800">The store will share the details shortly.</p>
+                )}
+              </div>
+            )}
             <p className="text-sm text-gray-500 mb-6">The store will reach out to finalize your order and payment.</p>
             <button onClick={close} className="bg-green-600 text-white font-semibold px-8 py-3 rounded-full hover:bg-green-700 transition-colors">Done</button>
           </div>
@@ -157,6 +179,19 @@ export default function CartDrawer() {
                         );
                       })}
                     </div>
+                    {chosenFulfillment && fLocations.length > 0 && (
+                      <div className="mt-2 rounded-xl bg-green-50 border border-green-100 px-3 py-2">
+                        <p className="text-[11px] font-semibold text-green-700 mb-0.5">
+                          {chosenFulfillment === "porch_pickup" ? "🏡 Pickup location" : "🚗 Meet-up spot"}
+                        </p>
+                        {fLocations.map((loc, i) => (
+                          <p key={i} className="text-xs text-green-800 whitespace-pre-line">{loc}</p>
+                        ))}
+                      </div>
+                    )}
+                    {chosenFulfillment && fLocations.length === 0 && (
+                      <p className="mt-1.5 text-[11px] text-gray-400">The store will share the {chosenFulfillment === "porch_pickup" ? "pickup" : "meet-up"} details after you order.</p>
+                    )}
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-2.5">

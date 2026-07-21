@@ -25,6 +25,8 @@ export type DetailListing = {
   cta_type?: string | null;
   porch_pickup?: boolean | null;
   local_drop?: boolean | null;
+  pickup_info?: string | null;
+  drop_info?: string | null;
   waiver_url?: string | null;
   waiver_filename?: string | null;
   sold_at?: string | null;
@@ -77,7 +79,7 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   listing: DetailListing; vendorPhone: string | null; menuPdfUrl: string | null;
   paymentsEnabled?: boolean;
   vendorName?: string | null; vendorSlug?: string | null;
-  cartVendor?: { id: string; name: string; slug: string };
+  cartVendor?: { id: string; name: string; slug: string; pickupInfo?: string | null; dropInfo?: string | null };
   onClose: () => void; onBook: () => void; onBuy: () => void; onOrder?: () => void; onMakeOffer?: () => void; onMessage: () => void; onEstimate: () => void;
 }) {
   const cart = useCart();
@@ -143,6 +145,9 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
       listingId: listing.id, title: listing.title, price: Number(listing.price),
       image: listing.images?.[0] ?? null,
       porchPickup: !!listing.porch_pickup, localDrop: !!listing.local_drop,
+      // Effective location: this listing's override, else the store default.
+      pickupInfo: (listing.pickup_info?.trim() || cartVendor.pickupInfo) ?? null,
+      dropInfo: (listing.drop_info?.trim() || cartVendor.dropInfo) ?? null,
     };
     const res = cart.addItem(cartVendor, item);
     if (res === "conflict") {
