@@ -97,6 +97,7 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
   return (
     <div ref={ref} className="relative inline-block">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-full text-sm font-medium hover:bg-green-100 transition-colors whitespace-nowrap"
       >
@@ -148,6 +149,7 @@ export default function CitySelector({ value, onChange, radius, onRadiusChange }
                 {RADIUS_OPTIONS.map(r => (
                   <button
                     key={r}
+                    type="button"
                     onClick={() => onRadiusChange(r)}
                     className={`flex-1 py-1.5 text-xs rounded-lg font-medium transition-colors ${
                       radius === r ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
