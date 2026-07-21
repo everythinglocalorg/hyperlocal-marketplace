@@ -81,7 +81,7 @@ function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
       onClick={onClick}
       className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer"
     >
-      <div className="h-36 bg-gray-100 relative">
+      <div className="h-36 bg-white relative">
         {l.images?.[0] ? (
           <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className={`w-full h-full object-cover ${isSold ? "opacity-60" : ""}`} />
         ) : (

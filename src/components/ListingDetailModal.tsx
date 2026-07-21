@@ -157,7 +157,7 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
         onClick={(e) => e.stopPropagation()}
       >
         {/* Gallery */}
-        <div className="relative bg-gray-900 shrink-0">
+        <div className="relative bg-white border-b border-gray-100 shrink-0">
           {images.length > 0 ? (
             <img src={images[imgIdx]} alt={listing.title} className="w-full h-56 sm:h-72 object-cover" />
           ) : (

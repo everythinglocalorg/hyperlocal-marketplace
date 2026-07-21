@@ -64,7 +64,7 @@ export default function WishlistPage() {
               const priceLabel = it.price != null ? formatPrice(it.price) : it.price_label;
               return (
                 <div key={it.id} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group">
-                  <Link href={v?.slug ? `/vendors/${v.slug}` : "#"} className="block relative aspect-square bg-gray-100">
+                  <Link href={v?.slug ? `/vendors/${v.slug}` : "#"} className="block relative aspect-square bg-white">
                     {it.images?.[0]
                       ? <img src={it.images[0]} alt={it.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                       : <span className="w-full h-full flex items-center justify-center text-4xl text-gray-300">📦</span>}

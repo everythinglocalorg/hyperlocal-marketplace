@@ -415,7 +415,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   return (
                     <Link key={l.id} href={`/vendors/${slug}`}
                       className={`bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-all ${l.boosted ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-100 hover:border-green-200"}`}>
-                      <div className="w-full h-28 bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                      <div className="w-full h-28 bg-white flex items-center justify-center overflow-hidden relative">
                         {l.boosted && <span className="absolute top-1.5 left-1.5 z-10 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★ Featured</span>}
                         {l.images?.[0]
                           ? <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />

@@ -1024,7 +1024,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-6">
                   {(activeProductCat ? orderedListings.filter((l) => l.listing_category_id === activeProductCat) : orderedListings).map((listing) => (
                     <button key={listing.id} onClick={() => openDetail(listing)} className="text-left group">
-                      <div className="relative aspect-square rounded-xl bg-gray-100 overflow-hidden mb-2 flex items-center justify-center">
+                      <div className="relative aspect-square rounded-xl bg-white border border-gray-100 overflow-hidden mb-2 flex items-center justify-center">
                         {listing.images?.[0]
                           ? <img src={listing.images[0]} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                           : <span className="text-3xl text-gray-300">{TYPE_ICON[listing.type] ?? "📦"}</span>}
