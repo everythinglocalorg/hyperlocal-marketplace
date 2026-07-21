@@ -85,6 +85,24 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
     if (res === "login") window.location.href = "/login";
   }
   const [imgIdx, setImgIdx] = useState(0);
+  const [shared, setShared] = useState(false);
+
+  // Share the listing's own page — /listings/[id] carries og:image = the real
+  // photo, so link previews show a clean image instead of a blank card.
+  async function shareListing() {
+    const url = typeof window !== "undefined"
+      ? `${window.location.origin}/listings/${listing.id}`
+      : `/listings/${listing.id}`;
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: listing.title, url });
+        return;
+      } catch { /* cancelled — fall through to copy */ }
+    }
+    try { await navigator.clipboard?.writeText(url); } catch { /* ignore */ }
+    setShared(true);
+    setTimeout(() => setShared(false), 1600);
+  }
   const housingData = parseHousing(listing);
   const thriftData = parseThrift(listing);
   const priceLabel = derivePriceLabel(listing);
@@ -162,6 +180,20 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
             </svg>
           </button>
+          <button
+            onClick={shareListing}
+            aria-label="Share this listing"
+            className="absolute top-3 right-[6.25rem] w-9 h-9 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-colors"
+          >
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.185 2.25 2.25 0 0 0-3.933 2.185Z" />
+            </svg>
+          </button>
+          {shared && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/75 text-white text-xs font-medium px-3 py-1.5 rounded-full pointer-events-none">
+              Link copied ✓
+            </div>
+          )}
           {listing.is_featured && (
             <span className="absolute top-3 left-3 bg-amber-400 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-full">⭐ Featured</span>
           )}
