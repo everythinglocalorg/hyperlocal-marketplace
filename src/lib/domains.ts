@@ -7,14 +7,12 @@ export const BRAND_ORIGIN =
   process.env.NEXT_PUBLIC_BRAND_URL ?? "https://everythinglocal.org";
 
 // The platform's own hostnames — never treated as a vendor custom domain.
-// .shop is kept during the migration off it; every1local.com is the old brand.
+// .shop is kept during the migration off it. everythinglocal.org is canonical.
 const BRAND_HOSTS = new Set([
   "everythinglocal.org",
   "www.everythinglocal.org",
   "everythinglocal.shop",
   "www.everythinglocal.shop",
-  "every1local.com",
-  "www.every1local.com",
 ]);
 
 // Hosts that belong to the platform itself (not a vendor's custom domain).
