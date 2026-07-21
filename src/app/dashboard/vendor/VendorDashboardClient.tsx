@@ -2079,12 +2079,9 @@ function ListingsTab({
                       <p className="text-sm font-semibold text-gray-900 truncate">{l.title}</p>
                       <p className="text-xs text-gray-400 capitalize">{l.type}{cats.length === 0 ? ` · ${catName(l.listing_category_id) ?? l.category}` : ""}</p>
                     </div>
-                    <button
-                      onClick={() => onToggle(l.id, l.is_active)}
-                      className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${l.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}
-                    >
+                    <span className={`shrink-0 text-xs px-2.5 py-1 rounded-full font-medium ${l.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                       {l.is_active ? "Active" : "Paused"}
-                    </button>
+                    </span>
                   </div>
                   {cats.length > 0 && (
                     <select
@@ -2106,6 +2103,7 @@ function ListingsTab({
               </div>
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-50">
                 <button onClick={() => onEdit(l)} className="flex-1 min-w-[90px] text-sm bg-gray-900 text-white py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">✏️ Edit</button>
+                <button onClick={() => onToggle(l.id, l.is_active)} className={`flex-1 min-w-[100px] text-sm border py-2 rounded-xl font-semibold transition-colors ${l.is_active ? "border-gray-300 text-gray-700 hover:bg-gray-50" : "border-green-300 text-green-700 hover:bg-green-50"}`}>{l.is_active ? "⏸ Pause" : "▶ Activate"}</button>
                 {l.type === "thrift" && (
                   <button onClick={() => markSold(l.id, !l.sold_at)} className={`flex-1 min-w-[110px] text-sm border py-2 rounded-xl font-semibold transition-colors ${l.sold_at ? "border-green-300 text-green-700 hover:bg-green-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>{l.sold_at ? "↩ Mark Available" : "✓ Mark Sold"}</button>
                 )}
@@ -2182,19 +2180,16 @@ function ListingsTab({
                   <td className="px-4 py-3 text-right text-sm text-gray-600">{l.view_count}</td>
                   <td className="px-4 py-3 text-right text-sm text-gray-600">{l.click_count}</td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => onToggle(l.id, l.is_active)}
-                      className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
-                        l.is_active ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                      }`}
-                    >
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${l.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                       {l.is_active ? "Active" : "Paused"}
-                    </button>
+                    </span>
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-2 justify-end">
                       <button onClick={() => onEdit(l)} className="text-xs text-blue-500 hover:underline">Edit</button>
+                      <button onClick={() => onToggle(l.id, l.is_active)} className="text-xs text-gray-600 hover:underline">{l.is_active ? "Pause" : "Activate"}</button>
                       <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="text-xs text-gray-500 hover:underline disabled:opacity-50">{duplicatingId === l.id ? "…" : "Copy"}</button>
+                      <button onClick={() => setBoostListingId(l.id)} className="text-xs text-amber-600 hover:underline">🚀 Boost</button>
                       <button onClick={() => onDelete(l.id)} className="text-xs text-red-400 hover:underline">Delete</button>
                     </div>
                   </td>
