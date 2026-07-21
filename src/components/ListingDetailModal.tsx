@@ -23,6 +23,8 @@ export type DetailListing = {
   quantity?: number | null;
   is_featured?: boolean;
   cta_type?: string | null;
+  porch_pickup?: boolean | null;
+  local_drop?: boolean | null;
   waiver_url?: string | null;
   waiver_filename?: string | null;
   sold_at?: string | null;
@@ -71,8 +73,9 @@ export function resolveListingCta(listing: DetailListing, vendorPhone: string | 
 // gallery and details with a sticky action bar. Pass vendorName + vendorSlug
 // (e.g. from search) to render a "view business" link; omit on the vendor's
 // own profile page where it would be redundant.
-export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, cartVendor, onClose, onBook, onBuy, onOrder, onMakeOffer, onMessage, onEstimate }: {
+export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, vendorName, vendorSlug, cartVendor, paymentsEnabled, onClose, onBook, onBuy, onOrder, onMakeOffer, onMessage, onEstimate }: {
   listing: DetailListing; vendorPhone: string | null; menuPdfUrl: string | null;
+  paymentsEnabled?: boolean;
   vendorName?: string | null; vendorSlug?: string | null;
   cartVendor?: { id: string; name: string; slug: string };
   onClose: () => void; onBook: () => void; onBuy: () => void; onOrder?: () => void; onMakeOffer?: () => void; onMessage: () => void; onEstimate: () => void;
@@ -112,10 +115,19 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   const isThrift = listing.type === "thrift";
   const isSold = !!listing.sold_at || listing.quantity === 0;
 
+  // Buy Now / Order Now: with no payments set up (no vendor Stripe), this is a
+  // lead flow — so route it to the cart, exactly where Add to Cart goes. Once the
+  // vendor can take card payments, it goes to the single-item buy instead.
+  const canCartBuy = !!cartVendor && listing.price != null;
+  function runBuy() {
+    if (!paymentsEnabled && canCartBuy) addToCart();
+    else onBuy();
+  }
+
   function runCta() {
     if (ctaAction === "book") onBook();
-    else if (ctaAction === "order") (onOrder ?? onBuy)();
-    else if (ctaAction === "buy") onBuy();
+    else if (ctaAction === "order") { if (!paymentsEnabled && canCartBuy) addToCart(); else (onOrder ?? onBuy)(); }
+    else if (ctaAction === "buy") runBuy();
     else if (ctaAction === "estimate") onEstimate();
     else if (ctaAction === "menu") {
       if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");
@@ -127,7 +139,11 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
 
   function addToCart() {
     if (!cartVendor || listing.price == null) return;
-    const item = { listingId: listing.id, title: listing.title, price: Number(listing.price), image: listing.images?.[0] ?? null };
+    const item = {
+      listingId: listing.id, title: listing.title, price: Number(listing.price),
+      image: listing.images?.[0] ?? null,
+      porchPickup: !!listing.porch_pickup, localDrop: !!listing.local_drop,
+    };
     const res = cart.addItem(cartVendor, item);
     if (res === "conflict") {
       const ok = window.confirm(`Your cart has items from ${cart.vendor?.name}. You can only order from one store at a time — start a new cart with ${cartVendor.name}?`);

@@ -88,6 +88,8 @@ type Listing = {
   rental_deposit_type?: string | null;
   rental_deposit_value?: number | null;
   cta_type?: string | null;
+  porch_pickup?: boolean | null;
+  local_drop?: boolean | null;
   sold_at?: string | null;
   created_at: string;
 };
@@ -1337,6 +1339,7 @@ function ListingsTab({
   const [form, setForm] = useState({
     title: "", type: "product", price: "", price_label: "", description: "",
     category: "Products", quantity: "", condition: "new", tags: "",
+    porch_pickup: false, local_drop: false,
   });
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["Products"]);
   const [ctaType, setCtaType] = useState<ListingCtaType>(defaultCtaForListingType("product"));
@@ -1379,6 +1382,8 @@ function ListingsTab({
         quantity: editingListing.quantity?.toString() ?? "",
         condition: editingListing.condition ?? "new",
         tags: editingListing.tags?.join(", ") ?? "",
+        porch_pickup: !!editingListing.porch_pickup,
+        local_drop: !!editingListing.local_drop,
       });
       setSelectedCategories(
         editingListing.categories?.length
@@ -1530,6 +1535,9 @@ function ListingsTab({
     const waiverPayload = {
       ...basePayload,
       cta_type: ctaType,
+      // Local fulfillment (needs supabase/local_pickup.sql) — falls back cleanly.
+      porch_pickup: form.porch_pickup,
+      local_drop: form.local_drop,
       ...(form.type === "rental" ? {
         waiver_url: rentalWaiverUrl,
         waiver_filename: rentalWaiverFilename,
@@ -1577,7 +1585,7 @@ function ListingsTab({
       } catch { /* table not yet created — run rentals.sql */ }
     }
 
-    setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "" });
+    setForm({ title: "", type: "product", price: "", price_label: "", description: "", category: "Products", quantity: "", condition: "new", tags: "", porch_pickup: false, local_drop: false });
     setCategoryId("");
     setSelectedCategories(["Products"]);
     setCtaType(defaultCtaForListingType("product"));
@@ -1769,6 +1777,30 @@ function ListingsTab({
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
+                {form.type === "product" && (
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">Local fulfillment <span className="font-normal text-gray-400">— how buyers can get this</span></label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, porch_pickup: !f.porch_pickup }))}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${form.porch_pickup ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}
+                      >
+                        <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] text-white ${form.porch_pickup ? "bg-green-600" : "bg-gray-300"}`}>{form.porch_pickup ? "✓" : ""}</span>
+                        🏡 Porch Pickup
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, local_drop: !f.local_drop }))}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${form.local_drop ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}
+                      >
+                        <span className={`w-4 h-4 rounded flex items-center justify-center text-[10px] text-white ${form.local_drop ? "bg-green-600" : "bg-gray-300"}`}>{form.local_drop ? "✓" : ""}</span>
+                        🚗 Local Drop
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">Buyers choose one at checkout. Leave both off to skip.</p>
+                  </div>
+                )}
               </>
             )}
             {form.type === "thrift" && (

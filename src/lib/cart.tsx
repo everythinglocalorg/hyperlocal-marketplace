@@ -7,7 +7,7 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 // Stripe account, so a cart can't span stores. Adding from a different store
 // surfaces a "conflict" the UI resolves by starting a fresh cart.
 
-export type CartItem = { listingId: string; title: string; price: number; image: string | null; qty: number };
+export type CartItem = { listingId: string; title: string; price: number; image: string | null; qty: number; porchPickup?: boolean; localDrop?: boolean };
 export type CartVendor = { id: string; name: string; slug: string };
 type CartState = { vendor: CartVendor | null; items: CartItem[] };
 

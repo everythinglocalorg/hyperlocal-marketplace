@@ -56,6 +56,7 @@ type Vendor = {
   menu_pdf_url?: string | null;
   cta_button?: { action?: "call" | "estimate" | "order"; url?: string } | null;
   theme?: StoreTheme | null;
+  stripe_connect_enabled?: boolean | null;
 };
 
 // Category cover photos (hand-verified Unsplash) — used as the hero cover when
@@ -672,6 +673,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         vendorPhone={vendor.phone}
         menuPdfUrl={vendor.menu_pdf_url ?? null}
         cartVendor={{ id: vendor.id, name: vendor.business_name, slug: vendor.slug }}
+        paymentsEnabled={vendor.stripe_connect_enabled ?? false}
         onClose={() => setDetailListing(null)}
         onBook={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); openBooking(l); }}
         onBuy={() => { if (requireAccount()) { setDetailListing(null); return; } const l = detailListing; setDetailListing(null); trackClick(l.id); setBuyListing(l); }}

@@ -20,6 +20,16 @@ export default function CartDrawer() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
+  const [fulfillment, setFulfillment] = useState<"porch_pickup" | "local_drop" | "">("");
+
+  // A method is only offered if EVERY item in the cart supports it (single store,
+  // but items can differ). Porch Pickup = buyer collects; Local Drop = seller drops off.
+  const allPorch = items.length > 0 && items.every((i) => i.porchPickup);
+  const allDrop = items.length > 0 && items.every((i) => i.localDrop);
+  const fulfillmentOpts = [
+    ...(allPorch ? [{ id: "porch_pickup" as const, label: "🏡 Porch Pickup", hint: "You pick it up" }] : []),
+    ...(allDrop ? [{ id: "local_drop" as const, label: "🚗 Local Drop", hint: "Seller drops off" }] : []),
+  ];
 
   // Prefill contact info for signed-in shoppers.
   useEffect(() => {
@@ -38,24 +48,35 @@ export default function CartDrawer() {
 
   if (!isOpen) return null;
 
+  // Auto-select when a single method is offered; otherwise the buyer must pick.
+  const chosenFulfillment = fulfillment || (fulfillmentOpts.length === 1 ? fulfillmentOpts[0].id : "");
+
   async function placeOrder() {
     if (!vendor) return;
     if (!name.trim() || !email.trim()) { setError("Name and email are required."); return; }
+    if (fulfillmentOpts.length > 0 && !chosenFulfillment) { setError("Choose how you'd like to get your order."); return; }
     setSubmitting(true);
     setError("");
+    const fLabel = chosenFulfillment === "porch_pickup" ? "🏡 Porch Pickup" : chosenFulfillment === "local_drop" ? "🚗 Local Drop" : null;
     // One order request per line item so each shows up against its listing.
-    const rows = items.map((it) => ({
-      listing_id: it.listingId,
-      vendor_id: vendor.id,
-      buyer_id: userId,
-      buyer_name: name.trim(),
-      buyer_email: email.trim(),
-      buyer_phone: phone.trim() || null,
-      message: `Cart order — Qty ${it.qty} × ${it.title} (${formatPrice(it.price)} ea)${note.trim() ? ` · ${note.trim()}` : ""}`,
-      inquiry_type: "buy",
-      listing_title: it.title,
-      is_read: false,
-    }));
+    const rows = items.map((it) => {
+      const row: Record<string, unknown> = {
+        listing_id: it.listingId,
+        vendor_id: vendor.id,
+        buyer_id: userId,
+        buyer_name: name.trim(),
+        buyer_email: email.trim(),
+        buyer_phone: phone.trim() || null,
+        message: `Cart order — Qty ${it.qty} × ${it.title} (${formatPrice(it.price)} ea)${fLabel ? ` · ${fLabel}` : ""}${note.trim() ? ` · ${note.trim()}` : ""}`,
+        inquiry_type: "buy",
+        listing_title: it.title,
+        is_read: false,
+      };
+      // Only attach the column when set, so checkout still works before the
+      // supabase/local_pickup.sql migration is applied.
+      if (chosenFulfillment) row.fulfillment = chosenFulfillment;
+      return row;
+    });
     const { error: err } = await supabase.from("purchase_inquiries").insert(rows);
     setSubmitting(false);
     if (err) { setError("Something went wrong. Please try again."); return; }
@@ -121,6 +142,23 @@ export default function CartDrawer() {
             {/* Checkout form */}
             {view === "checkout" && (
               <div className="px-5 py-3 border-t border-gray-100 space-y-2.5 overflow-y-auto max-h-[45%] shrink-0">
+                {fulfillmentOpts.length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 mb-1.5">How would you like to get your order? <span className="text-red-400">*</span></p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {fulfillmentOpts.map((o) => {
+                        const active = chosenFulfillment === o.id;
+                        return (
+                          <button key={o.id} type="button" onClick={() => setFulfillment(o.id)}
+                            className={`text-left px-3 py-2 rounded-xl border text-sm transition-colors ${active ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
+                            <span className={`block font-semibold text-[13px] ${active ? "text-green-700" : "text-gray-700"}`}>{o.label}</span>
+                            <span className="block text-[11px] text-gray-400">{o.hint}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-2.5">
                   <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name *" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                   <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
