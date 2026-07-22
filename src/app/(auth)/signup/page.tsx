@@ -155,7 +155,7 @@ function SignupForm() {
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          I'm a Buyer
+          Explore Local
         </button>
         <button
           type="button"
@@ -166,7 +166,7 @@ function SignupForm() {
               : "text-gray-500 hover:text-gray-700"
           }`}
         >
-          I'm a Vendor
+          List My Business
         </button>
       </div>
 
