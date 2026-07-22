@@ -2,15 +2,50 @@ import { ImageResponse } from "next/og";
 
 export const runtime = "nodejs";
 
-// Branded link-preview image shown when Everything Local links are shared.
-// Accepts optional ?title= and ?subtitle= so pages without their own photo
-// (e.g. the Explore page, or a place with no image yet) still get a clean,
-// on-brand preview card instead of a blank/placeholder.
-export function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
+// Link-preview (Open Graph) image shown when Everything Local links are shared.
+// Look: full-bleed hero photo + a dark bottom-up gradient scrim + white
+// Archivo-Black wordmark/title on top — matching the brand logo.
+//
+// The hero photo lives at /public/og-hero.jpg. If it's missing (or fails to
+// load) the card falls back to a deep-green brand gradient so it still looks
+// sharp. Pages pass ?title= and ?subtitle= to headline their own preview.
+
+// Archivo Black (the logo typeface) for the overlay text. Fetched once and
+// cached across invocations; if the fetch fails we fall back to a system bold.
+let archivoPromise: Promise<ArrayBuffer | null> | null = null;
+function loadArchivo(): Promise<ArrayBuffer | null> {
+  if (!archivoPromise) {
+    archivoPromise = fetch(
+      "https://raw.githubusercontent.com/google/fonts/main/ofl/archivoblack/ArchivoBlack-Regular.ttf"
+    )
+      .then((r) => (r.ok ? r.arrayBuffer() : null))
+      .catch(() => null);
+  }
+  return archivoPromise;
+}
+
+// Pull the hero photo bytes so a missing file degrades to the brand background
+// instead of throwing the whole render.
+async function loadHero(origin: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${origin}/og-hero.jpg`);
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    const type = res.headers.get("content-type") || "image/jpeg";
+    return `data:${type};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+export async function GET(req: Request) {
+  const { searchParams, origin } = new URL(req.url);
   const title = (searchParams.get("title") || "Everything Local").slice(0, 60);
   const subtitle = (searchParams.get("subtitle") || "Browse Local Like Never Before").slice(0, 80);
-  const titleSize = title.length > 26 ? 76 : title.length > 16 ? 100 : 128;
+  const titleSize = title.length > 34 ? 64 : title.length > 20 ? 84 : 104;
+
+  const [archivo, hero] = await Promise.all([loadArchivo(), loadHero(origin)]);
+  const fontFamily = archivo ? "Archivo Black" : "sans-serif";
 
   return new ImageResponse(
     (
@@ -19,45 +54,65 @@ export function GET(req: Request) {
           height: "100%",
           width: "100%",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#ffffff",
-          padding: "0 80px",
-          textAlign: "center",
+          position: "relative",
+          // Deep-green brand fallback shown when there's no photo.
+          backgroundImage: "linear-gradient(135deg, #14532d 0%, #166534 55%, #15803d 100%)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            fontSize: titleSize,
-            fontWeight: 800,
-            color: "#16a34a",
-            letterSpacing: "-3px",
-            lineHeight: 1.05,
-          }}
-        >
-          {title}
-        </div>
-        <div
-          style={{
-            display: "flex",
-            marginTop: 28,
-            fontSize: 40,
-            color: "#6b7280",
-            letterSpacing: "1px",
-          }}
-        >
-          {subtitle}
-        </div>
-        <div style={{ display: "flex", marginTop: 44, width: 120, height: 6, backgroundColor: "#16a34a", borderRadius: 6 }} />
-        {title !== "Everything Local" && (
-          <div style={{ display: "flex", marginTop: 40, fontSize: 26, color: "#9ca3af", letterSpacing: "2px" }}>
-            EVERYTHING LOCAL
-          </div>
+        {/* Hero photo (full bleed) */}
+        {hero && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={hero}
+            alt=""
+            width={1200}
+            height={630}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          />
         )}
+
+        {/* Dark bottom-up gradient scrim for legible white text */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            backgroundImage:
+              "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 34%, rgba(0,0,0,0.15) 68%, rgba(0,0,0,0.05) 100%)",
+          }}
+        />
+
+        {/* Brand lockup — green pin + white ARCHIVO wordmark, top-left */}
+        <div style={{ position: "absolute", top: 48, left: 56, display: "flex", alignItems: "center", gap: 14 }}>
+          <svg width="40" height="52" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M20 2C10.6 2 3.2 9.4 3.2 18.8c0 6.6 4.6 14.3 9.4 20.4a62 62 0 0 0 6 6.6 1.9 1.9 0 0 0 2.8 0 62 62 0 0 0 6-6.6c4.8-6.1 9.4-13.8 9.4-20.4C36.8 9.4 29.4 2 20 2z"
+              fill="#22c55e"
+            />
+            <path d="M20 10.6 28 18.4H25.4V27H14.6V18.4H12z" fill="#ffffff" />
+            <rect x="18" y="22" width="4" height="5" fill="#22c55e" />
+          </svg>
+          <div style={{ display: "flex", fontFamily, fontSize: 30, color: "#ffffff", letterSpacing: "-1px", textTransform: "uppercase" }}>
+            Everything Local
+          </div>
+        </div>
+
+        {/* Headline — white Archivo Black, bottom-left */}
+        <div style={{ position: "absolute", left: 56, right: 56, bottom: 56, display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontFamily, fontSize: titleSize, color: "#ffffff", letterSpacing: "-2px", lineHeight: 1.02, textTransform: "uppercase" }}>
+            {title}
+          </div>
+          <div style={{ display: "flex", marginTop: 18, fontSize: 34, color: "rgba(255,255,255,0.9)", letterSpacing: "0.5px" }}>
+            {subtitle}
+          </div>
+          <div style={{ display: "flex", marginTop: 22, width: 96, height: 6, backgroundColor: "#22c55e", borderRadius: 6 }} />
+        </div>
       </div>
     ),
-    { width: 1200, height: 630 }
+    {
+      width: 1200,
+      height: 630,
+      fonts: archivo ? [{ name: "Archivo Black", data: archivo, weight: 400, style: "normal" }] : undefined,
+    }
   );
 }
