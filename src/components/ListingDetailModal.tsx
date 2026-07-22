@@ -266,6 +266,18 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
                 {listing.condition && <span className="text-gray-400 text-xs font-normal ml-2 capitalize">{listing.condition}</span>}
               </p>
             )}
+            {/* Local fulfillment availability — the exact spot is revealed at checkout. */}
+            {(listing.porch_pickup || listing.local_drop) && (
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="text-[11px] font-semibold text-gray-500">Get it locally:</span>
+                {listing.porch_pickup && (
+                  <span className="text-[11px] font-semibold bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded-full">🏡 Porch Pickup</span>
+                )}
+                {listing.local_drop && (
+                  <span className="text-[11px] font-semibold bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded-full">🚗 Local Drop</span>
+                )}
+              </div>
+            )}
           </div>
 
           {listing.description && (
