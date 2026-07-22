@@ -1,12 +1,14 @@
 // Brand logo system.
 //
-// - `Logo`      → the green county/highway-style sign (current / primary look):
-//                 white border, a location pin with a house inside, and
-//                 EVERYTHING LOCAL on one line (width-locked to fit any font).
-// - `LogoV2`    → the PREVIOUS look, kept on purpose: pin + stacked
-//                 EVERYTHING / LOCAL wordmark + tagline. Swap in anywhere the
-//                 sign is too heavy.
+// - `Logo`      → current look: green pin + a sleek single-line ARCHIVO BLACK
+//                 "EVERYTHING LOCAL" wordmark.
+// - `LogoSign`  → the old county/highway sign look, kept in case we flip back.
+// - `LogoV2`    → pin + stacked wordmark + tagline (earlier look).
 // - `LogoMark`  → the bare pin only (favicons / avatars / tiny spots).
+
+import { Archivo_Black } from "next/font/google";
+
+const archivo = Archivo_Black({ subsets: ["latin"], weight: "400" });
 
 // Shared pin geometry (the house is a cut-out; `houseFill` = the color showing
 // through it, `doorFill` = the little doorway).
@@ -23,7 +25,28 @@ function Pin({ pinFill, houseFill, doorFill }: { pinFill: string; houseFill: str
   );
 }
 
+// Green pin + sleek single-line Archivo Black wordmark.
 export default function Logo({
+  className = "",
+  size = "md",
+}: {
+  className?: string;
+  size?: "sm" | "md" | "lg";
+}) {
+  const pin = size === "lg" ? "h-11" : size === "sm" ? "h-7" : "h-9";
+  const word = size === "lg" ? "text-3xl" : size === "sm" ? "text-xl" : "text-2xl";
+  return (
+    <span className={`inline-flex items-center gap-2 ${className}`} aria-label="Everything Local">
+      <LogoMark className={`${pin} w-auto shrink-0`} />
+      <span className={`${archivo.className} ${word} uppercase tracking-tight text-gray-900 leading-none whitespace-nowrap`}>
+        Everything Local
+      </span>
+    </span>
+  );
+}
+
+// Old county/highway-sign look — kept in case we want to flip back.
+export function LogoSign({
   className = "",
   size = "md",
 }: {
@@ -39,10 +62,8 @@ export default function Logo({
       aria-label="Everything Local"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* currentColor = the exact green-600 token used by buttons site-wide */}
       <rect x="4" y="4" width="552" height="122" rx="18" fill="currentColor" />
       <rect x="15" y="15" width="530" height="100" rx="11" fill="none" stroke="#ffffff" strokeWidth="3.5" />
-      {/* pin: white marker, house shows the sign green through it, white door */}
       <g transform="translate(43,31) scale(1.3)">
         <Pin pinFill="#ffffff" houseFill="currentColor" doorFill="#ffffff" />
       </g>
