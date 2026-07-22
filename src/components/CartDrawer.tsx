@@ -30,7 +30,7 @@ export default function CartDrawer() {
   const allDrop = items.length > 0 && items.every((i) => i.localDrop);
   const fulfillmentOpts = [
     ...(allPorch ? [{ id: "porch_pickup" as const, label: "🏡 Porch Pickup", hint: "You pick it up" }] : []),
-    ...(allDrop ? [{ id: "local_drop" as const, label: "🚗 Local Drop", hint: "Seller drops off" }] : []),
+    ...(allDrop ? [{ id: "local_drop" as const, label: "🚗 Local Drop", hint: "Meet at their spot" }] : []),
   ];
 
   // Prefill contact info for signed-in shoppers.
