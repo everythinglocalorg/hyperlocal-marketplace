@@ -1,6 +1,8 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "nodejs";
+// The card varies by ?title/?subtitle — render per request, never cache a stale one.
+export const dynamic = "force-dynamic";
 
 // Link-preview (Open Graph) image shown when Everything Local links are shared.
 // Look: full-bleed hero photo + a dark bottom-up gradient scrim + white
@@ -42,7 +44,9 @@ export async function GET(req: Request) {
   const { searchParams, origin } = new URL(req.url);
   const title = (searchParams.get("title") || "Everything Local").slice(0, 60);
   const subtitle = (searchParams.get("subtitle") || "Browse Local Like Never Before").slice(0, 80);
-  const titleSize = title.length > 34 ? 64 : title.length > 20 ? 84 : 104;
+  // Size the headline so it stays on ONE line within the 1080px content width
+  // (Archivo Black uppercase runs ~0.62em per char with the tight tracking).
+  const titleSize = Math.max(40, Math.min(96, Math.floor(1080 / (title.length * 0.62))));
 
   const [archivo, hero] = await Promise.all([loadArchivo(), loadHero(origin)]);
   const fontFamily = archivo ? "Archivo Black" : "sans-serif";
@@ -71,20 +75,38 @@ export async function GET(req: Request) {
           />
         )}
 
-        {/* Dark bottom-up gradient scrim for legible white text */}
+        {/* Heavy dark scrim so the white text pops over any photo. Explicit
+            width/height (not inset:0), or Satori gives it zero area and it
+            never darkens anything. */}
         <div
           style={{
             position: "absolute",
-            inset: 0,
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
             display: "flex",
-            backgroundImage:
-              "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.55) 34%, rgba(0,0,0,0.15) 68%, rgba(0,0,0,0.05) 100%)",
+            backgroundImage: "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.82) 100%)",
           }}
         />
 
-        {/* Brand lockup — green pin + white ARCHIVO wordmark, top-left */}
-        <div style={{ position: "absolute", top: 48, left: 56, display: "flex", alignItems: "center", gap: 14 }}>
-          <svg width="40" height="52" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg">
+        {/* Centered lockup: green pin + white Archivo-Black wordmark/headline.
+            Explicit width/height (not inset:0) so Satori can vertically center. */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "0 60px",
+          }}
+        >
+          <svg width="58" height="76" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 8 }}>
             <path
               d="M20 2C10.6 2 3.2 9.4 3.2 18.8c0 6.6 4.6 14.3 9.4 20.4a62 62 0 0 0 6 6.6 1.9 1.9 0 0 0 2.8 0 62 62 0 0 0 6-6.6c4.8-6.1 9.4-13.8 9.4-20.4C36.8 9.4 29.4 2 20 2z"
               fill="#22c55e"
@@ -92,20 +114,24 @@ export async function GET(req: Request) {
             <path d="M20 10.6 28 18.4H25.4V27H14.6V18.4H12z" fill="#ffffff" />
             <rect x="18" y="22" width="4" height="5" fill="#22c55e" />
           </svg>
-          <div style={{ display: "flex", fontFamily, fontSize: 30, color: "#ffffff", letterSpacing: "-1px", textTransform: "uppercase" }}>
-            Everything Local
-          </div>
-        </div>
-
-        {/* Headline — white Archivo Black, bottom-left */}
-        <div style={{ position: "absolute", left: 56, right: 56, bottom: 56, display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", fontFamily, fontSize: titleSize, color: "#ffffff", letterSpacing: "-2px", lineHeight: 1.02, textTransform: "uppercase" }}>
+          <div
+            style={{
+              display: "flex",
+              fontFamily,
+              fontSize: titleSize,
+              color: "#ffffff",
+              letterSpacing: "-2px",
+              lineHeight: 1,
+              textTransform: "uppercase",
+              whiteSpace: "nowrap",
+            }}
+          >
             {title}
           </div>
-          <div style={{ display: "flex", marginTop: 18, fontSize: 34, color: "rgba(255,255,255,0.9)", letterSpacing: "0.5px" }}>
+          <div style={{ display: "flex", marginTop: 20, fontSize: 34, color: "rgba(255,255,255,0.92)", letterSpacing: "0.5px", textAlign: "center" }}>
             {subtitle}
           </div>
-          <div style={{ display: "flex", marginTop: 22, width: 96, height: 6, backgroundColor: "#22c55e", borderRadius: 6 }} />
+          <div style={{ display: "flex", marginTop: 22, width: 100, height: 6, backgroundColor: "#22c55e", borderRadius: 6 }} />
         </div>
       </div>
     ),
