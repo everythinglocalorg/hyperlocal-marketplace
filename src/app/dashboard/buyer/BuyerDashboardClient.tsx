@@ -671,7 +671,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                     <button key={c.id} onClick={() => openBuyerConversation(c.id)}
                       className={`w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-green-50 transition-colors ${activeConvId === c.id ? "bg-green-50" : ""}`}>
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{v?.business_name ?? "Vendor"}</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{v?.business_name ?? "Business"}</p>
                         {c.buyer_unread > 0 && (
                           <span className="bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center shrink-0">{c.buyer_unread}</span>
                         )}
@@ -738,7 +738,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                   href="/search"
                   className="inline-block bg-green-600 text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-green-700 transition-colors"
                 >
-                  Find a vendor →
+                  Find a business →
                 </Link>
               </div>
             ) : (

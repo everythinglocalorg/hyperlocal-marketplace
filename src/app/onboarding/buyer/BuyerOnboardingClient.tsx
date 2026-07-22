@@ -182,7 +182,7 @@ export default function BuyerOnboardingClient() {
                 <div className="text-3xl mb-2">📍</div>
                 <h1 className="text-2xl font-bold text-gray-900">Where are you?</h1>
                 <p className="text-gray-500 text-sm mt-1">
-                  We'll show you local vendors wherever you are — any city, any state.
+                  We'll show you local businesses wherever you are — any city, any state.
                 </p>
               </div>
 
@@ -302,7 +302,7 @@ export default function BuyerOnboardingClient() {
                 <div className="text-3xl mb-2">❤️</div>
                 <h1 className="text-2xl font-bold text-gray-900">What are you into?</h1>
                 <p className="text-gray-500 text-sm mt-1">
-                  We'll surface the best local vendors in your area for the things you care about.
+                  We'll surface the best local businesses in your area for the things you care about.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-4">
@@ -335,7 +335,7 @@ export default function BuyerOnboardingClient() {
               {location && (
                 <p className="text-green-600 font-medium text-sm mb-1">📍 Showing vendors near {location.displayName}</p>
               )}
-              <p className="text-gray-500 text-sm mb-8">Start discovering amazing local vendors in your community.</p>
+              <p className="text-gray-500 text-sm mb-8">Start discovering amazing local businesses in your community.</p>
               <div className="grid grid-cols-1 gap-3 mb-8 text-left">
                 {[
                   { icon: "🪙", title: "10 Local Bucks in your wallet", desc: "Yours the moment you joined" },

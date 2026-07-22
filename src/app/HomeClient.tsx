@@ -702,7 +702,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               <li><Link href="/pricing" className="hover:text-green-600">Pricing</Link></li>
               <li><Link href="/local-bucks" className="hover:text-green-600">🪙 Local Bucks</Link></li>
               <li><Link href="/connect-domain" className="hover:text-green-600">Connect Your Domain</Link></li>
-              <li><Link href="/dashboard/vendor" className="hover:text-green-600">Vendor Dashboard</Link></li>
+              <li><Link href="/dashboard/vendor" className="hover:text-green-600">Business Dashboard</Link></li>
             </ul>
           </div>
           <div>

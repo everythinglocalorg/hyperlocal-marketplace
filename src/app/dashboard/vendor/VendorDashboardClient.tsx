@@ -3211,7 +3211,7 @@ function ReferralsTab({ userId, referralCode, businessName, vendorSlug }: {
         <div className="mt-5 bg-amber-50 border border-amber-100 rounded-xl p-4">
           <p className="text-xs font-semibold text-amber-800 mb-2">How it works:</p>
           <ol className="text-xs text-amber-700 space-y-1 list-decimal list-inside">
-            <li>You share your link with another vendor or buyer</li>
+            <li>You share your link with another business or buyer</li>
             <li>They sign up — automatically tagged as your referral</li>
             <li>You earn <strong>20 Local Bucks</strong> — automatically, instantly</li>
           </ol>

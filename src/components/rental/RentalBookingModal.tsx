@@ -344,7 +344,7 @@ export default function RentalBookingModal({ listing, vendor, durations, current
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Select Duration</label>
                   {durations.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">No durations set up yet by the vendor.</p>
+                    <p className="text-sm text-gray-400 italic">No durations set up yet by the business.</p>
                   ) : (
                     <div className="grid grid-cols-1 gap-2">
                       {durations.map((d) => (
