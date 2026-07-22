@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 export const metadata = { title: "About — Everything Local" };
 
@@ -7,7 +8,7 @@ export default function AboutPage() {
     <main className="min-h-screen bg-white">
       {/* Nav */}
       <nav className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold text-green-600">Everything Local</Link>
+        <Link href="/"><Logo size="sm" /></Link>
         <div className="flex gap-4 text-sm">
           <Link href="/search" className="text-gray-600 hover:text-gray-900">Explore</Link>
           <Link href="/login" className="text-gray-600 hover:text-gray-900">Sign In</Link>

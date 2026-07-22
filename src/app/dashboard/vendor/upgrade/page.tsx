@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { Suspense } from "react";
 import LocalProPrice from "@/components/LocalProPrice";
 import { PRO_FEATURES } from "@/lib/pro-features";
@@ -60,7 +61,7 @@ function UpgradePageInner() {
           <Link href="/dashboard/vendor" className="text-gray-500 hover:text-gray-700 text-sm">
             ← Back to Dashboard
           </Link>
-          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
+          <Link href="/"><Logo size="sm" /></Link>
           <div className="w-24" />
         </div>
       </header>

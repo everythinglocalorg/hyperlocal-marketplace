@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import ShareProfileButton from "./ShareProfileButton";
@@ -93,7 +94,7 @@ export default async function PublicProfilePage({ params }: Props) {
       {/* Top bar */}
       <header className="bg-white border-b border-gray-100">
         <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
+          <Link href="/"><Logo size="sm" /></Link>
           <Link href="/search" className="text-sm text-gray-500 hover:text-green-700 font-medium">Discover businesses →</Link>
         </div>
       </header>
@@ -270,7 +271,7 @@ export default async function PublicProfilePage({ params }: Props) {
         )}
 
         <p className="text-center text-xs text-gray-400 mt-8">
-          Powered by <Link href="/" className="text-green-600 hover:underline">Everything Local</Link> — support local, earn Local Bucks.
+          Powered by <Link href="/"><Logo size="sm" /></Link> — support local, earn Local Bucks.
         </p>
       </main>
     </div>

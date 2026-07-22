@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPicksManager";
 import ProfileDetailsEditor, { normalizeDetails } from "@/components/ProfileDetailsEditor";
@@ -263,7 +264,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
       {/* Sidebar — off-canvas drawer on mobile, fixed sidebar on desktop */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-5 border-b border-gray-100">
-          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
+          <Link href="/"><Logo size="sm" /></Link>
         </div>
 
         {/* Profile summary */}
@@ -392,7 +393,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="font-bold text-green-600">Everything Local</span>
+          <Logo size="sm" />
         </div>
         <div className="p-4 sm:p-8">
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Logo from "@/components/Logo";
 
 export const metadata = { title: "Terms of Service — Everything Local" };
 
@@ -6,7 +7,7 @@ export default function TermsPage() {
   return (
     <main className="min-h-screen bg-white">
       <nav className="border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold text-green-600">Everything Local</Link>
+        <Link href="/"><Logo size="sm" /></Link>
         <Link href="/" className="text-sm text-gray-500 hover:text-gray-900">← Home</Link>
       </nav>
       <article className="max-w-3xl mx-auto px-6 py-16">

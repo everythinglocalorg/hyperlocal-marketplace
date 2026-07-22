@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
 import { formatPrice } from "@/lib/utils";
@@ -1308,7 +1309,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
       {/* ── FOOTER CTA ────────────────────────────────────────────── */}
       <div className="bg-gray-50 border-t border-gray-100 py-10 px-4 text-center">
         <p className="text-gray-400 text-sm mb-1">Powered by</p>
-        <Link href="/" className="text-green-600 font-bold text-lg">Everything Local</Link>
+        <Link href="/"><Logo size="sm" /></Link>
         {!currentUserId && (
           <p className="text-sm text-gray-400 mt-3">
             <Link href="/signup" className="text-green-600 font-semibold hover:underline">Create a free account</Link> to message, book, and earn Local Bucks.

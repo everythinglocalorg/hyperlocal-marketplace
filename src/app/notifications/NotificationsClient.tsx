@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import PushToggle from "@/components/PushToggle";
@@ -50,7 +51,7 @@ export default function NotificationsClient({ initial, userId }: { initial: Noti
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
-          <Link href="/" className="text-green-600 font-bold text-lg">Everything Local</Link>
+          <Link href="/"><Logo size="sm" /></Link>
           {unread > 0 && (
             <button onClick={markAll} className="text-sm text-green-700 font-medium hover:underline">Mark all read</button>
           )}

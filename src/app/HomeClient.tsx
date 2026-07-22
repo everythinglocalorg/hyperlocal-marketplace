@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
@@ -725,7 +726,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           </div>
         </div>
         <div className="max-w-5xl mx-auto border-t border-gray-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-400">
-          <span className="font-semibold text-green-600 text-sm">Everything Local</span>
+          <Logo size="sm" />
           <span>© 2026 Everything Local · Made for local communities</span>
         </div>
       </footer>

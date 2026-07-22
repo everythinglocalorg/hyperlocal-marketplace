@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { renderMarkdown } from "@/lib/markdown";
@@ -76,7 +77,7 @@ export default async function BlogPostPage({ params }: Props) {
 
       <header className="border-b border-gray-100 px-4 sm:px-6 py-4 flex items-center justify-between max-w-3xl mx-auto">
         <Link href="/blog" className="text-sm text-gray-500 hover:text-green-700">← Blog</Link>
-        <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
+        <Link href="/"><Logo size="sm" /></Link>
       </header>
 
       <article className="max-w-3xl mx-auto px-4 sm:px-6 py-10">

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { LAUNCH_CITIES, CATEGORIES } from "@/types";
 import { slugify } from "@/lib/utils";
 import { geocodeQuery, getBrowserLocation, reverseGeocode } from "@/lib/geocode";
+import Logo from "@/components/Logo";
 import ImageUpload from "@/components/ui/ImageUpload";
 import WelcomeReferralModal from "@/components/WelcomeReferralModal";
 import { BRAND_ORIGIN } from "@/lib/domains";
@@ -196,7 +197,7 @@ export default function VendorOnboardingClient() {
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <span className="text-xl font-bold text-green-600">Everything Local</span>
+          <Logo size="sm" />
           <span className="text-sm text-gray-500">Step {step} of {STEPS.length}</span>
         </div>
       </div>

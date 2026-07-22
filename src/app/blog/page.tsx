@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -45,7 +46,7 @@ export default async function BlogIndexPage({ searchParams }: Props) {
   return (
     <div className="min-h-screen bg-white">
       <header className="border-b border-gray-100 px-4 sm:px-6 py-4 flex items-center justify-between max-w-6xl mx-auto">
-        <Link href="/" className="text-xl font-bold text-green-600">Everything Local</Link>
+        <Link href="/"><Logo size="sm" /></Link>
         <Link href="/search" className="text-sm text-gray-600 hover:text-green-700 font-medium">Explore local →</Link>
       </header>
 

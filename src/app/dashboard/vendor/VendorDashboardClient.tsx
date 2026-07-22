@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
+import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import RentalSetup from "@/components/rental/RentalSetup";
@@ -523,7 +524,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       {/* Sidebar — off-canvas drawer on mobile, fixed sidebar on desktop */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-gray-100">
-          <Link href="/" className="text-lg font-bold text-green-600">Everything Local</Link>
+          <Link href="/"><Logo size="sm" /></Link>
         </div>
 
         {/* Vendor info */}
@@ -721,7 +722,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="font-bold text-green-600">Everything Local</span>
+          <Logo size="sm" />
         </div>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
