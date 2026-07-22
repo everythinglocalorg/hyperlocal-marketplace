@@ -25,7 +25,7 @@ function Pin({ pinFill, houseFill, doorFill }: { pinFill: string; houseFill: str
   );
 }
 
-// THE standard logo — green pin + stacked Archivo Black wordmark. Use this
+// THE standard logo — green pin + single-line Archivo Black wordmark. Use this
 // everywhere a brand mark is needed (header, footer, storefront, auth,
 // onboarding, dashboards). Sizes: sm (nav bars), md (default), lg (heroes).
 export default function Logo({
@@ -35,14 +35,13 @@ export default function Logo({
   className?: string;
   size?: "sm" | "md" | "lg";
 }) {
-  const pin = size === "lg" ? "h-14" : size === "sm" ? "h-8" : "h-11";
-  const word = size === "lg" ? "text-3xl" : size === "sm" ? "text-lg" : "text-2xl";
+  const pin = size === "lg" ? "h-11" : size === "sm" ? "h-7" : "h-9";
+  const word = size === "lg" ? "text-3xl" : size === "sm" ? "text-xl" : "text-2xl";
   return (
     <span className={`inline-flex items-center gap-2 ${className}`} aria-label="Everything Local">
       <LogoMark className={`${pin} w-auto shrink-0`} />
-      <span className={`${archivo.className} flex flex-col leading-[0.85] uppercase tracking-tight text-gray-900`}>
-        <span className={word}>Everything</span>
-        <span className={word}>Local</span>
+      <span className={`${archivo.className} ${word} uppercase tracking-tight text-gray-900 leading-none whitespace-nowrap`}>
+        Everything Local
       </span>
     </span>
   );
