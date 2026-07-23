@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type MenuItem = { id: string; title: string; price: number | null };
+type MenuItem = { id: string; title: string; price: number | null; quantity?: number | null };
 
 // Dead-simple pickup ordering: tap + to add items, place the order. Pay at the truck.
 export default function FoodOrderModal({ vendor, listings, currentUser, onClose }: {
@@ -11,7 +11,7 @@ export default function FoodOrderModal({ vendor, listings, currentUser, onClose 
   currentUser: { id: string; full_name: string | null; phone?: string | null } | null;
   onClose: () => void;
 }) {
-  const items = listings.filter((l) => l.price != null);
+  const items = listings.filter((l) => l.price != null && l.quantity !== 0);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [name, setName] = useState(currentUser?.full_name ?? "");
   const [phone, setPhone] = useState(currentUser?.phone ?? "");

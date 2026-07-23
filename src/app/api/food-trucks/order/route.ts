@@ -29,8 +29,9 @@ export async function POST(req: Request) {
 
   // Never trust client prices — rebuild from the vendor's own listings.
   const ids = (items as InItem[]).map((i) => i.listing_id).filter(Boolean) as string[];
-  const { data: listings } = await db.from("listings").select("id, title, price").in("id", ids).eq("vendor_id", vendorId);
-  const byId = new Map((listings ?? []).map((l) => [l.id, l]));
+  const { data: listings } = await db.from("listings").select("id, title, price, quantity").in("id", ids).eq("vendor_id", vendorId);
+  // Drop sold-out items (quantity 0) so a stale client can't order them.
+  const byId = new Map((listings ?? []).filter((l) => l.quantity !== 0).map((l) => [l.id, l]));
   const clean = (items as InItem[])
     .map((i) => {
       const l = i.listing_id ? byId.get(i.listing_id) : undefined;

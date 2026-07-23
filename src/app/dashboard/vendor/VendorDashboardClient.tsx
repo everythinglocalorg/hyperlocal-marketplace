@@ -3388,8 +3388,11 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
   const renderTicket = (o: FoodOrder) => {
     const meta = ORDER_STATUS_META[o.status];
     const items = Array.isArray(o.items) ? o.items : [];
+    const tone = o.status === "new" ? "border-green-300 bg-green-50"
+      : (o.status === "completed" || o.status === "cancelled") ? "border-gray-200 bg-gray-100"
+      : "border-gray-100 bg-white";
     return (
-      <div key={o.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+      <div key={o.id} className={`border rounded-2xl p-4 shadow-sm ${tone}`}>
         <div className="flex items-center justify-between gap-2 mb-2">
           <div>
             <p className="text-sm font-bold text-gray-900">{o.customer_name || "Customer"}</p>
@@ -3517,6 +3520,18 @@ function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initi
   const [geoLoading, setGeoLoading] = useState(false);
   const [geoErr, setGeoErr] = useState("");
   const [notifyToast, setNotifyToast] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ id: string; title: string; price: number | null; quantity: number | null }[]>([]);
+
+  useEffect(() => {
+    supabase.from("listings").select("id, title, price, quantity").eq("vendor_id", vendorId).eq("is_active", true).order("created_at")
+      .then(({ data }: { data: { id: string; title: string; price: number | null; quantity: number | null }[] | null }) => setMenu(data ?? []));
+  }, [vendorId, supabase]);
+
+  async function toggleSoldOut(id: string, current: number | null) {
+    const next = current === 0 ? null : 0; // 0 = sold out, null = available
+    setMenu((m) => m.map((x) => x.id === id ? { ...x, quantity: next } : x));
+    await supabase.from("listings").update({ quantity: next }).eq("id", id);
+  }
 
   function patch(p: Partial<FoodTruck>) { setFt((f) => ({ ...f, ...p })); }
   function patchSpot(p: Partial<FoodTruck["spot"]>) { setFt((f) => ({ ...f, spot: { ...f.spot, ...p } })); }
@@ -3614,6 +3629,30 @@ function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initi
           </div>
         )}
       </div>
+
+      {menu.filter((m) => m.price != null).length > 0 && (
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Today&apos;s menu</label>
+          <p className="text-xs text-gray-400 mb-2">Tap to mark an item sold out when you run low — it hides from ordering instantly.</p>
+          <div className="space-y-2">
+            {menu.filter((m) => m.price != null).map((m) => {
+              const soldOut = m.quantity === 0;
+              return (
+                <div key={m.id} className={`flex items-center justify-between gap-3 border rounded-xl px-3 py-2 ${soldOut ? "border-gray-200 bg-gray-50" : "border-gray-100 bg-white"}`}>
+                  <div className="min-w-0">
+                    <p className={`text-sm font-medium truncate ${soldOut ? "text-gray-400 line-through" : "text-gray-900"}`}>{m.title}</p>
+                    <p className="text-xs text-gray-400">${Number(m.price).toFixed(2)}</p>
+                  </div>
+                  <button type="button" onClick={() => toggleSoldOut(m.id, m.quantity)}
+                    className={`shrink-0 text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${soldOut ? "border-green-300 text-green-700 hover:bg-green-50" : "border-gray-300 text-gray-600 hover:bg-gray-50"}`}>
+                    {soldOut ? "Mark available" : "Sold out"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="mb-6">
         <label className="block text-sm font-semibold text-gray-700 mb-2">How you take orders</label>
