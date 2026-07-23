@@ -247,9 +247,10 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const isServiceBased = SERVICE_CATEGORIES.has(vendor.category);
   const inquiryHeading = isServiceBased ? "Request A Free Estimate" : "Get in Touch";
   const inquirySubmitLabel = isServiceBased ? "Request Free Estimate →" : "Send Message →";
-  // Effective CTA: fall back to "estimate" for service businesses that haven't set
-  // an explicit CTA, so the primary button opens the free-estimate form.
-  const effectiveCta = ctaAction ?? (isServiceBased ? "estimate" : null);
+  // Effective CTA: food trucks default to "order" (their primary action is
+  // ordering, with Message as the secondary option); service businesses fall
+  // back to "estimate"; everyone else has no default primary CTA.
+  const effectiveCta = ctaAction ?? (isFoodTruck(vendor.category) ? "order" : isServiceBased ? "estimate" : null);
 
   // Hero cover: the vendor's own banner if they set one, otherwise default to
   // their first product/listing photo, else fall back to a branded gradient.
@@ -698,6 +699,15 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
       </div>
       <button
         onClick={() => {
+          // Food trucks: the primary action is ordering (external link if set,
+          // otherwise the built-in pickup order modal). Message is the secondary.
+          if (truckIsFoodTruck) {
+            const ext = foodTruck ? externalOrderUrl(foodTruck) : null;
+            if (ext) { window.open(ext, "_blank", "noopener,noreferrer"); return; }
+            if (requireAccount()) return;
+            setShowOrderModal(true);
+            return;
+          }
           if (effectiveCta === "order" && ctaOrderUrl) { window.open(ctaOrderUrl, "_blank", "noopener,noreferrer"); return; }
           if (requireAccount()) return;
           if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true);
@@ -832,7 +842,17 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
               >
                 💬 Message
               </button>
-              {ctaAction && (
+              {truckIsFoodTruck ? (
+                foodTruck && externalOrderUrl(foodTruck) ? (
+                  <a href={externalOrderUrl(foodTruck) as string} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
+                    Order Now →
+                  </a>
+                ) : (
+                  <button onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
+                    Order Now →
+                  </button>
+                )
+              ) : ctaAction && (
                 ctaAction === "call" && vendor.phone ? (
                   <a href={`tel:${vendor.phone}`} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
                     {CTA_LABELS[ctaAction]} →
