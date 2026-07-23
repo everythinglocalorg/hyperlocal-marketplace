@@ -1015,6 +1015,19 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
               <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
                 {CTA_LABELS.order} →
               </a>
+            ) : truckIsFoodTruck ? (
+              foodTruck && externalOrderUrl(foodTruck) ? (
+                <a href={externalOrderUrl(foodTruck) as string} target="_blank" rel="noopener noreferrer" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
+                  Order Now →
+                </a>
+              ) : (
+                <button
+                  onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }}
+                  className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
+                >
+                  Order Now →
+                </button>
+              )
             ) : effectiveCta ? (
               <button
                 onClick={() => { if (requireAccount()) return; if (effectiveCta === "estimate" || effectiveCta === "order") setShowCtaForm(true); else setShowMessageModal(true); }}
