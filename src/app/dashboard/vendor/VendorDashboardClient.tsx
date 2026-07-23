@@ -20,9 +20,10 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 import { STORE_FONTS, HEADING_FONT_KEYS, BODY_FONT_KEYS, TEXT_SCALE_LABEL, normalizeTheme, buildGoogleFontsHref } from "@/lib/fonts";
+import { isFoodTruck, normalizeFoodTruck, DAYS, type FoodTruck, type TruckStatus, type TruckStop } from "@/lib/foodtruck";
 import QrCode from "@/components/QrCode";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces" | "foodtruck";
 
 interface Props {
   vendor: {
@@ -45,6 +46,7 @@ interface Props {
     city: string;
     state: string;
     page_blocks?: any[] | null;
+    food_truck?: unknown;
     profile_views?: number | null;
     custom_domain?: string | null;
     domain_verified?: boolean | null;
@@ -165,8 +167,9 @@ type Customer = {
   last_booking_at: string | null;
 };
 
-const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean }[] = [
+const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean; foodTruckOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
+  { id: "foodtruck", label: "Food Truck", icon: "🚚", foodTruckOnly: true },
   { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "referrals", label: "Referrals", icon: "🤝" },
@@ -186,6 +189,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
 export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab, vendorOptions }: Props) {
   // Local Pro+ exclusive tier (admins always count as top tier).
   const isPlus = isAdmin || isPlusTier(vendor.tier);
+  const isFoodTruckVendor = isFoodTruck(vendor.category);
   // Features gated to Pro+ only; everything else unlocks for any paid tier.
   const PLUS_ONLY = new Set<FeatureKey>(["estimates"]);
   const can = (f: FeatureKey) => hasFeature(features, f) || (PLUS_ONLY.has(f) ? isPlus : isPremium);
@@ -594,7 +598,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
         {/* Navigation */}
         <nav className="flex-1 p-3">
-          {NAV.filter((item) => !item.adminOnly || isAdmin).map((item) => (
+          {NAV.filter((item) => (!item.adminOnly || isAdmin) && (!item.foodTruckOnly || isFoodTruckVendor)).map((item) => (
             <button
               key={item.id}
               onClick={() => goToTab(item.id)}
@@ -1095,6 +1099,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               businessName={vendor.business_name}
               vendorSlug={vendor.slug}
             />
+          )}
+
+          {tab === "foodtruck" && isFoodTruckVendor && (
+            <FoodTruckTab vendorId={vendor.id} initial={vendor.food_truck} supabase={supabase} />
           )}
 
           {tab === "store" && (
@@ -3290,6 +3298,122 @@ const CATEGORIES_LIST = [
   "Sports & Outdoors","Auto & Transportation","Pet Services","Childcare & Education",
   "Housing & Rentals",
 ];
+
+function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initial: unknown; supabase: any }) {
+  const [ft, setFt] = useState<FoodTruck>(normalizeFoodTruck(initial));
+  const [savedStatus, setSavedStatus] = useState<TruckStatus>(ft.status);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
+  const [geoErr, setGeoErr] = useState("");
+  const [notifyToast, setNotifyToast] = useState<string | null>(null);
+
+  function patch(p: Partial<FoodTruck>) { setFt((f) => ({ ...f, ...p })); }
+  function patchSpot(p: Partial<FoodTruck["spot"]>) { setFt((f) => ({ ...f, spot: { ...f.spot, ...p } })); }
+
+  function useMyLocation() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) { setGeoErr("Location isn't available on this device."); return; }
+    setGeoErr(""); setGeoLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { patchSpot({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGeoLoading(false); },
+      () => { setGeoErr("Couldn't get your location — allow location access and try again."); setGeoLoading(false); },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  function addStop() { setFt((f) => ({ ...f, schedule: [...f.schedule, { id: crypto.randomUUID(), day: "Fri", label: "", start: "", end: "" }] })); }
+  function updateStop(id: string, p: Partial<TruckStop>) { setFt((f) => ({ ...f, schedule: f.schedule.map((s) => s.id === id ? { ...s, ...p } : s) })); }
+  function removeStop(id: string) { setFt((f) => ({ ...f, schedule: f.schedule.filter((s) => s.id !== id) })); }
+
+  async function save() {
+    setSaving(true);
+    const goingLive = ft.status === "open" && savedStatus !== "open";
+    const payload: FoodTruck = { ...ft, live_at: goingLive ? new Date().toISOString() : ft.live_at };
+    await supabase.from("vendors").update({ food_truck: payload }).eq("id", vendorId);
+    setSavedStatus(ft.status);
+    setFt(payload);
+    if (goingLive) {
+      try {
+        const res = await fetch("/api/food-trucks/go-live", { method: "POST" });
+        const data = await res.json();
+        if (typeof data.notified === "number") { setNotifyToast(`🔔 ${data.notified} follower${data.notified === 1 ? "" : "s"} notified`); setTimeout(() => setNotifyToast(null), 5000); }
+      } catch { /* best effort */ }
+    }
+    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500);
+  }
+
+  const statuses: { key: TruckStatus; label: string }[] = [
+    { key: "open", label: "🟢 Open now" },
+    { key: "enroute", label: "🚚 On the way" },
+    { key: "closed", label: "⚪ Closed" },
+  ];
+
+  return (
+    <div className="p-6 max-w-2xl">
+      <h2 className="text-xl font-bold text-gray-900 mb-1">🚚 Food Truck</h2>
+      <p className="text-sm text-gray-500 mb-6">Go live when you&apos;re serving, set your spot, and share your weekly schedule. Followers get pinged the moment you go live.</p>
+
+      <div className="mb-6">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Right now</label>
+        <div className="grid grid-cols-3 gap-2">
+          {statuses.map((s) => (
+            <button key={s.key} type="button" onClick={() => patch({ status: s.key })}
+              className={`py-2.5 rounded-xl border text-sm font-semibold transition-colors ${ft.status === s.key ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {(ft.status === "open" || ft.status === "enroute") && (
+        <div className="mb-6 bg-gray-50 border border-gray-100 rounded-2xl p-4 space-y-3">
+          <label className="block text-sm font-semibold text-gray-700">Where are you?</label>
+          <input value={ft.spot.name} onChange={(e) => patchSpot({ name: e.target.value })} placeholder="e.g. Phoenix Park, Water St lot…" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+          <div className="flex gap-2">
+            <input value={ft.spot.until} onChange={(e) => patchSpot({ until: e.target.value })} placeholder="Until (e.g. 8:00 PM)" className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <button type="button" onClick={useMyLocation} disabled={geoLoading} className="shrink-0 border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50">
+              {geoLoading ? "Locating…" : ft.spot.lat != null ? "📍 Pin set ✓" : "📍 Use my location"}
+            </button>
+          </div>
+          {geoErr && <p className="text-xs text-red-500">{geoErr}</p>}
+          {ft.spot.lat != null && <p className="text-xs text-green-600">Pin dropped — customers can get directions to your spot.</p>}
+        </div>
+      )}
+
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <label className="block text-sm font-semibold text-gray-700">Weekly schedule</label>
+          <button type="button" onClick={addStop} className="text-sm bg-gray-900 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-gray-700">+ Add stop</button>
+        </div>
+        {ft.schedule.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">No stops yet. Add your regular spots so fans know where to find you.</p>
+        ) : (
+          <div className="space-y-2">
+            {ft.schedule.map((s) => (
+              <div key={s.id} className="flex flex-wrap items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl p-2">
+                <select value={s.day} onChange={(e) => updateStop(s.id, { day: e.target.value })} className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white">
+                  {DAYS.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <input value={s.label} onChange={(e) => updateStop(s.id, { label: e.target.value })} placeholder="Place" className="flex-1 min-w-[120px] border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white" />
+                <input value={s.start} onChange={(e) => updateStop(s.id, { start: e.target.value })} placeholder="11 AM" className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white" />
+                <span className="text-gray-400 text-xs">–</span>
+                <input value={s.end} onChange={(e) => updateStop(s.id, { end: e.target.value })} placeholder="2 PM" className="w-20 border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white" />
+                <button type="button" onClick={() => removeStop(s.id)} className="text-xs text-red-400 hover:text-red-600 px-1">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {notifyToast && <p className="mb-3 text-sm font-medium text-green-700">{notifyToast}</p>}
+
+      <button type="button" onClick={save} disabled={saving}
+        className={`w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${saved ? "bg-green-500 text-white" : "bg-gray-900 text-white hover:bg-gray-700"}`}>
+        {saving ? "Saving…" : saved ? "Saved! ✓" : ft.status === "open" && savedStatus !== "open" ? "🟢 Go Live & Notify Followers" : "Save"}
+      </button>
+    </div>
+  );
+}
 
 function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) {
   const [showBoost, setShowBoost] = useState(false);

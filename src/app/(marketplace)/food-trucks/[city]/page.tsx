@@ -34,7 +34,7 @@ export default async function FoodTrucksPage({ params }: { params: Promise<{ cit
   // everyone else is listed free underneath.
   const { data: trucks } = await supabase
     .from("vendors")
-    .select("id, business_name, slug, description, city, state, banner_url, logo_url, phone, website, latitude, longitude, food_truck_featured, is_claimed, user_id, rating, review_count")
+    .select("id, business_name, slug, description, city, state, banner_url, logo_url, phone, website, latitude, longitude, food_truck_featured, food_truck, is_claimed, user_id, rating, review_count")
     .eq("category", "Food Trucks")
     .eq("is_active", true)
     .ilike("city", cityName)

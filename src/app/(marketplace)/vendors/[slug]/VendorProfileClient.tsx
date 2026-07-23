@@ -23,6 +23,7 @@ import LocalTop8Badge from "@/components/LocalTop8Badge";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { StoreTheme, normalizeTheme, fontStack, textScalePx, buildGoogleFontsHref } from "@/lib/fonts";
 import { renderRichText } from "@/lib/richtext";
+import { isFoodTruck, normalizeFoodTruck, isLive, upcomingStops, TRUCK_STATUS_META } from "@/lib/foodtruck";
 
 type BlockKind = "heading" | "text" | "image" | "image-text" | "quote" | "button";
 type PageBlock = {
@@ -60,6 +61,7 @@ type Vendor = {
   stripe_connect_enabled?: boolean | null;
   pickup_info?: string | null;
   drop_info?: string | null;
+  food_truck?: unknown;
 };
 
 // Category cover photos (hand-verified Unsplash) — used as the hero cover when
@@ -590,6 +592,55 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     </div>
   ) : null;
 
+  // Food-truck live status + weekly schedule (only for Food Trucks vendors).
+  const truckIsFoodTruck = isFoodTruck(vendor.category);
+  const foodTruck = truckIsFoodTruck ? normalizeFoodTruck(vendor.food_truck) : null;
+  const foodTruckSection = foodTruck ? (() => {
+    const live = isLive(foodTruck);
+    const meta = TRUCK_STATUS_META[foodTruck.status];
+    const upcoming = upcomingStops(foodTruck);
+    const spot = foodTruck.spot;
+    const hasPin = live && spot.lat != null && spot.lng != null;
+    return (
+      <div className="mb-10">
+        <div className={`rounded-2xl border p-5 ${live ? "border-green-200 bg-green-50" : "border-gray-200 bg-gray-50"}`}>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: meta.dot }} />
+              <span className={`font-black text-lg ${meta.text}`}>{meta.label}</span>
+              {live && spot.name && <span className="text-gray-600 text-sm">· {spot.name}{spot.until ? ` · until ${spot.until}` : ""}</span>}
+            </div>
+            {hasPin && (
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-xl hover:bg-gray-700 transition-colors">Get directions →</a>
+            )}
+          </div>
+          {!live && upcoming.length > 0 && (
+            <p className="text-sm text-gray-600 mt-1">Next: {upcoming[0].day} · {upcoming[0].label}{upcoming[0].start ? ` · ${upcoming[0].start}${upcoming[0].end ? `–${upcoming[0].end}` : ""}` : ""}</p>
+          )}
+          {hasPin && (
+            <div className="mt-4 rounded-xl overflow-hidden">
+              <LeafletMap markers={[{ lat: spot.lat as number, lng: spot.lng as number, title: vendor.business_name, subtitle: spot.name || undefined }]} height={200} zoom={15} />
+            </div>
+          )}
+        </div>
+        {foodTruck.schedule.length > 0 && (
+          <div className="mt-6">
+            <p className="text-[11px] font-bold tracking-[0.2em] text-gray-400 uppercase mb-3">This week</p>
+            <div className="divide-y divide-gray-100 border border-gray-100 rounded-2xl overflow-hidden">
+              {upcoming.map((s) => (
+                <div key={s.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                  <span className="font-semibold text-gray-800 w-14 shrink-0">{s.day}</span>
+                  <span className="flex-1 text-gray-700 min-w-0 truncate">{s.label}</span>
+                  <span className="text-gray-500 shrink-0">{s.start}{s.end ? `–${s.end}` : ""}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  })() : null;
+
   return (<>
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
@@ -978,6 +1029,8 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         <div className="flex-1 min-w-0 w-full">
 
         {/* ── ABOUT ─────────────────────────────────────────────── */}
+        {foodTruckSection}
+
         <div id="about" ref={(el) => { sectionRefs.current.about = el; }} className="max-w-2xl mb-12">
           <h2 className="font-serif text-xl font-black text-gray-900 mb-3" style={headingStyle}>About {vendor.business_name}</h2>
           {vendor.description

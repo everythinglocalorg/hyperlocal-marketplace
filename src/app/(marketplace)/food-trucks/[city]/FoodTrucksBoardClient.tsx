@@ -9,6 +9,12 @@ import CitySelector from "@/components/CitySelector";
 import BoardTabs from "@/components/BoardTabs";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import { LS_CITY_KEY } from "@/lib/cities";
+import { normalizeFoodTruck, isLive } from "@/lib/foodtruck";
+
+// Whether a truck is currently live (open / on the way).
+function truckLive(t: { food_truck?: unknown }): boolean {
+  return isLive(normalizeFoodTruck(t.food_truck));
+}
 
 export interface FoodTruck {
   id: string;
@@ -24,6 +30,7 @@ export interface FoodTruck {
   latitude: number | null;
   longitude: number | null;
   food_truck_featured: boolean;
+  food_truck?: unknown;
   is_claimed: boolean;
   user_id: string | null;
   rating: number | null;
@@ -66,8 +73,9 @@ export default function FoodTrucksBoardClient({
     );
   }, [trucks, query]);
 
-  const featured = filtered.filter((t) => t.food_truck_featured);
-  const rest = filtered.filter((t) => !t.food_truck_featured);
+  const byLiveFirst = (a: FoodTruck, b: FoodTruck) => Number(truckLive(b)) - Number(truckLive(a));
+  const featured = filtered.filter((t) => t.food_truck_featured).sort(byLiveFirst);
+  const rest = filtered.filter((t) => !t.food_truck_featured).sort(byLiveFirst);
 
   const markers: MapMarker[] = filtered
     .filter((t) => typeof t.latitude === "number" && typeof t.longitude === "number")
@@ -242,6 +250,8 @@ function FeatureBar({ trucks }: { trucks: FoodTruck[] }) {
 
 function TruckCard({ truck }: { truck: FoodTruck }) {
   const photo = truck.banner_url ?? truck.logo_url;
+  const ft = normalizeFoodTruck(truck.food_truck);
+  const live = isLive(ft);
   return (
     <Link
       href={`/vendors/${truck.slug}`}
@@ -267,12 +277,20 @@ function TruckCard({ truck }: { truck: FoodTruck }) {
             Unclaimed
           </span>
         )}
+        {live && (
+          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1.5 text-xs font-bold bg-green-600 text-white px-2.5 py-1 rounded-full shadow">
+            <span className="w-1.5 h-1.5 rounded-full bg-white inline-block" /> {ft.status === "open" ? "Open now" : "On the way"}
+          </span>
+        )}
       </div>
 
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 group-hover:text-orange-700 transition-colors line-clamp-1">
           {truck.business_name}
         </h3>
+        {live && ft.spot.name && (
+          <p className="text-xs text-green-700 font-medium mt-0.5 line-clamp-1">📍 {ft.spot.name}{ft.spot.until ? ` · until ${ft.spot.until}` : ""}</p>
+        )}
         <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
           <span className="inline-flex items-center gap-1">
             <MapPin className="w-3 h-3" />
