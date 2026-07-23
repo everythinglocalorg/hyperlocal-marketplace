@@ -9,7 +9,7 @@ import CitySelector from "@/components/CitySelector";
 import BoardTabs from "@/components/BoardTabs";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import { LS_CITY_KEY } from "@/lib/cities";
-import { normalizeFoodTruck, isLive } from "@/lib/foodtruck";
+import { normalizeFoodTruck, isLive, externalOrderUrl } from "@/lib/foodtruck";
 
 // Whether a truck is currently live (open / on the way).
 function truckLive(t: { food_truck?: unknown }): boolean {
@@ -249,13 +249,27 @@ function FeatureBar({ trucks }: { trucks: FoodTruck[] }) {
 }
 
 function TruckCard({ truck }: { truck: FoodTruck }) {
+  const router = useRouter();
   const photo = truck.banner_url ?? truck.logo_url;
   const ft = normalizeFoodTruck(truck.food_truck);
   const live = isLive(ft);
+  const open = ft.status === "open";
+  const extUrl = externalOrderUrl(ft);
+
+  function startOrder(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (extUrl) window.open(extUrl, "_blank", "noopener,noreferrer");
+    else router.push(`/vendors/${truck.slug}?order=1`); // our internal pickup tickets
+  }
+
   return (
-    <Link
-      href={`/vendors/${truck.slug}`}
-      className={`group bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-shadow ${
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={() => router.push(`/vendors/${truck.slug}`)}
+      onKeyDown={(e) => { if (e.key === "Enter") router.push(`/vendors/${truck.slug}`); }}
+      className={`group cursor-pointer bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-shadow ${
         truck.food_truck_featured ? "border-orange-200 ring-1 ring-orange-100" : "border-gray-100"
       }`}
     >
@@ -270,11 +284,6 @@ function TruckCard({ truck }: { truck: FoodTruck }) {
         {truck.food_truck_featured && (
           <span className="absolute top-2 left-2 text-xs font-bold bg-orange-600 text-white px-2 py-0.5 rounded-full">
             ★ Featured
-          </span>
-        )}
-        {!truck.is_claimed && (
-          <span className="absolute top-2 right-2 text-xs font-medium bg-white/90 text-gray-500 px-2 py-0.5 rounded-full">
-            Unclaimed
           </span>
         )}
         {live && (
@@ -312,7 +321,15 @@ function TruckCard({ truck }: { truck: FoodTruck }) {
         {truck.description && (
           <p className="text-sm text-gray-500 mt-1.5 line-clamp-2">{truck.description}</p>
         )}
+        {open && (
+          <button
+            onClick={startOrder}
+            className="mt-3 w-full inline-flex items-center justify-center gap-1.5 bg-green-600 text-white text-sm font-bold py-2.5 rounded-xl hover:bg-green-700 transition-colors"
+          >
+            🧾 Start Order{extUrl ? " ↗" : ""}
+          </button>
+        )}
       </div>
-    </Link>
+    </div>
   );
 }

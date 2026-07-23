@@ -23,7 +23,8 @@ import LocalTop8Badge from "@/components/LocalTop8Badge";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { StoreTheme, normalizeTheme, fontStack, textScalePx, buildGoogleFontsHref } from "@/lib/fonts";
 import { renderRichText } from "@/lib/richtext";
-import { isFoodTruck, normalizeFoodTruck, isLive, upcomingStops, TRUCK_STATUS_META } from "@/lib/foodtruck";
+import { isFoodTruck, normalizeFoodTruck, isLive, upcomingStops, TRUCK_STATUS_META, externalOrderUrl } from "@/lib/foodtruck";
+import FoodOrderModal from "@/components/FoodOrderModal";
 
 type BlockKind = "heading" | "text" | "image" | "image-text" | "quote" | "button";
 type PageBlock = {
@@ -199,6 +200,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const [detailListing, setDetailListing] = useState<Listing | null>(null);
   const [showRefer, setShowRefer] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string; role?: string | null } | null>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const [siteMenuOpen, setSiteMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [citySlug, setCitySlug] = useState(DEFAULT_CITY_SLUG);
@@ -211,6 +213,18 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     if (!currentUserId) { setGateNext(`/vendors/${vendor.slug}`); return true; }
     return false;
   }
+  // Deep link from the food-truck board's "Start Order" (internal ordering).
+  // External-link trucks are sent straight to their URL from the board instead.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (new URLSearchParams(window.location.search).get("order") !== "1") return;
+    const ft = isFoodTruck(vendor.category) ? normalizeFoodTruck(vendor.food_truck) : null;
+    if (ft && ft.status === "open" && !externalOrderUrl(ft)) {
+      if (!requireAccount()) setShowOrderModal(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [showCtaForm, setShowCtaForm] = useState(false);
   const [ctaFormName, setCtaFormName] = useState("");
   const [ctaFormEmail, setCtaFormEmail] = useState("");
@@ -614,6 +628,19 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
               <a href={`https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold bg-gray-900 text-white px-4 py-2 rounded-xl hover:bg-gray-700 transition-colors">Get directions →</a>
             )}
           </div>
+          {foodTruck.status === "open" && (
+            externalOrderUrl(foodTruck) ? (
+              <a href={externalOrderUrl(foodTruck) as string} target="_blank" rel="noopener noreferrer"
+                className="mt-3 w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold px-5 py-3 rounded-xl hover:bg-green-700 transition-colors">
+                🧾 Order now ↗
+              </a>
+            ) : (
+              <button onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }}
+                className="mt-3 w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold px-5 py-3 rounded-xl hover:bg-green-700 transition-colors">
+                🧾 Order for pickup
+              </button>
+            )
+          )}
           {!live && upcoming.length > 0 && (
             <p className="text-sm text-gray-600 mt-1">Next: {upcoming[0].day} · {upcoming[0].label}{upcoming[0].start ? ` · ${upcoming[0].start}${upcoming[0].end ? `–${upcoming[0].end}` : ""}` : ""}</p>
           )}
@@ -645,6 +672,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
     <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
+    {showOrderModal && <FoodOrderModal vendor={{ id: vendor.id, business_name: vendor.business_name }} listings={listings.map((l) => ({ id: l.id, title: l.title, price: l.price }))} currentUser={currentUser} onClose={() => setShowOrderModal(false)} />}
 
     {/* Sticky mobile CTA bar — clean icon+label nav on the left, primary action pill on the right */}
     <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">

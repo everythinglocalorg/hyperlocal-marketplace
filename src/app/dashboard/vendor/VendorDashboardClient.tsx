@@ -20,10 +20,10 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 import { STORE_FONTS, HEADING_FONT_KEYS, BODY_FONT_KEYS, TEXT_SCALE_LABEL, normalizeTheme, buildGoogleFontsHref } from "@/lib/fonts";
-import { isFoodTruck, normalizeFoodTruck, DAYS, type FoodTruck, type TruckStatus, type TruckStop } from "@/lib/foodtruck";
+import { isFoodTruck, normalizeFoodTruck, DAYS, ORDER_STATUS_META, ACTIVE_ORDER_STATUSES, type FoodTruck, type TruckStatus, type TruckStop, type FoodOrder, type OrderStatus } from "@/lib/foodtruck";
 import QrCode from "@/components/QrCode";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces" | "foodtruck";
+type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces" | "foodtruck" | "orders";
 
 interface Props {
   vendor: {
@@ -170,6 +170,7 @@ type Customer = {
 const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean; foodTruckOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
   { id: "foodtruck", label: "Food Truck", icon: "🚚", foodTruckOnly: true },
+  { id: "orders", label: "Orders", icon: "🧾", foodTruckOnly: true },
   { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "referrals", label: "Referrals", icon: "🤝" },
@@ -1103,6 +1104,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
           {tab === "foodtruck" && isFoodTruckVendor && (
             <FoodTruckTab vendorId={vendor.id} initial={vendor.food_truck} supabase={supabase} />
+          )}
+
+          {tab === "orders" && isFoodTruckVendor && (
+            <FoodOrdersTab vendorId={vendor.id} supabase={supabase} />
           )}
 
           {tab === "store" && (
@@ -3299,6 +3304,98 @@ const CATEGORIES_LIST = [
   "Housing & Rentals",
 ];
 
+function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any }) {
+  const [orders, setOrders] = useState<FoodOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [showDone, setShowDone] = useState(false);
+
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("food_orders").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false }).limit(100);
+    setOrders((data ?? []) as FoodOrder[]);
+    setLoading(false);
+  }, [vendorId, supabase]);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 20000); // keep the ticket board fresh
+    return () => clearInterval(t);
+  }, [load]);
+
+  async function advance(o: FoodOrder, status: OrderStatus) {
+    setUpdating(o.id);
+    setOrders((prev) => prev.map((x) => x.id === o.id ? { ...x, status } : x));
+    await fetch("/api/food-trucks/order-status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ orderId: o.id, status }) });
+    await load();
+    setUpdating(null);
+  }
+
+  const active = orders.filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status));
+  const done = orders.filter((o) => !ACTIVE_ORDER_STATUSES.includes(o.status));
+
+  const renderTicket = (o: FoodOrder) => {
+    const meta = ORDER_STATUS_META[o.status];
+    const items = Array.isArray(o.items) ? o.items : [];
+    return (
+      <div key={o.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <div>
+            <p className="text-sm font-bold text-gray-900">{o.customer_name || "Customer"}</p>
+            <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}{o.customer_phone ? ` · ${o.customer_phone}` : ""}</p>
+          </div>
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${meta.badge}`}>{meta.label}</span>
+        </div>
+        <div className="text-sm text-gray-700 space-y-0.5 mb-2">
+          {items.map((it, i) => (
+            <div key={i} className="flex justify-between"><span>{it.qty}× {it.title}</span><span className="text-gray-400">${(Number(it.price) * Number(it.qty)).toFixed(2)}</span></div>
+          ))}
+        </div>
+        {o.notes && <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-2 py-1 mb-2">📝 {o.notes}</p>}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-50">
+          <span className="text-sm font-bold text-gray-900">${Number(o.total).toFixed(2)}</span>
+          <div className="flex gap-2">
+            {o.status !== "completed" && o.status !== "cancelled" && (
+              <button onClick={() => advance(o, "cancelled")} disabled={updating === o.id} className="text-xs text-red-400 hover:text-red-600 px-2">Cancel</button>
+            )}
+            {meta.next && (
+              <button onClick={() => advance(o, meta.next as OrderStatus)} disabled={updating === o.id} className="text-sm bg-gray-900 text-white px-4 py-1.5 rounded-lg font-semibold hover:bg-gray-700 disabled:opacity-50">{meta.nextLabel}</button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-xl font-bold text-gray-900">🧾 Orders</h2>
+        <button type="button" onClick={load} className="text-sm text-gray-500 hover:text-gray-800">↻ Refresh</button>
+      </div>
+      <p className="text-sm text-gray-500 mb-6">Live pickup tickets. Advance a ticket to move it along — customers get pinged the moment you mark it up.</p>
+
+      {loading ? (
+        <p className="text-sm text-gray-400">Loading…</p>
+      ) : active.length === 0 ? (
+        <div className="border-2 border-dashed border-gray-200 rounded-2xl py-12 text-center text-gray-400 text-sm">No active orders right now. New orders show up here automatically.</div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {active.map(renderTicket)}
+        </div>
+      )}
+
+      {done.length > 0 && (
+        <div className="mt-8">
+          <button type="button" onClick={() => setShowDone((v) => !v)} className="text-sm font-semibold text-gray-500 hover:text-gray-800">
+            {showDone ? "▾" : "▸"} Completed / cancelled ({done.length})
+          </button>
+          {showDone && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 opacity-70">{done.map(renderTicket)}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initial: unknown; supabase: any }) {
   const [ft, setFt] = useState<FoodTruck>(normalizeFoodTruck(initial));
   const [savedStatus, setSavedStatus] = useState<TruckStatus>(ft.status);
@@ -3401,6 +3498,30 @@ function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initi
                 <button type="button" onClick={() => removeStop(s.id)} className="text-xs text-red-400 hover:text-red-600 px-1">✕</button>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">How you take orders</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setFt((f) => ({ ...f, ordering: { ...f.ordering, mode: "internal" } }))}
+            className={`py-2.5 px-3 rounded-xl border text-sm font-semibold transition-colors ${ft.ordering.mode === "internal" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}>
+            🧾 Pickup tickets
+          </button>
+          <button type="button" onClick={() => setFt((f) => ({ ...f, ordering: { ...f.ordering, mode: "external" } }))}
+            className={`py-2.5 px-3 rounded-xl border text-sm font-semibold transition-colors ${ft.ordering.mode === "external" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}>
+            🔗 My own link
+          </button>
+        </div>
+        {ft.ordering.mode === "internal" ? (
+          <p className="text-xs text-gray-400 mt-2">Customers order right here — orders land on your Orders board (New → Preparing → Ready). Pay at the truck.</p>
+        ) : (
+          <div className="mt-2">
+            <input value={ft.ordering.url} onChange={(e) => setFt((f) => ({ ...f, ordering: { ...f.ordering, url: e.target.value } }))}
+              placeholder="https://order.toasttab.com/… or your Square/Google form link"
+              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            <p className="text-xs text-gray-400 mt-1.5">The &quot;Start Order&quot; button sends customers straight to this link. Leave blank to fall back to pickup tickets.</p>
           </div>
         )}
       </div>
