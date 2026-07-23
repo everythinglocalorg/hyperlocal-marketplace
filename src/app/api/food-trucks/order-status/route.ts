@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
+import { normalizeFoodTruck, orderPingMessage } from "@/lib/foodtruck";
 
 // The truck advances an order ticket (New → Preparing → Ready → Completed).
 // Verifies ownership and pings the customer when the order is "ready" (order up!).
@@ -30,14 +31,17 @@ export async function POST(req: Request) {
   const { error } = await db.from("food_orders").update(patch).eq("id", orderId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (status === "ready" && order.customer_id) {
-    const spot = (vendor.food_truck as { spot?: { name?: string } } | null)?.spot?.name;
+  // Ping the customer when the truck starts the order and when it's ready — with
+  // the truck's own custom message when set.
+  if ((status === "preparing" || status === "ready") && order.customer_id) {
+    const ft = normalizeFoodTruck(vendor.food_truck);
+    const kind = status === "ready" ? "ready" : "started";
     await db.from("notifications").insert({
       user_id: order.customer_id,
       actor_id: user.id,
-      type: "food_order_ready",
-      title: `🔔 Order up at ${vendor.business_name}!`,
-      body: spot ? `Your order is ready — grab it at ${spot}.` : "Your order is ready for pickup.",
+      type: status === "ready" ? "food_order_ready" : "food_order_started",
+      title: status === "ready" ? `🔔 Order up at ${vendor.business_name}!` : `👨‍🍳 ${vendor.business_name} is on it`,
+      body: orderPingMessage(ft, kind, ft.spot.name),
       link: `/vendors/${vendor.slug}`,
       is_read: false,
     });

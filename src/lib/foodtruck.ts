@@ -26,12 +26,16 @@ export type TruckStop = {
 export type OrderingMode = "internal" | "external";
 export type TruckOrdering = { mode: OrderingMode; url: string };
 
+// Custom pickup-order pings the customer receives (blank = use the defaults).
+export type OrderMessages = { started: string; ready: string };
+
 export type FoodTruck = {
   status: TruckStatus;
   spot: TruckSpot;
   live_at: string | null;        // ISO timestamp of the last go-live
   schedule: TruckStop[];
   ordering: TruckOrdering;
+  order_messages: OrderMessages;
 };
 
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -47,7 +51,7 @@ export function isFoodTruck(category?: string | null): boolean {
 }
 
 export function emptyFoodTruck(): FoodTruck {
-  return { status: "closed", spot: { name: "", until: "", lat: null, lng: null }, live_at: null, schedule: [], ordering: { mode: "internal", url: "" } };
+  return { status: "closed", spot: { name: "", until: "", lat: null, lng: null }, live_at: null, schedule: [], ordering: { mode: "internal", url: "" }, order_messages: { started: "", ready: "" } };
 }
 
 // Normalize a raw vendors.food_truck value into a safe FoodTruck.
@@ -69,7 +73,20 @@ export function normalizeFoodTruck(raw: unknown): FoodTruck {
     mode: o.mode === "external" ? "external" : "internal",
     url: typeof o.url === "string" ? o.url : "",
   };
-  return { status, spot, live_at: typeof t.live_at === "string" ? t.live_at : null, schedule, ordering };
+  const m = (t.order_messages ?? {}) as Partial<OrderMessages>;
+  const order_messages: OrderMessages = {
+    started: typeof m.started === "string" ? m.started : "",
+    ready: typeof m.ready === "string" ? m.ready : "",
+  };
+  return { status, spot, live_at: typeof t.live_at === "string" ? t.live_at : null, schedule, ordering, order_messages };
+}
+
+// The customer-facing ping text for an order milestone — custom or default.
+export function orderPingMessage(ft: FoodTruck, kind: "started" | "ready", spotName?: string | null): string {
+  const custom = (ft.order_messages?.[kind] ?? "").trim();
+  if (custom) return custom;
+  if (kind === "started") return "We've started your order — it'll be ready soon!";
+  return spotName ? `Your order is ready — grab it at ${spotName}.` : "Your order is ready for pickup.";
 }
 
 export function isLive(ft: FoodTruck): boolean {

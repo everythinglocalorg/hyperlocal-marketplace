@@ -3309,6 +3309,10 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [range, setRange] = useState<"today" | "7d" | "30d" | "custom">("7d");
+  const [customFrom, setCustomFrom] = useState("");
+  const [customTo, setCustomTo] = useState("");
+  const [analyticsOrders, setAnalyticsOrders] = useState<{ total: number; created_at: string }[]>([]);
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("food_orders").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false }).limit(100);
@@ -3322,6 +3326,30 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
     return () => clearInterval(t);
   }, [load]);
 
+  function rangeBounds() {
+    const now = new Date();
+    let from: Date; let to = now;
+    if (range === "today") { from = new Date(); from.setHours(0, 0, 0, 0); }
+    else if (range === "30d") { from = new Date(Date.now() - 29 * 864e5); from.setHours(0, 0, 0, 0); }
+    else if (range === "custom") {
+      from = customFrom ? new Date(customFrom + "T00:00:00") : new Date(Date.now() - 6 * 864e5);
+      to = customTo ? new Date(customTo + "T23:59:59") : now;
+    } else { from = new Date(Date.now() - 6 * 864e5); from.setHours(0, 0, 0, 0); }
+    return { from, to };
+  }
+
+  const loadAnalytics = useCallback(async () => {
+    const { from, to } = rangeBounds();
+    const { data } = await supabase.from("food_orders").select("total, created_at, status")
+      .eq("vendor_id", vendorId).neq("status", "cancelled")
+      .gte("created_at", from.toISOString()).lte("created_at", to.toISOString())
+      .order("created_at", { ascending: true }).limit(3000);
+    setAnalyticsOrders((data ?? []) as { total: number; created_at: string }[]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vendorId, supabase, range, customFrom, customTo]);
+
+  useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
+
   async function advance(o: FoodOrder, status: OrderStatus) {
     setUpdating(o.id);
     setOrders((prev) => prev.map((x) => x.id === o.id ? { ...x, status } : x));
@@ -3332,6 +3360,29 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
 
   const active = orders.filter((o) => ACTIVE_ORDER_STATUSES.includes(o.status));
   const done = orders.filter((o) => !ACTIVE_ORDER_STATUSES.includes(o.status));
+
+  const aCount = analyticsOrders.length;
+  const aRevenue = analyticsOrders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+  const aAvg = aCount ? aRevenue / aCount : 0;
+  const perDay = (() => {
+    const map = new Map<string, number>();
+    for (const o of analyticsOrders) {
+      const d = new Date(o.created_at);
+      map.set(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`, (map.get(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`) ?? 0) + 1);
+    }
+    const { from, to } = rangeBounds();
+    const days: { label: string; count: number }[] = [];
+    const cur = new Date(from); cur.setHours(0, 0, 0, 0);
+    const end = new Date(to); end.setHours(0, 0, 0, 0);
+    let guard = 0;
+    while (cur <= end && guard < 370) {
+      days.push({ label: `${cur.getMonth() + 1}/${cur.getDate()}`, count: map.get(`${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`) ?? 0 });
+      cur.setDate(cur.getDate() + 1); guard++;
+    }
+    return days;
+  })();
+  const maxDay = Math.max(1, ...perDay.map((d) => d.count));
+  const barPx = (c: number) => Math.max(3, Math.round((c / maxDay) * 100));
 
   const renderTicket = (o: FoodOrder) => {
     const meta = ORDER_STATUS_META[o.status];
@@ -3373,6 +3424,59 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
         <button type="button" onClick={load} className="text-sm text-gray-500 hover:text-gray-800">↻ Refresh</button>
       </div>
       <p className="text-sm text-gray-500 mb-6">Live pickup tickets. Advance a ticket to move it along — customers get pinged the moment you mark it up.</p>
+
+      {/* ── Overview ── */}
+      <div className="mb-8">
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <span className="text-xs font-bold tracking-widest text-gray-400 uppercase mr-1">Overview</span>
+          {(["today", "7d", "30d", "custom"] as const).map((r) => (
+            <button key={r} type="button" onClick={() => setRange(r)}
+              className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${range === r ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-400"}`}>
+              {r === "today" ? "Today" : r === "7d" ? "7 days" : r === "30d" ? "30 days" : "Custom"}
+            </button>
+          ))}
+          {range === "custom" && (
+            <span className="flex items-center gap-1.5">
+              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-xs" />
+              <span className="text-gray-400 text-xs">→</span>
+              <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="border border-gray-200 rounded-lg px-2 py-1 text-xs" />
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400">Orders</p>
+            <p className="text-2xl font-black text-gray-900">{aCount}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400">Revenue</p>
+            <p className="text-2xl font-black text-gray-900">${aRevenue.toFixed(2)}</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-xs text-gray-400">Avg ticket</p>
+            <p className="text-2xl font-black text-gray-900">${aAvg.toFixed(2)}</p>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <p className="text-xs font-semibold text-gray-500 mb-3">Orders per day</p>
+          {perDay.every((d) => d.count === 0) ? (
+            <p className="text-sm text-gray-400 py-6 text-center">No orders in this range yet.</p>
+          ) : (
+            <div className="flex items-end gap-1 overflow-x-auto pb-1">
+              {perDay.map((d, i) => (
+                <div key={i} className="flex flex-col items-center gap-1 shrink-0">
+                  <div className="w-4 bg-green-500 rounded-t" style={{ height: barPx(d.count) }} title={`${d.label}: ${d.count} order${d.count === 1 ? "" : "s"}`} />
+                  <span className="text-[10px] text-gray-400 whitespace-nowrap">{d.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <h3 className="text-sm font-bold text-gray-900 mb-3">Live tickets</h3>
 
       {loading ? (
         <p className="text-sm text-gray-400">Loading…</p>
@@ -3525,6 +3629,25 @@ function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initi
           </div>
         )}
       </div>
+
+      {ft.ordering.mode === "internal" && (
+        <div className="mb-6">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">🔔 Order ping messages</label>
+          <p className="text-xs text-gray-400 mb-2">What customers get pinged as their order moves. Leave blank to use the defaults.</p>
+          <div className="space-y-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">When you start their order</label>
+              <input value={ft.order_messages.started} onChange={(e) => setFt((f) => ({ ...f, order_messages: { ...f.order_messages, started: e.target.value } }))}
+                placeholder="We've started your order — it'll be ready soon!" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">When it&apos;s ready (order up!)</label>
+              <input value={ft.order_messages.ready} onChange={(e) => setFt((f) => ({ ...f, order_messages: { ...f.order_messages, ready: e.target.value } }))}
+                placeholder="Your order is ready — grab it at the truck!" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {notifyToast && <p className="mb-3 text-sm font-medium text-green-700">{notifyToast}</p>}
 
