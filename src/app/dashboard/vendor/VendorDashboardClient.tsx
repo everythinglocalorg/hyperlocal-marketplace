@@ -3309,6 +3309,7 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [showOverview, setShowOverview] = useState(false);
   const [range, setRange] = useState<"today" | "7d" | "30d" | "custom">("7d");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
@@ -3348,7 +3349,7 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorId, supabase, range, customFrom, customTo]);
 
-  useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
+  useEffect(() => { if (showOverview) loadAnalytics(); }, [loadAnalytics, showOverview]);
 
   async function advance(o: FoodOrder, status: OrderStatus) {
     setUpdating(o.id);
@@ -3421,11 +3422,18 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
     <div className="p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-1">
         <h2 className="text-xl font-bold text-gray-900">🧾 Orders</h2>
-        <button type="button" onClick={load} className="text-sm text-gray-500 hover:text-gray-800">↻ Refresh</button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={() => setShowOverview((v) => !v)}
+            className={`text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${showOverview ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400"}`}>
+            📊 Overview
+          </button>
+          <button type="button" onClick={load} className="text-sm text-gray-500 hover:text-gray-800">↻ Refresh</button>
+        </div>
       </div>
       <p className="text-sm text-gray-500 mb-6">Live pickup tickets. Advance a ticket to move it along — customers get pinged the moment you mark it up.</p>
 
-      {/* ── Overview ── */}
+      {/* ── Overview (toggle) ── */}
+      {showOverview && (
       <div className="mb-8">
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <span className="text-xs font-bold tracking-widest text-gray-400 uppercase mr-1">Overview</span>
@@ -3475,6 +3483,7 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
           )}
         </div>
       </div>
+      )}
 
       <h3 className="text-sm font-bold text-gray-900 mb-3">Live tickets</h3>
 
