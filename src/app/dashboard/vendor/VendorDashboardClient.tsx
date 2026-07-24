@@ -1580,19 +1580,30 @@ function ListingsTab({
     if (editingListing) {
       const { error } = await supabase.from("listings").update(waiverPayload).eq("id", editingListing.id);
       if (error) {
-        // Retry without waiver fields if columns don't exist
-        await supabase.from("listings").update(basePayload).eq("id", editingListing.id);
+        // Only degrade to base columns when a column genuinely doesn't exist yet
+        // (42703 = undefined_column). Any other error (bad value, failed CHECK
+        // constraint, RLS) is surfaced — never silently dropped.
+        if (error.code === "42703") {
+          const { error: retryErr } = await supabase.from("listings").update(basePayload).eq("id", editingListing.id);
+          if (retryErr) { setSaveError("Couldn't save your changes: " + retryErr.message); setSaving(false); return; }
+        } else {
+          setSaveError("Couldn't save your changes: " + error.message);
+          setSaving(false);
+          return;
+        }
       }
       savedListingId = editingListing.id;
       onEdit(null);
     } else {
       let { data: newListing, error } = await supabase.from("listings").insert(waiverPayload).select("id").single();
       if (error) {
-        // Retry without waiver fields
-        const res = await supabase.from("listings").insert(basePayload).select("id").single();
-        newListing = res.data;
-        if (res.error) {
-          setSaveError("Failed to save listing: " + res.error.message);
+        if (error.code === "42703") {
+          // Missing optional columns — retry with base columns only.
+          const res = await supabase.from("listings").insert(basePayload).select("id").single();
+          newListing = res.data;
+          if (res.error) { setSaveError("Failed to save listing: " + res.error.message); setSaving(false); return; }
+        } else {
+          setSaveError("Failed to save listing: " + error.message);
           setSaving(false);
           return;
         }
