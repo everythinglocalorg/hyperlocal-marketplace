@@ -26,12 +26,25 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
   const [newContact, setNewContact] = useState({ name: "", email: "", phone: "" });
   const [dragging, setDragging] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // Pointer-based drag (works on touch + mouse). colRefs lets us hit-test which
-  // column the finger/cursor is over; a small move threshold keeps taps as taps.
+  // Long-press drag (works on touch + mouse). A plain swipe scrolls the board;
+  // holding a card ~250ms picks it up to drag. colRefs hit-tests which column the
+  // finger/cursor is over. While dragging, a non-passive touchmove guard blocks
+  // page scroll so the drag stays put.
   const colRefs = useRef<Record<string, HTMLElement | null>>({});
-  const pointerRef = useRef<{ x: number; y: number; contactId: string; from: string; moved: boolean } | null>(null);
+  const pointerRef = useRef<
+    { x: number; y: number; contactId: string; from: string; moved: boolean; el: HTMLElement; pid: number; pointerType: string } | null
+  >(null);
+  const draggingRef = useRef(false);
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [ghost, setGhost] = useState<{ x: number; y: number; name: string } | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+
+  // Stop the page/column from scrolling once a card has been picked up.
+  useEffect(() => {
+    const guard = (e: TouchEvent) => { if (draggingRef.current) e.preventDefault(); };
+    document.addEventListener("touchmove", guard, { passive: false });
+    return () => document.removeEventListener("touchmove", guard);
+  }, []);
 
   useEffect(() => { load(); }, [vendorId]);
 
@@ -77,8 +90,10 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
   async function addContact(columnId: string) {
     if (!newContact.name.trim()) return;
     setSaving(true);
+    // "__inbox__" (New Leads) is the unassigned column → column_id null.
+    const columnValue = columnId === "__inbox__" ? null : columnId;
     const { data } = await supabase.from("crm_contacts").insert({
-      vendor_id: vendorId, column_id: columnId,
+      vendor_id: vendorId, column_id: columnValue,
       name: newContact.name.trim(), email: newContact.email.trim() || null, phone: newContact.phone.trim() || null,
     }).select("*").single();
     if (data) setContacts((prev) => [...prev, data]);
@@ -117,33 +132,72 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
     return null;
   }
 
+  function clearLP() { if (lpTimer.current) { clearTimeout(lpTimer.current); lpTimer.current = null; } }
+
+  // Pick the card up (from the long-press timer on touch, or immediately on mouse move).
+  function beginDrag(contact: Contact, x: number, y: number) {
+    const p = pointerRef.current;
+    if (!p) return;
+    try { p.el.setPointerCapture(p.pid); } catch { /* ignore */ }
+    draggingRef.current = true;
+    setDragging(contact.id);
+    setGhost({ x, y, name: contact.name });
+    setOverCol(colAtPoint(x, y));
+    if (p.pointerType !== "mouse" && typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(30);
+  }
+
   function onCardDown(e: React.PointerEvent, contact: Contact) {
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    pointerRef.current = { x: e.clientX, y: e.clientY, contactId: contact.id, from: contact.column_id ?? "__inbox__", moved: false };
+    pointerRef.current = {
+      x: e.clientX, y: e.clientY, contactId: contact.id,
+      from: contact.column_id ?? "__inbox__", moved: false,
+      el: e.currentTarget as HTMLElement, pid: e.pointerId, pointerType: e.pointerType,
+    };
+    clearLP();
+    // Touch: hold ~250ms to pick up (a swipe before then stays a scroll).
+    // Mouse: handled immediately in onCardMove, so the timer rarely fires.
+    lpTimer.current = setTimeout(() => {
+      const p = pointerRef.current;
+      if (p && p.contactId === contact.id && !draggingRef.current) beginDrag(contact, p.x, p.y);
+    }, 250);
   }
   function onCardMove(e: React.PointerEvent, contact: Contact) {
     const p = pointerRef.current;
     if (!p || p.contactId !== contact.id) return;
-    if (!p.moved && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 6) {
-      p.moved = true;
-      setDragging(contact.id);
+    if (!draggingRef.current) {
+      const dist = Math.hypot(e.clientX - p.x, e.clientY - p.y);
+      if (p.pointerType === "mouse") {
+        // Desktop: drag immediately on move — no hold needed.
+        if (dist > 6) { clearLP(); beginDrag(contact, e.clientX, e.clientY); }
+      } else if (dist > 8) {
+        // Touch: moved before the hold completed → it's a scroll; cancel pick-up.
+        clearLP();
+      }
+      return;
     }
-    if (p.moved) {
-      setGhost({ x: e.clientX, y: e.clientY, name: contact.name });
-      setOverCol(colAtPoint(e.clientX, e.clientY));
-    }
+    p.moved = true;
+    setGhost({ x: e.clientX, y: e.clientY, name: contact.name });
+    setOverCol(colAtPoint(e.clientX, e.clientY));
   }
   function onCardUp(e: React.PointerEvent, contact: Contact) {
     const p = pointerRef.current;
     pointerRef.current = null;
+    clearLP();
+    const wasDragging = draggingRef.current;
+    draggingRef.current = false;
     setDragging(null); setGhost(null); setOverCol(null);
     if (!p) return;
-    if (p.moved) {
+    if (wasDragging) {
       const target = colAtPoint(e.clientX, e.clientY);
       if (target && target !== p.from) moveContact(contact.id, target);
-    } else {
-      setSelectedContact(contact); // it was a tap, not a drag
+    } else if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8) {
+      setSelectedContact(contact); // quick tap → open the card
     }
+  }
+  function onCardCancel() {
+    clearLP();
+    pointerRef.current = null;
+    draggingRef.current = false;
+    setDragging(null); setGhost(null); setOverCol(null);
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -205,8 +259,8 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                     onPointerDown={(e) => onCardDown(e, contact)}
                     onPointerMove={(e) => onCardMove(e, contact)}
                     onPointerUp={(e) => onCardUp(e, contact)}
-                    style={{ touchAction: "none" }}
-                    className={`bg-white rounded-xl border border-gray-100 p-3 cursor-grab active:cursor-grabbing select-none hover:border-green-300 hover:shadow-sm transition-all ${dragging === contact.id ? "opacity-40" : ""}`}
+                    onPointerCancel={onCardCancel}
+                    className={`bg-white rounded-xl border p-3 cursor-grab active:cursor-grabbing select-none hover:border-green-300 hover:shadow-sm transition-all ${dragging === contact.id ? "opacity-50 border-green-400 scale-[1.02]" : "border-gray-100"}`}
                   >
                     <p className="text-sm font-semibold text-gray-900 truncate">{contact.name}</p>
                     {contact.email && <p className="text-xs text-gray-400 truncate">{contact.email}</p>}
@@ -219,8 +273,8 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                 ))}
               </div>
 
-              {/* Add contact (pipeline columns only; inbox fills from website inquiries) */}
-              {!isInbox && (
+              {/* Add contact — every column, including New Leads (the inbox also
+                  fills automatically from website inquiries). */}
               <div className="p-2 border-t border-gray-200">
                 {showAddContact === col.id ? (
                   <div className="space-y-1.5">
@@ -241,11 +295,10 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                 ) : (
                   <button onClick={() => setShowAddContact(col.id)}
                     className="w-full text-xs text-gray-400 hover:text-green-600 py-1.5 hover:bg-green-50 rounded-lg transition-colors">
-                    + Add contact
+                    {isInbox ? "+ Add lead" : "+ Add contact"}
                   </button>
                 )}
               </div>
-              )}
             </div>
           );
         })}
