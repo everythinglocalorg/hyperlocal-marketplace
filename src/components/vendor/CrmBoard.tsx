@@ -26,7 +26,12 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
   const [newContact, setNewContact] = useState({ name: "", email: "", phone: "" });
   const [dragging, setDragging] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const dragOver = useRef<string | null>(null);
+  // Pointer-based drag (works on touch + mouse). colRefs lets us hit-test which
+  // column the finger/cursor is over; a small move threshold keeps taps as taps.
+  const colRefs = useRef<Record<string, HTMLElement | null>>({});
+  const pointerRef = useRef<{ x: number; y: number; contactId: string; from: string; moved: boolean } | null>(null);
+  const [ghost, setGhost] = useState<{ x: number; y: number; name: string } | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
 
   useEffect(() => { load(); }, [vendorId]);
 
@@ -102,11 +107,43 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
     setSelectedContact(null);
   }
 
-  function onDragStart(contactId: string) { setDragging(contactId); }
-  function onDragOver(e: React.DragEvent, colId: string) { e.preventDefault(); dragOver.current = colId; }
-  function onDrop(colId: string) {
-    if (dragging && dragOver.current === colId) moveContact(dragging, colId);
-    setDragging(null); dragOver.current = null;
+  // Which column (by id, or "__inbox__") is under this screen point.
+  function colAtPoint(x: number, y: number): string | null {
+    for (const [id, el] of Object.entries(colRefs.current)) {
+      if (!el) continue;
+      const r = el.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return id;
+    }
+    return null;
+  }
+
+  function onCardDown(e: React.PointerEvent, contact: Contact) {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    pointerRef.current = { x: e.clientX, y: e.clientY, contactId: contact.id, from: contact.column_id ?? "__inbox__", moved: false };
+  }
+  function onCardMove(e: React.PointerEvent, contact: Contact) {
+    const p = pointerRef.current;
+    if (!p || p.contactId !== contact.id) return;
+    if (!p.moved && Math.hypot(e.clientX - p.x, e.clientY - p.y) > 6) {
+      p.moved = true;
+      setDragging(contact.id);
+    }
+    if (p.moved) {
+      setGhost({ x: e.clientX, y: e.clientY, name: contact.name });
+      setOverCol(colAtPoint(e.clientX, e.clientY));
+    }
+  }
+  function onCardUp(e: React.PointerEvent, contact: Contact) {
+    const p = pointerRef.current;
+    pointerRef.current = null;
+    setDragging(null); setGhost(null); setOverCol(null);
+    if (!p) return;
+    if (p.moved) {
+      const target = colAtPoint(e.clientX, e.clientY);
+      if (target && target !== p.from) moveContact(contact.id, target);
+    } else {
+      setSelectedContact(contact); // it was a tap, not a drag
+    }
   }
 
   if (loading) return <div className="flex items-center justify-center h-64"><div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>;
@@ -126,9 +163,12 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
           return (
             <div
               key={col.id}
-              className={`shrink-0 w-60 flex flex-col rounded-2xl border ${isInbox ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"}`}
-              onDragOver={(e) => onDragOver(e, col.id)}
-              onDrop={() => onDrop(col.id)}
+              ref={(el) => { colRefs.current[col.id] = el; }}
+              className={`shrink-0 w-60 flex flex-col rounded-2xl border transition-colors ${
+                overCol === col.id
+                  ? "border-green-500 ring-2 ring-green-300 bg-green-50"
+                  : isInbox ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200"
+              }`}
             >
               {/* Column header */}
               <div className="flex items-center justify-between px-3 py-2.5 border-b border-gray-200">
@@ -162,10 +202,11 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
                 {colContacts.map((contact) => (
                   <div
                     key={contact.id}
-                    draggable
-                    onDragStart={() => onDragStart(contact.id)}
-                    onClick={() => setSelectedContact(contact)}
-                    className="bg-white rounded-xl border border-gray-100 p-3 cursor-pointer hover:border-green-300 hover:shadow-sm transition-all"
+                    onPointerDown={(e) => onCardDown(e, contact)}
+                    onPointerMove={(e) => onCardMove(e, contact)}
+                    onPointerUp={(e) => onCardUp(e, contact)}
+                    style={{ touchAction: "none" }}
+                    className={`bg-white rounded-xl border border-gray-100 p-3 cursor-grab active:cursor-grabbing select-none hover:border-green-300 hover:shadow-sm transition-all ${dragging === contact.id ? "opacity-40" : ""}`}
                   >
                     <p className="text-sm font-semibold text-gray-900 truncate">{contact.name}</p>
                     {contact.email && <p className="text-xs text-gray-400 truncate">{contact.email}</p>}
@@ -209,6 +250,16 @@ export default function CrmBoard({ vendorId, onCreateEstimate }: Props) {
           );
         })}
       </div>
+
+      {/* Drag ghost — follows the finger/cursor while dragging a card */}
+      {ghost && (
+        <div
+          className="fixed z-[100] pointer-events-none bg-white rounded-xl border-2 border-green-400 shadow-xl p-3 w-52 -translate-x-1/2 -translate-y-1/2 rotate-2"
+          style={{ left: ghost.x, top: ghost.y }}
+        >
+          <p className="text-sm font-semibold text-gray-900 truncate">{ghost.name}</p>
+        </div>
+      )}
 
       {/* Contact detail modal */}
       {selectedContact && (
