@@ -40,6 +40,19 @@ export function parseHousing(listing: DetailListing): any | null {
   try { const t = listing.tags?.find((t) => t.startsWith("__housing:")); return t ? JSON.parse(t.replace("__housing:", "")) : null; } catch { return null; }
 }
 
+// "18:30" → "6:30 PM"
+function to12h(t: string): string {
+  const [h, m] = (t || "").split(":").map(Number);
+  if (Number.isNaN(h)) return t;
+  const ampm = h >= 12 ? "PM" : "AM";
+  return `${h % 12 || 12}:${String(m ?? 0).padStart(2, "0")} ${ampm}`;
+}
+
+export function parseEvent(listing: DetailListing): { date: string; start_time: string; end_time: string; location: string } | null {
+  if (listing.type !== "event") return null;
+  try { const t = listing.tags?.find((t) => t.startsWith("__event:")); return t ? JSON.parse(t.replace("__event:", "")) : null; } catch { return null; }
+}
+
 export function parseThrift(listing: DetailListing): { address: string | null; openDays: { day: string; open: string; close: string }[] } | null {
   if (listing.type !== "thrift") return null;
   try {
@@ -111,6 +124,7 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   }
   const housingData = parseHousing(listing);
   const thriftData = parseThrift(listing);
+  const eventData = parseEvent(listing);
   const priceLabel = derivePriceLabel(listing);
   const { ctaLabel, ctaAction } = resolveListingCta(listing, vendorPhone, menuPdfUrl);
   const images = listing.images ?? [];
@@ -288,6 +302,25 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
 
           {listing.description && (
             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{listing.description}</p>
+          )}
+
+          {/* Event details */}
+          {eventData && (eventData.date || eventData.start_time || eventData.location) && (
+            <div className="text-sm space-y-1.5 bg-gray-50 rounded-xl px-4 py-3">
+              {eventData.date && (
+                <p className="text-gray-700">
+                  <span className="font-semibold">🗓️ When:</span>{" "}
+                  {new Date(eventData.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+                  {eventData.start_time ? ` · ${to12h(eventData.start_time)}${eventData.end_time ? ` – ${to12h(eventData.end_time)}` : ""}` : ""}
+                </p>
+              )}
+              {!eventData.date && eventData.start_time && (
+                <p className="text-gray-700"><span className="font-semibold">🕒 Time:</span> {to12h(eventData.start_time)}{eventData.end_time ? ` – ${to12h(eventData.end_time)}` : ""}</p>
+              )}
+              {eventData.location && (
+                <p className="text-gray-700"><span className="font-semibold">📍 Where:</span> {eventData.location}</p>
+              )}
+            </div>
           )}
 
           {/* Housing details */}

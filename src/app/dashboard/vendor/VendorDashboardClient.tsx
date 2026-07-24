@@ -1374,6 +1374,7 @@ function ListingsTab({
     rental_deposit_type: "none", rental_deposit_value: "50",
   });
   const [thriftAddress, setThriftAddress] = useState("");
+  const [eventDetails, setEventDetails] = useState({ date: "", start_time: "", end_time: "", location: "" });
   const [housing, setHousing] = useState({
     address: "", bedrooms: "", bathrooms: "", sqft: "", lot_size: "",
     year_built: "", garage: false, pets_allowed: false, furnished: false,
@@ -1426,6 +1427,12 @@ function ListingsTab({
         try {
           const h = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__housing:"))?.replace("__housing:", "") ?? "null");
           if (h) setHousing(h);
+        } catch {}
+      }
+      if (editingListing.type === "event") {
+        try {
+          const ev = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__event:"))?.replace("__event:", "") ?? "null");
+          if (ev) setEventDetails({ date: "", start_time: "", end_time: "", location: "", ...ev });
         } catch {}
       }
       if (editingListing.type === "rental") {
@@ -1527,9 +1534,11 @@ function ListingsTab({
     // Base payload — always works regardless of migration status
     const isThrift = form.type === "thrift";
     const isHousing = form.type === "housing_sale" || form.type === "housing_rent";
+    const isEvent = form.type === "event";
     const regularTags = form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [];
     const thriftTags = isThrift ? [`__hours:${JSON.stringify(thriftHours)}`] : [];
     const housingTags = isHousing ? [`__housing:${JSON.stringify(housing)}`] : [];
+    const eventTags = isEvent ? [`__event:${JSON.stringify(eventDetails)}`] : [];
     const finalCategories = isHousing
       ? (selectedCategories.includes("Housing & Rentals") ? selectedCategories : [...selectedCategories, "Housing & Rentals"])
       : selectedCategories;
@@ -1545,7 +1554,7 @@ function ListingsTab({
       categories: finalCategories,
       quantity: form.type === "product" ? (form.quantity ? Number(form.quantity) : null) : null,
       condition: form.type === "product" ? form.condition : null,
-      tags: isThrift ? thriftTags : isHousing ? housingTags : regularTags,
+      tags: isThrift ? thriftTags : isHousing ? housingTags : isEvent ? eventTags : regularTags,
       images,
       is_active: true,
       listing_category_id: categoryId || null,
@@ -1633,6 +1642,7 @@ function ListingsTab({
     setRentalWaiverFilename(null);
     setRentalSettings({ rental_mode: "hourly", rental_buffer_hours: "0", rental_quantity: "1", waiver_body: "", fareharbor_shortname: "", fareharbor_flow: "", rental_deposit_type: "none", rental_deposit_value: "50" });
     setThriftAddress("");
+    setEventDetails({ date: "", start_time: "", end_time: "", location: "" });
     setThriftHours([
       { day: "Monday", open: "", close: "", closed: false },
       { day: "Tuesday", open: "", close: "", closed: false },
@@ -1923,6 +1933,38 @@ function ListingsTab({
                 </div>
               </div>
             )}
+            {form.type === "event" && (
+              <div className="sm:col-span-2 space-y-4 pt-2 border-t border-gray-100">
+                <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">🎉 Event Details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                    <input type="date" value={eventDetails.date}
+                      onChange={(e) => setEventDetails((v) => ({ ...v, date: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Start time</label>
+                    <input type="time" value={eventDetails.start_time}
+                      onChange={(e) => setEventDetails((v) => ({ ...v, start_time: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">End time <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input type="time" value={eventDetails.end_time}
+                      onChange={(e) => setEventDetails((v) => ({ ...v, end_time: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Location / Venue <span className="font-normal text-gray-400">(optional)</span></label>
+                  <input type="text" value={eventDetails.location}
+                    onChange={(e) => setEventDetails((v) => ({ ...v, location: e.target.value }))}
+                    placeholder="e.g. Phoenix Park, Eau Claire"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+              </div>
+            )}
             {form.type === "rental" && (
               <div className="sm:col-span-2">
                 <RentalSetup
@@ -2106,16 +2148,18 @@ function ListingsTab({
               <p className="text-xs text-gray-400 mt-1.5">JPG, PNG or WebP · max 5MB each · up to 6 photos · drag to reorder</p>
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-1">Tags <span className="font-normal text-gray-400">(comma-separated)</span></label>
-              <input
-                type="text"
-                value={form.tags}
-                onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
-                placeholder="e.g. organic, local, fresh, gluten-free"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
+            {!["thrift", "housing_sale", "housing_rent", "event"].includes(form.type) && (
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-gray-500 mb-1">Tags <span className="font-normal text-gray-400">(comma-separated)</span></label>
+                <input
+                  type="text"
+                  value={form.tags}
+                  onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+                  placeholder="e.g. organic, local, fresh, gluten-free"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+            )}
           </div>
           <div className="flex gap-3 mt-4">
             <button
