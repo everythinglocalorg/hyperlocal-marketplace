@@ -1119,8 +1119,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           {tab === "store" && (
             <div className="space-y-6">
               <StoreSettingsTab vendor={vendor} supabase={supabase} />
+              {/* Free-launch: custom domains are open to every vendor. When paid
+                  tiers go live, re-gate to Pro+ by passing isPremium={isPlus}. */}
               <CustomDomainPanel
-                isPremium={isPlus}
+                isPremium={true}
                 initialDomain={vendor.custom_domain ?? null}
                 initialVerified={vendor.domain_verified ?? false}
               />
@@ -3953,7 +3955,11 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       description: description.trim() || null,
       category,
       phone: phone.trim() || null,
-      website: website.trim() || null,
+      website: (() => {
+        const w = website.trim();
+        if (!w) return null;
+        return /^https?:\/\//i.test(w) ? w : `https://${w}`;
+      })(),
       address: address.trim() || null,
       city: city.trim(),
       state: vendorState.trim(),
@@ -4136,7 +4142,10 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           </div>
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1">Website <span className="text-gray-400 font-normal">(optional)</span></label>
-            <input type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://yourbusiness.com" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+            {/* type="text" (not "url") so a bare domain like "joespizza.com"
+                can't fail native URL validation and block the whole save; we
+                normalize to https:// on save. */}
+            <input type="text" inputMode="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="yourbusiness.com" className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
           </div>
         </div>
         {/* ── SERVICE LOCATIONS (SEO + schema) ─────────────────────── */}

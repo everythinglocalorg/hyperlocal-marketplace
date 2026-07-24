@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* The app is a light-only UI. Pin the color-scheme so browsers render form
+     controls (inputs, selects, autofill) in light mode — otherwise a device in
+     dark mode paints near-white text into our white fields, which reads as
+     unreadable light-grey while typing. */
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,17 +17,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Safety net: form controls always use dark text on their light backgrounds,
+   regardless of the visitor's OS theme. */
+input,
+textarea,
+select {
+  color: #171717;
+}
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af; /* gray-400 — visible but clearly a placeholder */
 }
 
 /* Hide the scrollbar on horizontal-scroll rows (category pills, chip rows)

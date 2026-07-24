@@ -46,14 +46,11 @@ export async function POST(request: Request) {
   const ctx = await getVendorContext();
   if ("error" in ctx)
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
-  const { supabase, vendor, isPremium } = ctx;
+  const { supabase, vendor } = ctx;
 
-  if (!isPremium) {
-    return NextResponse.json(
-      { error: "Custom domains are a Local Pro (premium) feature." },
-      { status: 403 }
-    );
-  }
+  // Free-launch: custom domains are open to every vendor (no tier gate). When
+  // paid tiers go live, restore the Pro+ gate:
+  //   if (!ctx.isPremium) return NextResponse.json({ error: "..." }, { status: 403 });
   if (!vercelConfigured()) {
     return NextResponse.json(
       { error: "Domain hosting is not configured yet. Contact support." },
