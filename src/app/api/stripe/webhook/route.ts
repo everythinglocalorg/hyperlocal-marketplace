@@ -104,6 +104,29 @@ export async function POST(req: NextRequest) {
           .eq("id", session.metadata.booking_id);
         break;
       }
+      // Food-truck order prepaid → mark paid + ping the truck.
+      if (session.metadata?.type === "food_order" && session.metadata?.order_id) {
+        const { data: fo } = await supabase
+          .from("food_orders")
+          .update({ payment_status: "paid" })
+          .eq("id", session.metadata.order_id)
+          .select("vendor_id, customer_name, total")
+          .maybeSingle();
+        if (fo?.vendor_id) {
+          const { data: v } = await supabase.from("vendors").select("user_id").eq("id", fo.vendor_id).maybeSingle();
+          if (v?.user_id) {
+            await supabase.from("notifications").insert({
+              user_id: v.user_id,
+              type: "food_order",
+              title: "💳 New paid order",
+              body: `$${Number(fo.total ?? 0).toFixed(2)}${fo.customer_name ? ` · ${fo.customer_name}` : ""} — paid`,
+              link: "/dashboard/vendor?tab=orders",
+              is_read: false,
+            });
+          }
+        }
+        break;
+      }
       // Boost paid → activate the feature placement.
       if (session.metadata?.type === "boost" && session.metadata?.boost_id) {
         await supabase

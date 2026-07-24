@@ -1104,7 +1104,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           )}
 
           {tab === "foodtruck" && isFoodTruckVendor && (
-            <FoodTruckTab vendorId={vendor.id} initial={vendor.food_truck} supabase={supabase} />
+            <FoodTruckTab vendorId={vendor.id} initial={vendor.food_truck} supabase={supabase} connectEnabled={connectEnabled} />
           )}
 
           {tab === "orders" && isFoodTruckVendor && (
@@ -1614,6 +1614,7 @@ function ListingsTab({
     setCategoryId("");
     setSelectedCategories(["Products"]);
     setCtaType(defaultCtaForListingType("product"));
+    setCtaUrl("");
     setImages([]);
     setRentalDurations([]);
     setRentalWaiverUrl(null);
@@ -3335,7 +3336,7 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
   const [analyticsOrders, setAnalyticsOrders] = useState<{ total: number; created_at: string }[]>([]);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("food_orders").select("*").eq("vendor_id", vendorId).order("created_at", { ascending: false }).limit(100);
+    const { data } = await supabase.from("food_orders").select("*").eq("vendor_id", vendorId).neq("payment_status", "pending").order("created_at", { ascending: false }).limit(100);
     setOrders((data ?? []) as FoodOrder[]);
     setLoading(false);
   }, [vendorId, supabase]);
@@ -3361,7 +3362,7 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
   const loadAnalytics = useCallback(async () => {
     const { from, to } = rangeBounds();
     const { data } = await supabase.from("food_orders").select("total, created_at, status")
-      .eq("vendor_id", vendorId).neq("status", "cancelled")
+      .eq("vendor_id", vendorId).neq("status", "cancelled").neq("payment_status", "pending")
       .gte("created_at", from.toISOString()).lte("created_at", to.toISOString())
       .order("created_at", { ascending: true }).limit(3000);
     setAnalyticsOrders((data ?? []) as { total: number; created_at: string }[]);
@@ -3417,7 +3418,10 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
             <p className="text-sm font-bold text-gray-900">{o.customer_name || "Customer"}</p>
             <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}{o.customer_phone ? ` · ${o.customer_phone}` : ""}</p>
           </div>
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${meta.badge}`}>{meta.label}</span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {o.payment_status === "paid" && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-600 text-white">💳 Paid</span>}
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${meta.badge}`}>{meta.label}</span>
+          </div>
         </div>
         <div className="text-sm text-gray-700 space-y-0.5 mb-2">
           {items.map((it, i) => (
@@ -3531,7 +3535,7 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
   );
 }
 
-function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initial: unknown; supabase: any }) {
+function FoodTruckTab({ vendorId, initial, supabase, connectEnabled }: { vendorId: string; initial: unknown; supabase: any; connectEnabled: boolean }) {
   const [ft, setFt] = useState<FoodTruck>(normalizeFoodTruck(initial));
   const [savedStatus, setSavedStatus] = useState<TruckStatus>(ft.status);
   const [saving, setSaving] = useState(false);
@@ -3693,6 +3697,18 @@ function FoodTruckTab({ vendorId, initial, supabase }: { vendorId: string; initi
               placeholder="https://order.toasttab.com/… or your Square/Google form link"
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
             <p className="text-xs text-gray-400 mt-1.5">The &quot;Start Order&quot; button sends customers straight to this link. Leave blank to fall back to pickup tickets.</p>
+          </div>
+        )}
+        {ft.ordering.mode === "internal" && (
+          <div className="mt-3 flex items-center justify-between gap-3 border border-gray-100 rounded-xl px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800">💳 Take card payment</p>
+              <p className="text-xs text-gray-400">{connectEnabled ? "Customers pay by card at checkout — money goes straight to you." : "Connect Stripe in Store Settings to turn this on."}</p>
+            </div>
+            <button type="button" disabled={!connectEnabled} onClick={() => setFt((f) => ({ ...f, prepay: !f.prepay }))}
+              className={`shrink-0 text-xs font-semibold px-4 py-1.5 rounded-full border transition-colors disabled:opacity-40 ${ft.prepay && connectEnabled ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200"}`}>
+              {ft.prepay && connectEnabled ? "On" : "Off"}
+            </button>
           </div>
         )}
       </div>

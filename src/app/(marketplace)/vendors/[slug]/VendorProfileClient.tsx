@@ -673,7 +673,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
     <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
-    {showOrderModal && <FoodOrderModal vendor={{ id: vendor.id, business_name: vendor.business_name }} listings={listings.map((l) => ({ id: l.id, title: l.title, price: l.price, quantity: l.quantity }))} currentUser={currentUser} onClose={() => setShowOrderModal(false)} />}
+    {showOrderModal && <FoodOrderModal vendor={{ id: vendor.id, business_name: vendor.business_name }} listings={listings.map((l) => ({ id: l.id, title: l.title, price: l.price, quantity: l.quantity }))} currentUser={currentUser} prepay={foodTruck?.prepay ?? false} onClose={() => setShowOrderModal(false)} />}
 
     {/* Sticky mobile CTA bar — clean icon+label nav on the left, primary action pill on the right */}
     <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">

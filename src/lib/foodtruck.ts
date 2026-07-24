@@ -36,6 +36,7 @@ export type FoodTruck = {
   schedule: TruckStop[];
   ordering: TruckOrdering;
   order_messages: OrderMessages;
+  prepay: boolean;               // take card payment at order time (needs Stripe Connect)
 };
 
 export const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -51,7 +52,7 @@ export function isFoodTruck(category?: string | null): boolean {
 }
 
 export function emptyFoodTruck(): FoodTruck {
-  return { status: "closed", spot: { name: "", until: "", lat: null, lng: null }, live_at: null, schedule: [], ordering: { mode: "internal", url: "" }, order_messages: { started: "", ready: "" } };
+  return { status: "closed", spot: { name: "", until: "", lat: null, lng: null }, live_at: null, schedule: [], ordering: { mode: "internal", url: "" }, order_messages: { started: "", ready: "" }, prepay: false };
 }
 
 // Normalize a raw vendors.food_truck value into a safe FoodTruck.
@@ -78,7 +79,7 @@ export function normalizeFoodTruck(raw: unknown): FoodTruck {
     started: typeof m.started === "string" ? m.started : "",
     ready: typeof m.ready === "string" ? m.ready : "",
   };
-  return { status, spot, live_at: typeof t.live_at === "string" ? t.live_at : null, schedule, ordering, order_messages };
+  return { status, spot, live_at: typeof t.live_at === "string" ? t.live_at : null, schedule, ordering, order_messages, prepay: t.prepay === true };
 }
 
 // The customer-facing ping text for an order milestone — custom or default.
@@ -118,6 +119,7 @@ export type FoodOrder = {
   pickup_spot: string | null;
   notes: string | null;
   status: OrderStatus;
+  payment_status: "unpaid" | "pending" | "paid";
   created_at: string;
   ready_at: string | null;
 };

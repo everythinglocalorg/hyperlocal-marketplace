@@ -5,10 +5,11 @@ import { useState } from "react";
 type MenuItem = { id: string; title: string; price: number | null; quantity?: number | null };
 
 // Dead-simple pickup ordering: tap + to add items, place the order. Pay at the truck.
-export default function FoodOrderModal({ vendor, listings, currentUser, onClose }: {
+export default function FoodOrderModal({ vendor, listings, currentUser, prepay = false, onClose }: {
   vendor: { id: string; business_name: string };
   listings: MenuItem[];
   currentUser: { id: string; full_name: string | null; phone?: string | null } | null;
+  prepay?: boolean;
   onClose: () => void;
 }) {
   const items = listings.filter((l) => l.price != null && l.quantity !== 0);
@@ -37,6 +38,7 @@ export default function FoodOrderModal({ vendor, listings, currentUser, onClose 
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Couldn't place your order."); setSubmitting(false); return; }
+      if (data.url) { window.location.href = data.url; return; } // card prepay → Stripe Checkout
       setDone(true);
     } catch { setError("Couldn't reach the server. Try again."); }
     setSubmitting(false);
@@ -92,9 +94,9 @@ export default function FoodOrderModal({ vendor, listings, currentUser, onClose 
             <div className="sticky bottom-0 bg-white border-t border-gray-100 p-4">
               <button onClick={place} disabled={lineItems.length === 0 || submitting}
                 className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40">
-                {submitting ? "Placing…" : lineItems.length === 0 ? "Add items to order" : `Place pickup order · $${total.toFixed(2)}`}
+                {submitting ? "Placing…" : lineItems.length === 0 ? "Add items to order" : prepay ? `Pay by card · $${total.toFixed(2)}` : `Place pickup order · $${total.toFixed(2)}`}
               </button>
-              <p className="text-[11px] text-gray-400 text-center mt-2">Pay at the truck when you pick up.</p>
+              <p className="text-[11px] text-gray-400 text-center mt-2">{prepay ? "You'll pay securely by card on the next screen." : "Pay at the truck when you pick up."}</p>
             </div>
           </>
         )}
