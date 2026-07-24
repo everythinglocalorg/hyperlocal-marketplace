@@ -67,6 +67,7 @@ type Listing = {
   id: string;
   title: string;
   type: string;
+  description?: string | null;
   price: number | null;
   price_label: string | null;
   condition: string | null;
@@ -1395,7 +1396,7 @@ function ListingsTab({
         type: editingListing.type,
         price: editingListing.price?.toString() ?? "",
         price_label: editingListing.price_label ?? "",
-        description: "",
+        description: editingListing.description ?? "",
         category: editingListing.category,
         quantity: editingListing.quantity?.toString() ?? "",
         condition: editingListing.condition ?? "new",
@@ -1542,7 +1543,7 @@ function ListingsTab({
       description: form.description || null,
       category: isHousing ? "Housing & Rentals" : (finalCategories[0] ?? form.category),
       categories: finalCategories,
-      quantity: null,
+      quantity: form.type === "product" ? (form.quantity ? Number(form.quantity) : null) : null,
       condition: form.type === "product" ? form.condition : null,
       tags: isThrift ? thriftTags : isHousing ? housingTags : regularTags,
       images,
