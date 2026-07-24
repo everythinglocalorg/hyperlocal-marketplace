@@ -13,6 +13,7 @@ import CrmBoard from "@/components/vendor/CrmBoard";
 import ProposalBuilder from "@/components/vendor/ProposalBuilder";
 import EstimatorTools from "@/components/vendor/EstimatorTools";
 import JobMetrics from "@/components/vendor/JobMetrics";
+import SalesReportTab from "@/components/vendor/SalesReportTab";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
 import ProductCategoriesManager, { ListingCategory } from "@/components/vendor/ProductCategoriesManager";
 import PlacesManager from "@/components/admin/PlacesManager";
@@ -23,7 +24,7 @@ import { STORE_FONTS, HEADING_FONT_KEYS, BODY_FONT_KEYS, TEXT_SCALE_LABEL, norma
 import { isFoodTruck, normalizeFoodTruck, DAYS, ORDER_STATUS_META, ACTIVE_ORDER_STATUSES, type FoodTruck, type TruckStatus, type TruckStop, type FoodOrder, type OrderStatus } from "@/lib/foodtruck";
 import QrCode from "@/components/QrCode";
 
-type Tab = "overview" | "listings" | "analytics" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces" | "foodtruck" | "orders";
+type Tab = "overview" | "listings" | "analytics" | "reports" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces" | "foodtruck" | "orders";
 
 interface Props {
   vendor: {
@@ -182,6 +183,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "rentals", label: "Rentals", icon: "🏕️" },
   { id: "offers", label: "Offers", icon: "🤝" },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
+  { id: "reports", label: "Reports", icon: "📈" },
   { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
   { id: "myplaces", label: "My Places", icon: "🌿" },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
@@ -1001,6 +1003,8 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               <AnalyticsTab listings={listings} stats={stats} vendorId={vendor.id} />
             ) : <PremiumGate feature="Analytics Dashboard" />
           )}
+
+          {tab === "reports" && <SalesReportTab vendorId={vendor.id} />}
 
           {/* ── BOOKINGS ── */}
           {tab === "bookings" && (
