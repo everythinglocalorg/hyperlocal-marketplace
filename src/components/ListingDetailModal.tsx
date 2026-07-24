@@ -23,6 +23,7 @@ export type DetailListing = {
   quantity?: number | null;
   is_featured?: boolean;
   cta_type?: string | null;
+  cta_url?: string | null;
   porch_pickup?: boolean | null;
   local_drop?: boolean | null;
   pickup_info?: string | null;
@@ -130,6 +131,11 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
     if (ctaAction === "book") onBook();
     else if (ctaAction === "order") { if (!paymentsEnabled && canCartBuy) addToCart(); else (onOrder ?? onBuy)(); }
     else if (ctaAction === "buy") runBuy();
+    else if (ctaAction === "apply") {
+      // Opens the owner's external application link; falls back to Message if unset.
+      if (listing.cta_url) window.open(listing.cta_url, "_blank", "noopener,noreferrer");
+      else onMessage();
+    }
     else if (ctaAction === "estimate") onEstimate();
     else if (ctaAction === "menu") {
       if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");

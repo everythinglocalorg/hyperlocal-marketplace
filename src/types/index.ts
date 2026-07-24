@@ -62,6 +62,7 @@ export interface Listing {
   category: string
   tags: string[]
   cta_type?: string | null
+  cta_url?: string | null
   porch_pickup?: boolean | null
   local_drop?: boolean | null
   pickup_info?: string | null

@@ -91,6 +91,7 @@ type Listing = {
   rental_deposit_type?: string | null;
   rental_deposit_value?: number | null;
   cta_type?: string | null;
+  cta_url?: string | null;
   porch_pickup?: boolean | null;
   local_drop?: boolean | null;
   pickup_info?: string | null;
@@ -1359,6 +1360,7 @@ function ListingsTab({
   });
   const [selectedCategories, setSelectedCategories] = useState<string[]>(["Products"]);
   const [ctaType, setCtaType] = useState<ListingCtaType>(defaultCtaForListingType("product"));
+  const [ctaUrl, setCtaUrl] = useState(""); // external link for the "Apply Now" CTA
   const [images, setImages] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1409,6 +1411,7 @@ function ListingsTab({
           : [editingListing.category]
       );
       setCtaType(isListingCtaType(editingListing.cta_type) ? editingListing.cta_type : defaultCtaForListingType(editingListing.type));
+      setCtaUrl(editingListing.cta_url ?? "");
       setCategoryId(editingListing.listing_category_id ?? "");
       setImages(editingListing.images ?? []);
       if (editingListing.type === "thrift") {
@@ -1553,6 +1556,8 @@ function ListingsTab({
     const waiverPayload = {
       ...basePayload,
       cta_type: ctaType,
+      // Only the "Apply Now" CTA uses an external link; clear it otherwise.
+      cta_url: ctaType === "apply" ? (ctaUrl.trim() || null) : null,
       // Local fulfillment (needs supabase/local_pickup.sql + fulfillment_locations.sql).
       porch_pickup: form.porch_pickup,
       local_drop: form.local_drop,
@@ -1743,6 +1748,20 @@ function ListingsTab({
                     so this button works.
                   </p>
                 )
+              )}
+              {ctaType === "apply" && (
+                <div className="mt-2">
+                  <input
+                    type="url"
+                    value={ctaUrl}
+                    onChange={(e) => setCtaUrl(e.target.value)}
+                    placeholder="https://forms.gle/… or your application link"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Paste any application link (Google Form, your website, etc.). &ldquo;Apply Now&rdquo; opens it in a new tab. Leave blank and the button falls back to Message.
+                  </p>
+                </div>
               )}
             </div>
             <div className="sm:col-span-2">

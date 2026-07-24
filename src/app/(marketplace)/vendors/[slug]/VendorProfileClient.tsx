@@ -106,7 +106,7 @@ type Listing = {
   rental_quantity?: number | null; rental_buffer_hours?: number | null;
   fareharbor_shortname?: string | null; fareharbor_flow?: string | null;
   rental_deposit_type?: string | null; rental_deposit_value?: number | null;
-  cta_type?: string | null; listing_category_id?: string | null;
+  cta_type?: string | null; cta_url?: string | null; listing_category_id?: string | null;
 };
 
 type ListingCategory = { id: string; name: string; position: number };
@@ -1457,6 +1457,11 @@ function ListingCard({ listing, vendorName, vendorPhone, menuPdfUrl, onOpen, onB
     if (ctaAction === "book") onBook();
     else if (ctaAction === "buy") onBuy();
     else if (ctaAction === "estimate") onEstimate();
+    else if (ctaAction === "apply") {
+      // Opens the owner's external application link; falls back to Message.
+      if (listing.cta_url) window.open(listing.cta_url, "_blank", "noopener,noreferrer");
+      else onMessage();
+    }
     else if (ctaAction === "menu") {
       // On the storefront itself: open the menu PDF if any, else the item detail.
       if (menuPdfUrl) window.open(menuPdfUrl, "_blank", "noopener,noreferrer");

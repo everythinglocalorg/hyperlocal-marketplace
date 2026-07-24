@@ -20,7 +20,7 @@ import MessageModal from "@/components/MessageModal";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 
 // Full listing row (plus its vendor) needed by the detail popup and its CTAs.
-const LISTING_SELECT = "id, title, description, type, price, price_label, condition, quantity, images, category, tags, is_featured, cta_type, waiver_url, waiver_filename, sold_at, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating, phone, menu_pdf_url)";
+const LISTING_SELECT = "id, title, description, type, price, price_label, condition, quantity, images, category, tags, is_featured, cta_type, cta_url, waiver_url, waiver_filename, sold_at, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating, phone, menu_pdf_url)";
 
 type ListingVendor = {
   id: string; slug: string; business_name: string; city: string; state: string;

@@ -7,6 +7,9 @@
 //   call     → tel: link to the vendor's phone
 //   menu     → vendor's saved menu PDF (vendors.menu_pdf_url) in a new tab
 //   buy      → purchase modal
+//   apply    → opens the listing's external application link (listings.cta_url)
+//              in a new tab — a stopgap until internal application forms exist;
+//              falls back to Message if no link is set.
 export const LISTING_CTAS = {
   book: { label: "Book Now", action: "book" },
   estimate: { label: "Free Estimate", action: "estimate" },
@@ -15,6 +18,7 @@ export const LISTING_CTAS = {
   buy: { label: "Buy Now", action: "buy" },
   rent: { label: "Rent Now", action: "book" },
   order: { label: "Order Now", action: "order" },
+  apply: { label: "Apply Now", action: "apply" },
 } as const;
 
 export type ListingCtaType = keyof typeof LISTING_CTAS;
