@@ -389,7 +389,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
             </svg>
           </button>
           <div className="lg:hidden"><Logo size="sm" /></div>
-          <InboxBell className="ml-auto" />
+          <InboxBell className="ml-auto" showLabels />
         </div>
         <div className="p-4 sm:p-8">
 

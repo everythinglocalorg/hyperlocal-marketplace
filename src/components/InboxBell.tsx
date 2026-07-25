@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 // these live now (pulled out of the dashboard sidebars). Self-contained: it
 // fetches its own unread counts exactly like the global header, so it behaves
 // identically everywhere it's dropped in. Re-checks on every route change.
-export default function InboxBell({ className = "" }: { className?: string }) {
+export default function InboxBell({ className = "", showLabels = false }: { className?: string; showLabels?: boolean }) {
   const pathname = usePathname();
   const [msgUnread, setMsgUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
@@ -36,19 +36,31 @@ export default function InboxBell({ className = "" }: { className?: string }) {
   }, [pathname]);
 
   return (
-    <div className={`flex items-center gap-4 ${className}`}>
-      <Link href="/messages" title="Messages" aria-label="Messages" className="relative text-2xl leading-none">
-        💬
+    <div className={`flex items-center gap-2 sm:gap-3 ${className}`}>
+      <Link
+        href="/messages"
+        title="Messages"
+        aria-label="Messages"
+        className="relative flex items-center gap-1.5 rounded-full px-2.5 py-1.5 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-xl leading-none">💬</span>
+        {showLabels && <span className="hidden sm:inline text-sm font-semibold text-gray-700">Messages</span>}
         {msgUnread > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
             {msgUnread > 9 ? "9+" : msgUnread}
           </span>
         )}
       </Link>
-      <Link href="/notifications" title="Notifications" aria-label="Notifications" className="relative text-2xl leading-none">
-        🔔
+      <Link
+        href="/notifications"
+        title="Notifications"
+        aria-label="Notifications"
+        className="relative flex items-center gap-1.5 rounded-full px-2.5 py-1.5 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-xl leading-none">🔔</span>
+        {showLabels && <span className="hidden sm:inline text-sm font-semibold text-gray-700">Notifications</span>}
         {notifUnread > 0 && (
-          <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
             {notifUnread > 9 ? "9+" : notifUnread}
           </span>
         )}

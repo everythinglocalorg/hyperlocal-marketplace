@@ -720,7 +720,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             </svg>
           </button>
           <div className="lg:hidden"><Logo size="sm" /></div>
-          <InboxBell className="ml-auto" />
+          <InboxBell className="ml-auto" showLabels />
         </div>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
