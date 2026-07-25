@@ -183,7 +183,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "rentals", label: "Rentals", icon: "🏕️" },
   { id: "offers", label: "Offers", icon: "🤝" },
   { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
-  { id: "reports", label: "Reports", icon: "📈" },
+  { id: "reports", label: "Reports", icon: "📈", premiumOnly: true },
   { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
   { id: "myplaces", label: "My Places", icon: "🌿" },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
@@ -196,7 +196,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   const isPlus = isAdmin || isPlusTier(vendor.tier);
   const isFoodTruckVendor = isFoodTruck(vendor.category);
   // Features gated to Pro+ only; everything else unlocks for any paid tier.
-  const PLUS_ONLY = new Set<FeatureKey>(["estimates"]);
+  const PLUS_ONLY = new Set<FeatureKey>(["estimates", "reports"]);
   const can = (f: FeatureKey) => hasFeature(features, f) || (PLUS_ONLY.has(f) ? isPlus : isPremium);
   const supabase = createClient();
   const [tab, setTab] = useState<Tab>((initialTab as Tab) || "overview");
@@ -1004,7 +1004,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             ) : <PremiumGate feature="Analytics Dashboard" />
           )}
 
-          {tab === "reports" && <SalesReportTab vendorId={vendor.id} />}
+          {tab === "reports" && (
+            can("reports") ? <SalesReportTab vendorId={vendor.id} /> : <PremiumGate feature="Sales Reports" plus />
+          )}
 
           {/* ── BOOKINGS ── */}
           {tab === "bookings" && (

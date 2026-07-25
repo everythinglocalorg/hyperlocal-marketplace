@@ -1,4 +1,4 @@
-export type FeatureKey = "messages" | "analytics" | "bookings" | "crm" | "estimates";
+export type FeatureKey = "messages" | "analytics" | "bookings" | "crm" | "estimates" | "reports";
 
 // Membership tiers. `premium` = Local Pro ($49), `premium_plus` = Local Pro+ ($129).
 export type Tier = "free" | "premium" | "premium_plus";
@@ -35,6 +35,7 @@ export const ALL_FEATURES: { key: FeatureKey; label: string; icon: string }[] = 
   { key: "bookings", label: "Estimate & Apt Manager", icon: "📅" },
   { key: "crm", label: "Customer CRM", icon: "👥" },
   { key: "estimates", label: "Estimate Creator", icon: "📋" },
+  { key: "reports", label: "Sales Reports", icon: "📈" },
 ];
 
 export function hasFeature(features: Record<string, boolean> | null | undefined, key: FeatureKey): boolean {
@@ -43,11 +44,11 @@ export function hasFeature(features: Record<string, boolean> | null | undefined,
 }
 
 export function allFeaturesOn(): Record<FeatureKey, boolean> {
-  return { messages: true, analytics: true, bookings: true, crm: true, estimates: true };
+  return { messages: true, analytics: true, bookings: true, crm: true, estimates: true, reports: true };
 }
 
 export function allFeaturesOff(): Record<FeatureKey, boolean> {
-  return { messages: false, analytics: false, bookings: false, crm: false, estimates: false };
+  return { messages: false, analytics: false, bookings: false, crm: false, estimates: false, reports: false };
 }
 
 // Canonical map of which functional features each tier unlocks. Single source
@@ -55,6 +56,6 @@ export function allFeaturesOff(): Record<FeatureKey, boolean> {
 // toolset; the Estimate Creator is a Local Pro+ exclusive.
 export function featuresForTier(tier?: string | null): Record<FeatureKey, boolean> {
   if (tier === "premium_plus") return allFeaturesOn();
-  if (tier === "premium") return { messages: true, analytics: true, bookings: true, crm: true, estimates: false };
+  if (tier === "premium") return { messages: true, analytics: true, bookings: true, crm: true, estimates: false, reports: false };
   return allFeaturesOff();
 }
