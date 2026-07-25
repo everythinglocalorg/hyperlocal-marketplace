@@ -20,9 +20,12 @@ export const metadata: Metadata = {
     title: "Everything Local Marketplace",
     description: "Discover local businesses, earn Local Bucks, and support your community.",
     type: "website",
-    images: [{ url: "/api/og", width: 1200, height: 630, alt: "Everything Local — Browse Local Like Never Before" }],
+    // Static baked card (photo + wordmark) — a plain file the Facebook/LinkedIn
+    // crawler fetches instantly, so the image always shows. (/api/og stays for
+    // per-business dynamic cards.)
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "Everything Local — Browse Local Like Never Before" }],
   },
-  twitter: { card: "summary_large_image", images: ["/api/og"] },
+  twitter: { card: "summary_large_image", images: ["/og.jpg"] },
   // Installed-to-home-screen (iOS): launch full-screen, no Safari chrome.
   appleWebApp: {
     capable: true,

@@ -12,16 +12,20 @@ export const dynamic = "force-dynamic";
 // load) the card falls back to a deep-green brand gradient so it still looks
 // sharp. Pages pass ?title= and ?subtitle= to headline their own preview.
 
-// Archivo Black (the logo typeface) for the overlay text. Fetched once and
-// cached across invocations; if the fetch fails we fall back to a system bold.
+// Archivo Black (the logo typeface) for the overlay text. Served from our OWN
+// domain (/public/fonts) so generation never waits on a slow third-party fetch —
+// that external call was timing out for crawlers like Facebook, leaving the card
+// image-less. Falls back to GitHub, then a system bold, so it always renders.
 let archivoPromise: Promise<ArrayBuffer | null> | null = null;
-function loadArchivo(): Promise<ArrayBuffer | null> {
+function loadArchivo(origin: string): Promise<ArrayBuffer | null> {
   if (!archivoPromise) {
-    archivoPromise = fetch(
-      "https://raw.githubusercontent.com/google/fonts/main/ofl/archivoblack/ArchivoBlack-Regular.ttf"
-    )
-      .then((r) => (r.ok ? r.arrayBuffer() : null))
-      .catch(() => null);
+    archivoPromise = fetch(`${origin}/fonts/ArchivoBlack-Regular.ttf`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+      .catch(() =>
+        fetch("https://raw.githubusercontent.com/google/fonts/main/ofl/archivoblack/ArchivoBlack-Regular.ttf")
+          .then((r) => (r.ok ? r.arrayBuffer() : null))
+          .catch(() => null)
+      );
   }
   return archivoPromise;
 }
@@ -48,7 +52,7 @@ export async function GET(req: Request) {
   // (Archivo Black uppercase runs ~0.62em per char with the tight tracking).
   const titleSize = Math.max(40, Math.min(96, Math.floor(1080 / (title.length * 0.62))));
 
-  const [archivo, hero] = await Promise.all([loadArchivo(), loadHero(origin)]);
+  const [archivo, hero] = await Promise.all([loadArchivo(origin), loadHero(origin)]);
   const fontFamily = archivo ? "Archivo Black" : "sans-serif";
 
   return new ImageResponse(
