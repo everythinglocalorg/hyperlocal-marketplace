@@ -6,9 +6,29 @@
 // - `LogoV2`    → pin + stacked wordmark + tagline (earlier look).
 // - `LogoMark`  → the bare pin only (favicons / avatars / tiny spots).
 
+import Link from "next/link";
 import { Archivo_Black } from "next/font/google";
 
 const archivo = Archivo_Black({ subsets: ["latin"], weight: "400" });
+
+// "Back to Homepage" styled like the wordmark — Archivo Black, uppercase, with
+// a bold green arrow. Used in the dashboard sidebars.
+export function BackHome({ className = "" }: { className?: string }) {
+  return (
+    <Link
+      href="/"
+      aria-label="Back to Everything Local homepage"
+      className={`group inline-flex items-center gap-1.5 hover:opacity-80 transition-opacity ${className}`}
+    >
+      <svg className="w-4 h-4 text-green-600 shrink-0 transition-transform group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
+      <span className={`${archivo.className} text-sm uppercase tracking-tight text-gray-900 leading-none whitespace-nowrap`}>
+        Back to Homepage
+      </span>
+    </Link>
+  );
+}
 
 // Shared pin geometry (the house is a cut-out; `houseFill` = the color showing
 // through it, `doorFill` = the little doorway).

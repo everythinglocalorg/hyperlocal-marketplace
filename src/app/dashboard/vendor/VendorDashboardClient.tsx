@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import Logo from "@/components/Logo";
+import Logo, { BackHome } from "@/components/Logo";
 import InboxBell from "@/components/InboxBell";
 import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
@@ -531,10 +531,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Vendor info */}
         <div className="p-4 border-b border-gray-100">
-          <Link href="/" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition-colors">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-            Back to homepage
-          </Link>
+          <BackHome className="mb-3" />
           {/* Business row */}
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0 ${vendor.logo_url ? "bg-white border border-gray-100" : "bg-green-100"}`}>
