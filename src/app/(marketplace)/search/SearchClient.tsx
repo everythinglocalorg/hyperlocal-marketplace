@@ -18,6 +18,7 @@ import RentalBookingModal from "@/components/rental/RentalBookingModal";
 import BuyNowModal from "@/components/BuyNowModal";
 import MessageModal from "@/components/MessageModal";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
+import { useFavorites } from "@/lib/favorites";
 
 // Full listing row (plus its vendor) needed by the detail popup and its CTAs.
 const LISTING_SELECT = "id, title, description, type, price, price_label, condition, quantity, images, category, tags, is_featured, cta_type, cta_url, waiver_url, waiver_filename, sold_at, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating, phone, menu_pdf_url)";
@@ -81,6 +82,39 @@ const SORT_OPTIONS = [
   { value: "local_bucks", label: "Most Local Bucks" },
 ];
 
+// Airbnb-style save heart, wired to the Wish List (green heart / FavoritesProvider).
+function SaveHeart({ listingId }: { listingId: string }) {
+  const favorites = useFavorites();
+  const saved = favorites.isSaved(listingId);
+  async function toggle(e: React.MouseEvent) {
+    e.stopPropagation();
+    const res = await favorites.toggleWishlist(listingId);
+    if (res === "login") window.location.href = "/login";
+  }
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={saved ? "Remove from Wish List" : "Save to Wish List"}
+      className="absolute top-2.5 right-2.5 z-10 w-8 h-8 flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+    >
+      <svg viewBox="0 0 24 24" className="w-6 h-6 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
+        fill={saved ? "#16a34a" : "rgba(0,0,0,0.35)"} stroke="#fff" strokeWidth="2">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+      </svg>
+    </button>
+  );
+}
+
+// Frosted store-name pill that floats on the photo, Airbnb-style.
+function StorePill({ name }: { name: string }) {
+  return (
+    <span className="absolute top-2.5 left-2.5 z-10 max-w-[70%] truncate bg-white/95 backdrop-blur-sm text-gray-900 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.14)]">
+      {name}
+    </span>
+  );
+}
+
 function ListingCard({ l, onClick, distanceMi }: { l: any; onClick?: () => void; distanceMi?: number | null }) {
   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
   const isThrift = l.type === "thrift";
@@ -88,46 +122,40 @@ function ListingCard({ l, onClick, distanceMi }: { l: any; onClick?: () => void;
   const isFree = isThrift && (Number(l.price) === 0);
   const miles = milesLabel(distanceMi);
   return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer"
-    >
-      <div className="h-36 bg-white relative">
+    <div onClick={onClick} className="group cursor-pointer">
+      <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100">
         {l.images?.[0] ? (
-          <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className={`w-full h-full object-cover ${isSold ? "opacity-60" : ""}`} />
+          <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isSold ? "opacity-60" : ""}`} />
         ) : (
           <div className={`w-full h-full flex items-center justify-center text-4xl ${isSold ? "opacity-60" : ""}`}>
             {l.type === "rental" ? "🏠" : isThrift ? "🏷️" : "📦"}
           </div>
         )}
-        {isThrift && l.condition && !isSold && (
-          <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full capitalize">{l.condition}</span>
-        )}
+        {vendor?.business_name && <StorePill name={vendor.business_name} />}
+        <SaveHeart listingId={l.id} />
         {isSold && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="bg-gray-900/85 text-white text-sm font-black tracking-wider px-4 py-1.5 rounded-md -rotate-6 shadow-lg">SOLD</span>
           </div>
         )}
       </div>
-      <div className="p-4">
-        <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{l.title}</h3>
-        {isFree ? (
-          <p className="text-sm font-bold text-green-700 mt-1">FREE</p>
-        ) : l.price !== null && l.price !== undefined && (
-          <p className="text-sm font-bold text-green-700 mt-1">${Number(l.price).toFixed(2)}</p>
-        )}
-        {vendor?.business_name && (
-          <p className="text-xs text-gray-500 mt-1 truncate">{vendor.business_name}</p>
-        )}
-        <p className="text-xs text-gray-400 mt-0.5">
+      <div className="pt-2 px-0.5">
+        <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">{l.title}</h3>
+        <p className="text-xs text-gray-500 mt-0.5">
           {vendor?.city ? `${vendor.city}, ${vendor.state}` : ""}{miles ? ` · ${miles}` : ""}
         </p>
-        {l.price_label && !l.price && !isThrift && (
-          <p className="text-xs text-gray-500 mt-2">{l.price_label}</p>
-        )}
-        {isThrift && l.price_label && (
-          <p className="text-xs text-gray-500 mt-2">📍 {l.price_label}</p>
-        )}
+        <p className="text-sm text-gray-900 mt-1">
+          {isFree ? (
+            <span className="font-semibold text-green-700">FREE</span>
+          ) : l.price !== null && l.price !== undefined ? (
+            <span className="font-semibold">${Number(l.price).toFixed(2)}</span>
+          ) : l.price_label ? (
+            <span className="text-gray-600">{l.price_label}</span>
+          ) : null}
+          {isThrift && l.condition && !isSold && (
+            <span className="text-gray-400 font-normal capitalize"> · {l.condition}</span>
+          )}
+        </p>
       </div>
     </div>
   );
@@ -135,23 +163,19 @@ function ListingCard({ l, onClick, distanceMi }: { l: any; onClick?: () => void;
 
 function KeywordListingCard({ r, onClick }: { r: SearchResult; onClick?: () => void }) {
   return (
-    <div
-      onClick={onClick}
-      className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 cursor-pointer"
-    >
-      <div className="h-36 bg-gray-100 relative">
+    <div onClick={onClick} className="group cursor-pointer">
+      <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100">
         {r.image_url ? (
-          <img src={r.image_url} alt={r.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+          <img src={r.image_url} alt={r.title} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>
         )}
+        {r.business_name && <StorePill name={r.business_name} />}
+        <SaveHeart listingId={r.id} />
       </div>
-      <div className="p-4">
-        <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{r.title}</h3>
-        {r.business_name && (
-          <p className="text-xs text-gray-500 mt-1 truncate">{r.business_name}</p>
-        )}
-        <p className="text-xs text-gray-400 mt-0.5">
+      <div className="pt-2 px-0.5">
+        <h3 className="text-sm font-semibold text-gray-900 line-clamp-1">{r.title}</h3>
+        <p className="text-xs text-gray-500 mt-0.5">
           {r.city}, {r.state}{milesLabel(r.distance_miles) ? ` · ${milesLabel(r.distance_miles)}` : ""}
         </p>
       </div>

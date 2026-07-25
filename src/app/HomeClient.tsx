@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useFavorites } from "@/lib/favorites";
 import Logo from "@/components/Logo";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/types";
@@ -38,6 +39,28 @@ function milesLabel(mi: number | null | undefined): string | null {
   if (mi < 0.1) return "Right here";
   const val = mi < 10 ? mi.toFixed(1) : Math.round(mi).toString();
   return `${val} mi away`;
+}
+
+// Airbnb-style save heart on Featured Gems, wired to the Wish List.
+function GemHeart({ listingId }: { listingId: string }) {
+  const favorites = useFavorites();
+  const saved = favorites.isSaved(listingId);
+  async function toggle(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const res = await favorites.toggleWishlist(listingId);
+    if (res === "login") window.location.href = "/login";
+  }
+  return (
+    <button type="button" onClick={toggle}
+      aria-label={saved ? "Remove from Wish List" : "Save to Wish List"}
+      className="absolute top-2 right-2 z-10 w-7 h-7 flex items-center justify-center transition-transform hover:scale-110 active:scale-95">
+      <svg viewBox="0 0 24 24" className="w-5 h-5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
+        fill={saved ? "#16a34a" : "rgba(0,0,0,0.35)"} stroke="#fff" strokeWidth="2">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+      </svg>
+    </button>
+  );
 }
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -428,23 +451,25 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   const slug = vendor?.slug;
                   if (!slug) return null;
                   return (
-                    <Link key={l.id} href={`/vendors/${slug}`}
-                      className={`bg-white rounded-2xl border overflow-hidden hover:shadow-md transition-all ${l.boosted ? "border-amber-300 ring-1 ring-amber-200" : "border-gray-100 hover:border-green-200"}`}>
-                      <div className="w-full h-28 bg-white flex items-center justify-center overflow-hidden relative">
-                        {l.boosted && <span className="absolute top-1.5 left-1.5 z-10 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★ Featured</span>}
+                    <Link key={l.id} href={`/vendors/${slug}`} className="group">
+                      <div className="w-full aspect-square rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                        {l.boosted && <span className="absolute bottom-2 left-2 z-10 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★ Featured</span>}
+                        {vendor?.business_name && (
+                          <span className="absolute top-2 left-2 z-10 max-w-[70%] truncate bg-white/95 backdrop-blur-sm text-gray-900 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.14)]">{vendor.business_name}</span>
+                        )}
+                        <GemHeart listingId={l.id} />
                         {l.images?.[0]
-                          ? <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+                          ? <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
                           : <span className="text-3xl text-gray-300">{{ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" }[l.type as string] ?? "📦"}</span>}
                       </div>
-                      <div className="p-2.5">
-                        <p className="text-xs font-bold text-gray-900 line-clamp-1">{l.title}</p>
-                        {l.price != null
-                          ? <p className="text-xs font-bold text-green-700 mt-0.5">${Number(l.price).toFixed(2)}</p>
-                          : l.price_label && <p className="text-xs text-gray-500 mt-0.5">{l.price_label}</p>}
-                        <p className="text-xs text-gray-500 truncate mt-0.5">{vendor?.business_name}</p>
-                        <p className="text-[11px] text-gray-400 truncate">
+                      <div className="pt-2 px-0.5">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-1">{l.title}</p>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">
                           {vendor?.city ? `${vendor.city}, ${vendor.state}` : ""}{milesLabel(l.__dist) ? ` · ${milesLabel(l.__dist)}` : ""}
                         </p>
+                        {l.price != null
+                          ? <p className="text-xs font-semibold text-gray-900 mt-0.5">${Number(l.price).toFixed(2)}</p>
+                          : l.price_label && <p className="text-xs text-gray-500 mt-0.5">{l.price_label}</p>}
                       </div>
                     </Link>
                   );
