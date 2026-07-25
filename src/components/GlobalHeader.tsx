@@ -12,7 +12,7 @@ import { BRAND_ORIGIN } from "@/lib/domains";
 // Routes that render their own full-page chrome (own nav/sidebar) and should NOT
 // show the global browse header.
 const HIDDEN_PREFIXES = [
-  "/dashboard", "/admin", "/onboarding", "/login", "/signup",
+  "/admin", "/onboarding", "/login", "/signup",
   "/connect-domain", "/u/", "/profile", "/reset-password", "/auth",
   // Static/utility pages that already render their own full nav bar
   "/notifications", "/about", "/pricing", "/contact", "/terms", "/privacy",
@@ -22,6 +22,10 @@ const HIDDEN_PREFIXES = [
 
 export default function GlobalHeader() {
   const pathname = usePathname() || "/";
+  // On the dashboard we still show this same bar (so it feels like one place) —
+  // but only on desktop; mobile keeps the dashboard's own bar. Inside the
+  // dashboard we drop the "Dashboard →" button since you're already there.
+  const isDashboard = pathname.startsWith("/dashboard");
   const [user, setUser] = useState<{ id: string; name: string | null; role: string | null; referralCode?: string | null } | null>(null);
   const [myVendor, setMyVendor] = useState<{ slug: string; business_name: string } | null>(null);
   const [notifUnread, setNotifUnread] = useState(0);
@@ -127,7 +131,7 @@ export default function GlobalHeader() {
       {shareOpen && shareSlides.length > 0 && (
         <ShareQrModal slides={shareSlides} onClose={() => setShareOpen(false)} />
       )}
-    <header className="border-b border-gray-100 bg-white sticky top-0 z-50">
+    <header className={`border-b border-gray-100 bg-white sticky top-0 z-50 ${isDashboard ? "hidden lg:block" : ""}`}>
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
         <Link href="/" className="flex items-center min-w-0 shrink" aria-label="Everything Local home">
           <Logo size="sm" />
@@ -166,9 +170,11 @@ export default function GlobalHeader() {
               <Link href={`/explore/${activeCity}`} className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block">
                 🌿 Explore
               </Link>
-              <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap hidden lg:block">
-                Dashboard →
-              </Link>
+              {!isDashboard && (
+                <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors whitespace-nowrap hidden lg:block">
+                  Dashboard →
+                </Link>
+              )}
 
               {/* Mobile: ☰ menu — Dashboard + nav in one place */}
               <div className="relative lg:hidden" ref={menuRef}>

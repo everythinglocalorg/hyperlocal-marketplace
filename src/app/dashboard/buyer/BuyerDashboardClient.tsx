@@ -381,15 +381,16 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto min-w-0">
-        {/* Top bar — Messages + Notifications live here now (hamburger/logo on mobile) */}
-        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-100 px-4 h-14 flex items-center gap-3">
-          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="lg:hidden p-2 -ml-2 text-gray-700 hover:text-green-700">
+        {/* Mobile top bar — ☰ menu + logo + Messages/Notifications icons.
+            (Desktop shows the congruent global header instead.) */}
+        <div className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-100 px-4 h-14 flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="p-2 -ml-2 text-gray-700 hover:text-green-700">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="lg:hidden"><Logo size="sm" /></div>
-          <InboxBell className="ml-auto" showLabels />
+          <Logo size="sm" />
+          <InboxBell className="ml-auto" />
         </div>
         <div className="p-4 sm:p-8">
 
