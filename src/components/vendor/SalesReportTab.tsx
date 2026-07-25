@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { Area, Addon, DepositType, selectedTotal, depositAmount, defaultSelectedAddonIds } from "@/lib/estimate-pricing";
 
-// A cross-channel sales report: unifies food orders, product purchases, and
-// bookings/rentals into one view with headline stats, revenue-over-time, top
-// sellers, and a channel breakdown. All reads are RLS-scoped to the vendor.
+// A cross-channel sales report: unifies food orders, product purchases,
+// bookings/rentals, and paid proposal deposits into one view with headline
+// stats, revenue-over-time, top sellers, and a channel breakdown. All reads are
+// RLS-scoped to the vendor.
 
 type Sale = { date: string; amount: number; channel: string };
 type SoldItem = { title: string; qty: number; revenue: number };
@@ -17,6 +19,7 @@ const CHAN_COLOR: Record<string, string> = {
   "Food orders": "bg-green-500",
   "Products": "bg-blue-500",
   "Bookings": "bg-amber-500",
+  "Proposals": "bg-purple-500",
 };
 
 export default function SalesReportTab({ vendorId }: { vendorId: string }) {
@@ -47,10 +50,11 @@ export default function SalesReportTab({ vendorId }: { vendorId: string }) {
     const { from, to } = bounds();
     const f = from.toISOString();
     const t = to.toISOString();
-    const [food, buys, rentals] = await Promise.all([
+    const [food, buys, rentals, deposits] = await Promise.all([
       supabase.from("food_orders").select("total, created_at, items, status").eq("vendor_id", vendorId).neq("status", "cancelled").gte("created_at", f).lte("created_at", t).limit(5000),
       supabase.from("purchase_inquiries").select("created_at, inquiry_type, listing:listings(title, price)").eq("vendor_id", vendorId).eq("inquiry_type", "buy").gte("created_at", f).lte("created_at", t).limit(5000),
       supabase.from("rental_bookings").select("total_price, created_at, status, listing:listings(title)").eq("vendor_id", vendorId).neq("status", "cancelled").gte("created_at", f).lte("created_at", t).limit(5000),
+      supabase.from("estimates").select("title, deposit_paid_at, areas, addons, customer_selections, deposit_type, deposit_value").eq("vendor_id", vendorId).not("deposit_paid_at", "is", null).gte("deposit_paid_at", f).lte("deposit_paid_at", t).limit(5000),
     ]);
 
     const s: Sale[] = [];
@@ -79,6 +83,20 @@ export default function SalesReportTab({ vendorId }: { vendorId: string }) {
       const amt = Number(b.total_price) || 0;
       s.push({ date: b.created_at, amount: amt, channel: "Bookings" });
       add(l?.title ?? "Booking", 1, amt);
+    }
+    for (const e of (deposits.data ?? []) as {
+      title?: string; deposit_paid_at: string; areas: unknown; addons: unknown;
+      customer_selections: unknown; deposit_type?: string; deposit_value?: number;
+    }[]) {
+      const areas = (Array.isArray(e.areas) ? e.areas : []) as Area[];
+      const addons = (Array.isArray(e.addons) ? e.addons : []) as Addon[];
+      const sel = (e.customer_selections ?? {}) as { line_ids?: string[]; addon_ids?: string[] };
+      const lineSet = new Set<string>(Array.isArray(sel.line_ids) ? sel.line_ids : []);
+      const addonSet = new Set<string>(Array.isArray(sel.addon_ids) ? sel.addon_ids : defaultSelectedAddonIds(addons));
+      const total = selectedTotal(areas, addons, lineSet, addonSet);
+      const dep = depositAmount(total, (e.deposit_type as DepositType) ?? "percent", Number(e.deposit_value) || 50);
+      s.push({ date: e.deposit_paid_at, amount: dep, channel: "Proposals" });
+      add(e.title ?? "Proposal", 1, dep);
     }
 
     setSales(s);
@@ -128,7 +146,7 @@ export default function SalesReportTab({ vendorId }: { vendorId: string }) {
   return (
     <div className="p-6 max-w-4xl">
       <h2 className="text-xl font-bold text-gray-900 mb-1">📈 Reports</h2>
-      <p className="text-sm text-gray-500 mb-6">Your sales across every channel — food orders, products, and bookings — in one place.</p>
+      <p className="text-sm text-gray-500 mb-6">Your sales across every channel — food orders, products, bookings, and proposal deposits — in one place.</p>
 
       <div className="flex flex-wrap items-center gap-2 mb-5">
         {(["7d", "30d", "90d", "custom"] as const).map((r) => (
