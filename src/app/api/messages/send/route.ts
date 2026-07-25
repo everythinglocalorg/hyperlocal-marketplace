@@ -97,7 +97,14 @@ export async function POST(req: NextRequest) {
     .select("*")
     .single();
 
-  if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
+  if (insertErr) {
+    // The assert_not_blocked trigger raises 'blocked' when either party blocked the other.
+    const blocked = /blocked/i.test(insertErr.message);
+    return NextResponse.json(
+      { error: blocked ? "You can't message this person." : insertErr.message },
+      { status: blocked ? 403 : 500 }
+    );
+  }
 
   // Update conversation preview
   await supabase.from("conversations").update({

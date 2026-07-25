@@ -33,7 +33,13 @@ export default function UnifiedInbox({ me }: { me: Me }) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [blockedUsers, setBlockedUsers] = useState<Set<string>>(new Set()); // hidden (blocked either way)
+  const [iBlocked, setIBlocked] = useState<Set<string>>(new Set());          // I initiated the block
+  const [menuOpen, setMenuOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // The OTHER party's user id: the vendor's owner when I'm the customer, else the buyer.
+  const otherUserId = useCallback((c: Convo): string | null => (c.buyer_id === me.id ? (c.vendor?.user_id ?? null) : c.buyer_id), [me.id]);
 
   const roleOf = useCallback((c: Convo): "buyer" | "vendor" => (c.buyer_id === me.id ? "buyer" : "vendor"), [me.id]);
   const otherName = useCallback((c: Convo) => (roleOf(c) === "buyer" ? (c.vendor?.business_name ?? "Business") : (buyers[c.buyer_id]?.full_name ?? "Customer")), [roleOf, buyers]);
@@ -72,6 +78,18 @@ export default function UnifiedInbox({ me }: { me: Me }) {
         (profs ?? []).forEach((p: Profile) => { pm[p.id] = p; });
         setBuyers(pm);
       }
+
+      // Blocks (RLS returns only rows involving me). Either direction hides the
+      // thread; I can only unblock the ones I initiated.
+      const { data: blocks } = await supabase.from("user_blocks").select("blocker_id, blocked_id");
+      const hidden = new Set<string>();
+      const mine = new Set<string>();
+      (blocks ?? []).forEach((b: { blocker_id: string; blocked_id: string }) => {
+        if (b.blocker_id === me.id) { hidden.add(b.blocked_id); mine.add(b.blocked_id); }
+        else if (b.blocked_id === me.id) { hidden.add(b.blocker_id); }
+      });
+      setBlockedUsers(hidden);
+      setIBlocked(mine);
       setLoading(false);
     })();
   }, [me.id]);
@@ -89,7 +107,7 @@ export default function UnifiedInbox({ me }: { me: Me }) {
     setConvos((prev) => prev.map((x) => (x.id === c.id ? { ...x, [field]: 0 } : x)));
   }, [roleOf]);
 
-  // Realtime: new messages in the open thread.
+  // Realtime: new messages + edits (deletes) in the open thread.
   useEffect(() => {
     if (!activeId) return;
     const ch = supabase
@@ -99,9 +117,43 @@ export default function UnifiedInbox({ me }: { me: Me }) {
         setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
         setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
       })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${activeId}` }, (payload) => {
+        const m = payload.new as Msg;
+        setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...m } : x)));
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [activeId]);
+
+  async function deleteMessage(m: Msg) {
+    if (m.sender_id !== me.id || m.deleted_at) return;
+    if (!confirm("Delete this message? This can't be undone.")) return;
+    const when = new Date().toISOString();
+    setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, deleted_at: when, body: "" } : x)));
+    await supabase.from("messages").update({ deleted_at: when, body: "" }).eq("id", m.id);
+  }
+
+  async function blockOther() {
+    if (!active) return;
+    const other = otherUserId(active);
+    if (!other) return;
+    if (!confirm(`Block ${otherName(active)}? You won't see each other's messages and they can't message you.`)) return;
+    setMenuOpen(false);
+    await supabase.from("user_blocks").insert({ blocker_id: me.id, blocked_id: other });
+    setBlockedUsers((s) => new Set(s).add(other));
+    setIBlocked((s) => new Set(s).add(other));
+    setActiveId(null); // thread now hidden
+  }
+
+  async function unblockOther() {
+    if (!active) return;
+    const other = otherUserId(active);
+    if (!other) return;
+    setMenuOpen(false);
+    await supabase.from("user_blocks").delete().eq("blocker_id", me.id).eq("blocked_id", other);
+    setBlockedUsers((s) => { const n = new Set(s); n.delete(other); return n; });
+    setIBlocked((s) => { const n = new Set(s); n.delete(other); return n; });
+  }
 
   async function send() {
     if (!body.trim() || !active) return;
@@ -123,10 +175,11 @@ export default function UnifiedInbox({ me }: { me: Me }) {
   }
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return convos;
+    const visible = convos.filter((c) => { const o = otherUserId(c); return !o || !blockedUsers.has(o); });
+    if (!query.trim()) return visible;
     const q = query.toLowerCase();
-    return convos.filter((c) => otherName(c).toLowerCase().includes(q) || (c.last_message_preview ?? "").toLowerCase().includes(q) || (c.listing_title ?? "").toLowerCase().includes(q));
-  }, [convos, query, otherName]);
+    return visible.filter((c) => otherName(c).toLowerCase().includes(q) || (c.last_message_preview ?? "").toLowerCase().includes(q) || (c.listing_title ?? "").toLowerCase().includes(q));
+  }, [convos, query, otherName, otherUserId, blockedUsers]);
 
   const totalUnread = convos.reduce((n, c) => n + myUnread(c), 0);
 
@@ -206,19 +259,43 @@ export default function UnifiedInbox({ me }: { me: Me }) {
                   )}
                   {active.listing_title && <p className="text-xs text-gray-400 truncate">{active.listing_title}</p>}
                 </div>
+                {/* Thread actions */}
+                <div className="ml-auto relative">
+                  <button onClick={() => setMenuOpen((v) => !v)} className="text-gray-400 hover:text-gray-700 text-xl px-2 leading-none">⋯</button>
+                  {menuOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                      <div className="absolute right-0 top-8 z-20 bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-40">
+                        {(() => { const o = otherUserId(active); const isBlocked = o ? iBlocked.has(o) : false; return isBlocked ? (
+                          <button onClick={unblockOther} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">Unblock</button>
+                        ) : (
+                          <button onClick={blockOther} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50">🚫 Block</button>
+                        ); })()}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5">
                 {messages.map((m) => {
                   const isMe = m.sender_id === me.id;
+                  const isDeleted = !!m.deleted_at;
                   return (
-                    <div key={m.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-green-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}>
-                        <p className="leading-relaxed whitespace-pre-wrap break-words">{m.body}</p>
-                        <p className={`text-[10px] mt-1 ${isMe ? "text-green-200" : "text-gray-400"}`}>
-                          {new Date(m.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
-                        </p>
-                      </div>
+                    <div key={m.id} className={`group flex items-center gap-1.5 ${isMe ? "justify-end" : "justify-start"}`}>
+                      {isMe && !isDeleted && (
+                        <button onClick={() => deleteMessage(m)} title="Delete message" className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 text-xs transition-opacity shrink-0">🗑</button>
+                      )}
+                      {isDeleted ? (
+                        <div className="max-w-[75%] px-4 py-2 rounded-2xl text-sm bg-gray-50 border border-gray-100 text-gray-400 italic">message deleted</div>
+                      ) : (
+                        <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${isMe ? "bg-green-600 text-white rounded-br-sm" : "bg-gray-100 text-gray-900 rounded-bl-sm"}`}>
+                          <p className="leading-relaxed whitespace-pre-wrap break-words">{m.body}</p>
+                          <p className={`text-[10px] mt-1 ${isMe ? "text-green-200" : "text-gray-400"}`}>
+                            {new Date(m.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
