@@ -126,17 +126,11 @@ export async function POST(req: NextRequest) {
   if (!conversationId) {
     const { data: convo } = await admin.from("conversations").insert({
       vendor_id: vendor.id, buyer_id: buyerProfile.id, listing_id: null,
-      listing_title: est.title, last_message_preview: preview, last_message_at: new Date().toISOString(),
-      buyer_unread: 1,
+      listing_title: est.title,
     }).select("id").single();
     conversationId = convo?.id ?? null;
-  } else {
-    const { data: c } = await admin.from("conversations").select("buyer_unread").eq("id", conversationId).single();
-    await admin.from("conversations").update({
-      last_message_preview: preview, last_message_at: new Date().toISOString(),
-      buyer_unread: (c?.buyer_unread ?? 0) + 1,
-    }).eq("id", conversationId);
   }
+  // Preview/timestamp/unread are set by the DB trigger when the message inserts.
   if (!conversationId) return NextResponse.json({ error: "Could not open conversation" }, { status: 500 });
 
   const lines = lineItems.map((li) => `• ${li.description || "—"} × ${li.qty} @ ${money(Number(li.unit_price) || 0)}`).join("\n");

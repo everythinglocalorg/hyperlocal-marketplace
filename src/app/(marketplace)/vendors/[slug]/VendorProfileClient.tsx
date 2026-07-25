@@ -717,7 +717,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"}
       </button>
     </div>
-    {showMessageModal && <MessageModal listing={{ id: vendor.id, title: `Contact ${vendor.business_name}` }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
+    {showMessageModal && <MessageModal listing={null} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
 
     {/* CTA built-in form modal */}
     {showCtaForm && (effectiveCta === "estimate" || effectiveCta === "order") && (

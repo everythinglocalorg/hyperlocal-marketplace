@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/client";
 type Message = { id: string; sender_id: string; body: string; created_at: string };
 
 interface Props {
-  listing: { id: string; title: string };
+  // null = messaging the business directly (no specific listing).
+  listing: { id: string; title: string } | null;
   vendor: { id: string; business_name: string };
   currentUser: { id: string; full_name: string | null } | null;
   onClose: () => void;
@@ -29,27 +30,26 @@ export default function MessageModal({ listing, vendor, currentUser, onClose }: 
   useEffect(() => {
     if (!currentUser) { setLoading(false); return; }
     (async () => {
-      // Check for existing conversation for this listing+buyer
-      const { data: existing } = await supabase
-        .from("conversations")
-        .select("id")
-        .eq("listing_id", listing.id)
-        .eq("buyer_id", currentUser.id)
-        .single();
+      // Existing conversation: keyed by the listing when there is one, otherwise
+      // the single "direct" thread with this business (listing_id null).
+      let q = supabase.from("conversations").select("id").eq("buyer_id", currentUser.id);
+      q = listing ? q.eq("listing_id", listing.id) : q.eq("vendor_id", vendor.id).is("listing_id", null);
+      const { data: existing } = await q.maybeSingle();
 
       let convId = existing?.id ?? null;
 
       if (!convId) {
-        const { data: newConv } = await supabase
+        const { data: newConv, error: convErr } = await supabase
           .from("conversations")
           .insert({
-            listing_id: listing.id,
+            listing_id: listing ? listing.id : null,
             vendor_id: vendor.id,
             buyer_id: currentUser.id,
-            listing_title: listing.title,
+            listing_title: listing ? listing.title : null,
           })
           .select("id")
           .single();
+        if (convErr) { console.error("Could not open conversation:", convErr.message); setLoading(false); return; }
         convId = newConv?.id ?? null;
       }
 
@@ -145,7 +145,7 @@ export default function MessageModal({ listing, vendor, currentUser, onClose }: 
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 shrink-0">
           <div>
             <h2 className="font-bold text-gray-900 text-sm">{vendor.business_name}</h2>
-            <p className="text-xs text-gray-400">{listing.title}</p>
+            {listing && <p className="text-xs text-gray-400">{listing.title}</p>}
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
         </div>

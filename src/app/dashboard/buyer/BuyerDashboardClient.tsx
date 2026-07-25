@@ -215,9 +215,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
     });
     const { message: inserted } = await res.json();
     if (inserted) setBuyerConvMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
-    await supabase.from("conversations").update({
-      vendor_unread: (conv?.vendor_unread ?? 0) + 1,
-    }).eq("id", activeConvId);
+    // Unread + preview are bumped by the DB trigger (trg_bump_conversation).
   }
   const dropdownRef = useRef<HTMLDivElement>(null);
 

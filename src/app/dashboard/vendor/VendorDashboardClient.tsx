@@ -423,9 +423,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     });
     const { message: inserted } = await res.json();
     if (inserted) setConvMessages((prev) => prev.map((m) => m.id === optimistic.id ? inserted : m));
-    await supabase.from("conversations").update({
-      buyer_unread: (conv?.buyer_unread ?? 0) + 1,
-    }).eq("id", activeConvId);
+    // Unread + preview are bumped by the DB trigger (trg_bump_conversation).
     awardScore("message");
   }
 
