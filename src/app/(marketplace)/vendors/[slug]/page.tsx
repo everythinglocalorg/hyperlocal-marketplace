@@ -30,9 +30,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // Per-store share card: THIS business's name baked over the brand photo, built
   // dynamically from the slug — every storefront gets its own automatically, so a
   // shared link shows a projecting photo-with-words instead of a bare logo.
+  // Separator is a pipe, not "·": the Archivo Black display font used on the card
+  // has no middle-dot glyph, so a dot renders as a missing-glyph box.
   const cardSubtitle = [vendor.category, [vendor.city, vendor.state].filter(Boolean).join(", ")]
     .filter(Boolean)
-    .join(" · ");
+    .join(" | ");
   const image = `/api/og?title=${encodeURIComponent(vendor.business_name)}${cardSubtitle ? `&subtitle=${encodeURIComponent(cardSubtitle)}` : ""}`;
 
   // Canonical is host-aware / self-referential so the two never supersede each
