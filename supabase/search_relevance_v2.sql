@@ -42,6 +42,8 @@ returns table (
   rating numeric,
   tier text,
   is_verified boolean,
+  business_name text,
+  distance_miles real,
   rank real
 ) as $$
 declare
@@ -82,6 +84,7 @@ begin
     select
       'listing'::text as result_type, l.id, v2.slug, l.title, l.category as subtitle,
       l.images[1] as image_url, v2.city, v2.state, v2.rating, v2.tier, v2.is_verified,
+      v2.business_name as biz,
       l.type as ltype,
       ts_rank_cd(l.search_vector, search_query) as fts_rank,
       (l.search_vector @@ search_query) as fts_hit,
@@ -109,6 +112,7 @@ begin
     select
       'vendor'::text, v.id, v.slug, v.business_name, v.category, v.logo_url,
       v.city, v.state, v.rating, v.tier, v.is_verified,
+      null::text as biz,   -- vendor's own name is already the title
       null::text,
       ts_rank_cd(v.search_vector, search_query),
       (v.search_vector @@ search_query),
@@ -131,6 +135,8 @@ begin
   select
     m.result_type, m.id, m.slug, m.title, m.subtitle, m.image_url, m.city, m.state,
     m.rating, m.tier, m.is_verified,
+    m.biz as business_name,
+    round(m.dist_miles::numeric, 1)::real as distance_miles,
     (
       greatest(m.fts_rank, 0) * 4.0                                   -- field-weighted relevance (title ≫ description)
       + case when m.fts_hit then 1.0 else 0.0 end                    -- reward a real full-text hit over trigram-only

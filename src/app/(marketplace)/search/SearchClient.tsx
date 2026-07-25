@@ -61,8 +61,18 @@ type SearchResult = {
   tier: string;
   is_verified: boolean;
   logo_zoom?: number | null;
+  business_name?: string | null;
+  distance_miles?: number | null;
   rank: number;
 };
+
+// "3.2 mi away" / "12 mi away" / "0.4 mi away". Null when we can't compute it.
+function milesLabel(mi: number | null | undefined): string | null {
+  if (mi == null || !isFinite(mi)) return null;
+  if (mi < 0.1) return "Right here";
+  const val = mi < 10 ? mi.toFixed(1) : Math.round(mi).toString();
+  return `${val} mi away`;
+}
 
 const SORT_OPTIONS = [
   { value: "rating", label: "Top Rated" },
@@ -71,11 +81,12 @@ const SORT_OPTIONS = [
   { value: "local_bucks", label: "Most Local Bucks" },
 ];
 
-function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
+function ListingCard({ l, onClick, distanceMi }: { l: any; onClick?: () => void; distanceMi?: number | null }) {
   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
   const isThrift = l.type === "thrift";
   const isSold = !!l.sold_at || l.quantity === 0;
   const isFree = isThrift && (Number(l.price) === 0);
+  const miles = milesLabel(distanceMi);
   return (
     <div
       onClick={onClick}
@@ -89,7 +100,6 @@ function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
             {l.type === "rental" ? "🏠" : isThrift ? "🏷️" : "📦"}
           </div>
         )}
-        <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600 capitalize">{l.type}</span>
         {isThrift && l.condition && !isSold && (
           <span className="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full capitalize">{l.condition}</span>
         )}
@@ -100,16 +110,18 @@ function ListingCard({ l, onClick }: { l: any; onClick?: () => void }) {
         )}
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900 text-sm">{l.title}</h3>
-        <p className="text-xs text-gray-400 mt-0.5">{l.category}</p>
-        {vendor && (
-          <p className="text-xs text-gray-500 mt-1">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
-        )}
+        <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{l.title}</h3>
         {isFree ? (
-          <p className="text-sm font-bold text-green-700 mt-2">FREE</p>
+          <p className="text-sm font-bold text-green-700 mt-1">FREE</p>
         ) : l.price !== null && l.price !== undefined && (
-          <p className="text-sm font-bold text-green-700 mt-2">${Number(l.price).toFixed(2)}</p>
+          <p className="text-sm font-bold text-green-700 mt-1">${Number(l.price).toFixed(2)}</p>
         )}
+        {vendor?.business_name && (
+          <p className="text-xs text-gray-500 mt-1 truncate">{vendor.business_name}</p>
+        )}
+        <p className="text-xs text-gray-400 mt-0.5">
+          {vendor?.city ? `${vendor.city}, ${vendor.state}` : ""}{miles ? ` · ${miles}` : ""}
+        </p>
         {l.price_label && !l.price && !isThrift && (
           <p className="text-xs text-gray-500 mt-2">{l.price_label}</p>
         )}
@@ -133,14 +145,15 @@ function KeywordListingCard({ r, onClick }: { r: SearchResult; onClick?: () => v
         ) : (
           <div className="w-full h-full flex items-center justify-center text-4xl">📦</div>
         )}
-        <span className="absolute top-2 left-2 bg-white text-xs font-medium px-2 py-0.5 rounded-full text-gray-600">listing</span>
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900 text-sm leading-snug">{r.title}</h3>
-        <p className="text-xs text-gray-500 mt-1">{r.subtitle}</p>
-        <div className="flex items-center gap-1 mt-2">
-          <span className="text-xs text-gray-400">{r.city}, {r.state}</span>
-        </div>
+        <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{r.title}</h3>
+        {r.business_name && (
+          <p className="text-xs text-gray-500 mt-1 truncate">{r.business_name}</p>
+        )}
+        <p className="text-xs text-gray-400 mt-0.5">
+          {r.city}, {r.state}{milesLabel(r.distance_miles) ? ` · ${milesLabel(r.distance_miles)}` : ""}
+        </p>
       </div>
     </div>
   );
@@ -391,6 +404,14 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
     }
     return true;
   }, [resolvedCoords, radius, activeCityObj]);
+
+  // Miles from the user's location to a browse listing's vendor (null if either
+  // side has no coords). Keyword results carry distance from the RPC instead.
+  const listingDistance = useCallback((l: any): number | null => {
+    const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+    if (!resolvedCoords || v?.latitude == null || v?.longitude == null) return null;
+    return distanceMiles(resolvedCoords.latitude, resolvedCoords.longitude, v.latitude, v.longitude);
+  }, [resolvedCoords]);
 
   const runSearch = useCallback(async () => {
     setLoading(true);
@@ -904,7 +925,7 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {listingMode
                     ? shownListings.map((l: any, i: number) => (
-                        <ListingCard key={l.id} l={l} onClick={() => { track("search_result_click", {
+                        <ListingCard key={l.id} l={l} distanceMi={listingDistance(l)} onClick={() => { track("search_result_click", {
                           query: "",
                           mode: "listings",
                           result_type: "listing",
@@ -925,7 +946,7 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
                         }); openDetailById(r.id); }} />
                       ))
                     : listingResults.map((l: any, i: number) => (
-                        <ListingCard key={l.id} l={l} onClick={() => { track("search_result_click", {
+                        <ListingCard key={l.id} l={l} distanceMi={listingDistance(l)} onClick={() => { track("search_result_click", {
                           query: "",
                           mode: "browse",
                           result_type: "listing",
