@@ -25,6 +25,7 @@ export default function GlobalHeader() {
   const [user, setUser] = useState<{ id: string; name: string | null; role: string | null; referralCode?: string | null } | null>(null);
   const [myVendor, setMyVendor] = useState<{ slug: string; business_name: string } | null>(null);
   const [notifUnread, setNotifUnread] = useState(0);
+  const [msgUnread, setMsgUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -62,10 +63,23 @@ export default function GlobalHeader() {
           .then(({ count }) => setNotifUnread(count ?? 0));
         // Their business (first one) → adds a storefront QR to the share sheet.
         supabase.from("vendors")
-          .select("slug, business_name")
+          .select("id, slug, business_name")
           .eq("user_id", u.id).eq("is_active", true)
-          .order("created_at", { ascending: true }).limit(1)
-          .then(({ data }) => setMyVendor(data?.[0] ?? null));
+          .order("created_at", { ascending: true })
+          .then(async ({ data: myVendors }) => {
+            setMyVendor(myVendors?.[0] ?? null);
+            // Total unread across BOTH sides: buyer_unread on my customer threads
+            // + vendor_unread on threads to any business I own.
+            const vids = (myVendors ?? []).map((v) => v.id);
+            const [asBuyer, asVendor] = await Promise.all([
+              supabase.from("conversations").select("buyer_unread").eq("buyer_id", u.id),
+              vids.length ? supabase.from("conversations").select("vendor_unread").in("vendor_id", vids) : Promise.resolve({ data: [] }),
+            ]);
+            const total =
+              (asBuyer.data ?? []).reduce((n: number, c: { buyer_unread: number | null }) => n + (c.buyer_unread ?? 0), 0) +
+              (asVendor.data ?? []).reduce((n: number, c: { vendor_unread: number | null }) => n + (c.vendor_unread ?? 0), 0);
+            setMsgUnread(total);
+          });
       }
       setAuthChecked(true);
     });
@@ -126,11 +140,13 @@ export default function GlobalHeader() {
               <span className="text-sm text-gray-600 hidden sm:block max-w-[220px] truncate">
                 Hello, <strong>{user.name}</strong>
               </span>
-              <Link
-                href={user.role === "vendor" ? "/dashboard/vendor?tab=messages" : "/dashboard/buyer?tab=messages"}
-                title="Messages" className="relative text-xl leading-none"
-              >
+              <Link href="/messages" title="Messages" className="relative text-xl leading-none">
                 💬
+                {msgUnread > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                    {msgUnread > 9 ? "9+" : msgUnread}
+                  </span>
+                )}
               </Link>
               <Link href="/notifications" title="Notifications" className="relative text-xl leading-none">
                 🔔
