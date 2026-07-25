@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
 import { friendlyAuthError } from "@/lib/auth-errors";
+import TurnstileWidget from "@/components/TurnstileWidget";
+
+const CAPTCHA_ON = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,16 +20,33 @@ export default function LoginPage() {
   const [showReset, setShowReset] = useState(false);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [captchaToken, setCaptchaToken] = useState("");
 
   const supabase = createClient();
 
+  // Turnstile tokens are single-use — after any auth attempt, clear the token
+  // and ask the widget for a fresh one so a retry (or resend) still verifies.
+  function resetCaptcha() {
+    if (!CAPTCHA_ON) return;
+    setCaptchaToken("");
+    try { window.turnstile?.reset(); } catch { /* noop */ }
+  }
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (CAPTCHA_ON && !captchaToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
     setLoading(true);
     setError(null);
     setNeedsConfirmation(false);
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      ...(captchaToken ? { options: { captchaToken } } : {}),
+    });
 
     if (error) {
       if (error.code === "email_not_confirmed") {
@@ -34,6 +54,7 @@ export default function LoginPage() {
         setResendState("idle");
       }
       setError(friendlyAuthError(error));
+      resetCaptcha();
       setLoading(false);
       return;
     }
@@ -79,17 +100,27 @@ export default function LoginPage() {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: `${window.location.origin}/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/callback`,
+        ...(captchaToken ? { captchaToken } : {}),
+      },
     });
+    resetCaptcha();
     setResendState(error ? "error" : "sent");
   }
 
   async function handlePasswordReset(e: React.FormEvent) {
     e.preventDefault();
+    if (CAPTCHA_ON && !captchaToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
     setLoading(true);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/callback?next=/reset-password`,
+      ...(captchaToken ? { captchaToken } : {}),
     });
+    resetCaptcha();
     if (error) {
       setError(friendlyAuthError(error));
     } else {
@@ -131,9 +162,10 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+            <TurnstileWidget onVerify={setCaptchaToken} />
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (CAPTCHA_ON && !captchaToken)}
               className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
             >
               {loading ? "Sending..." : "Send reset link"}
@@ -238,9 +270,11 @@ export default function LoginPage() {
           </div>
         )}
 
+        <TurnstileWidget onVerify={setCaptchaToken} />
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (CAPTCHA_ON && !captchaToken)}
           className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
         >
           {loading ? "Logging in..." : "Log in"}

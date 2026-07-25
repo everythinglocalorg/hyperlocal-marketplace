@@ -19,7 +19,7 @@ type Vendor = {
   owner_name: string | null;
   owner_email: string | null;
 };
-type UserRow = { id: string; email: string; full_name: string | null; is_admin: boolean; created_at: string };
+type UserRow = { id: string; email: string; full_name: string | null; is_admin: boolean; blocked: boolean; created_at: string };
 type Listing = { id: string; title: string; vendor_id: string; is_active: boolean; price: number | null; vendor?: { business_name: string } | null };
 type LogRow = { id: string; action: string; target_type: string | null; detail: string | null; created_at: string };
 type SpamFlag = { id: string; type: string; status: string; details: Record<string, any>; created_at: string; flagged_user_id: string | null };
@@ -458,10 +458,11 @@ function UsersTab({ adminId }: { adminId: string }) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [busy, setBusy] = useState<string | null>(null); // user id mid-action
 
   useEffect(() => {
-    supabase.from("profiles").select("id,email,full_name,is_admin,created_at").order("created_at", { ascending: false })
-      .then(({ data }) => { setUsers(data ?? []); setLoading(false); });
+    supabase.from("profiles").select("id,email,full_name,is_admin,blocked,created_at").order("created_at", { ascending: false })
+      .then(({ data }) => { setUsers((data as UserRow[]) ?? []); setLoading(false); });
   }, []);
 
   async function log(action: string, target_id: string, detail: string) {
@@ -474,6 +475,43 @@ function UsersTab({ adminId }: { adminId: string }) {
     await supabase.from("profiles").update({ is_admin: newVal }).eq("id", user.id);
     await log(newVal ? "grant_admin" : "revoke_admin", user.id, user.email);
     setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_admin: newVal } : u));
+  }
+
+  async function toggleBlock(user: UserRow) {
+    if (user.id === adminId) return;
+    const block = !user.blocked;
+    if (block && !confirm(`Block ${user.email}? They will be signed out and unable to log in until unblocked.`)) return;
+    setBusy(user.id);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id, block }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error ?? "Couldn't update this user."); return; }
+      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, blocked: block } : u));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeUser(user: UserRow) {
+    if (user.id === adminId) return;
+    if (!confirm(`Permanently delete ${user.email}? This cannot be undone.`)) return;
+    setBusy(user.id);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error ?? "Couldn't delete this user."); return; }
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } finally {
+      setBusy(null);
+    }
   }
 
   const filtered = users.filter((u) =>
@@ -497,13 +535,17 @@ function UsersTab({ adminId }: { adminId: string }) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Joined</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Admin</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((u) => (
-                <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                <tr key={u.id} className={`border-b border-gray-50 transition-colors ${u.blocked ? "bg-red-50/50" : "hover:bg-gray-50"}`}>
                   <td className="px-4 py-3">
-                    <p className="text-sm font-semibold text-gray-900">{u.full_name || "—"}</p>
+                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                      {u.full_name || "—"}
+                      {u.blocked && <span className="text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">Blocked</span>}
+                    </p>
                     <p className="text-xs text-gray-400">{u.email}</p>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString()}</td>
@@ -516,6 +558,28 @@ function UsersTab({ adminId }: { adminId: string }) {
                     >
                       <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform mt-0.5 ${u.is_admin ? "translate-x-4" : "translate-x-0.5"}`} />
                     </button>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => toggleBlock(u)}
+                        disabled={u.id === adminId || busy === u.id}
+                        title={u.id === adminId ? "You can't block yourself" : u.blocked ? "Unblock this user" : "Block this user from logging in"}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-40 ${u.blocked
+                          ? "border-green-200 text-green-700 hover:bg-green-50"
+                          : "border-amber-200 text-amber-700 hover:bg-amber-50"}`}
+                      >
+                        {busy === u.id ? "…" : u.blocked ? "Unblock" : "Block"}
+                      </button>
+                      <button
+                        onClick={() => removeUser(u)}
+                        disabled={u.id === adminId || busy === u.id}
+                        title={u.id === adminId ? "You can't delete yourself" : "Permanently delete this user"}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -634,6 +698,9 @@ function LogsTab() {
     unverify: "✗ Unverified vendor",
     grant_admin: "👑 Granted admin",
     revoke_admin: "🚫 Revoked admin",
+    block_user: "⛔ Blocked user",
+    unblock_user: "✅ Unblocked user",
+    delete_user: "🗑 Deleted user",
     listing_activate: "📦 Activated listing",
     listing_deactivate: "⏸ Deactivated listing",
     listing_delete: "🗑 Deleted listing",

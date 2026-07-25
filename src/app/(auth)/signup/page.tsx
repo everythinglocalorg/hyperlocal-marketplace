@@ -79,8 +79,12 @@ function SignupForm() {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email,
-      options: { emailRedirectTo: `${window.location.origin}/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/callback`,
+        ...(captchaToken ? { captchaToken } : {}),
+      },
     });
+    if (CAPTCHA_ON) { setCaptchaToken(""); try { window.turnstile?.reset(); } catch { /* noop */ } }
     setResendState(error ? "error" : "sent");
   }
 
@@ -110,12 +114,13 @@ function SignupForm() {
             🪙 You'll earn 10 Local Bucks the moment you confirm!
           </p>
         </div>
+        {CAPTCHA_ON && resendState !== "sent" && <TurnstileWidget onVerify={setCaptchaToken} />}
         <div className="mt-4 text-sm text-gray-500">
           Didn't get it? Check your spam folder, or{" "}
           <button
             type="button"
             onClick={handleResendConfirmation}
-            disabled={resendState === "sending" || resendState === "sent"}
+            disabled={resendState === "sending" || resendState === "sent" || (CAPTCHA_ON && !captchaToken)}
             className="text-green-600 font-medium hover:underline disabled:opacity-50 disabled:no-underline"
           >
             {resendState === "sending"
