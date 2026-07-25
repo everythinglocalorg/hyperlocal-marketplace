@@ -529,10 +529,6 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
       {/* Sidebar — off-canvas drawer on mobile, fixed sidebar on desktop */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="p-6 border-b border-gray-100">
-          <Link href="/"><Logo size="sm" /></Link>
-        </div>
-
         {/* Vendor info */}
         <div className="p-4 border-b border-gray-100">
           {/* Business row */}
@@ -778,8 +774,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                 <div className="min-w-0">
-                  <h1 className="text-2xl font-bold text-gray-900">Welcome back, {profile?.full_name ?? "there"} 👋</h1>
-                  <p className="text-gray-500 text-sm mt-0.5">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
+                  <p className="text-gray-500 text-sm">{vendor.business_name} · {vendor.city}, {vendor.state}</p>
                   {vendorOptions && vendorOptions.length > 1 && (
                     <div className="mt-2 inline-flex items-center gap-2">
                       <span className="text-xs text-gray-400">Managing:</span>
