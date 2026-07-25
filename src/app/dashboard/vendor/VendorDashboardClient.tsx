@@ -3803,9 +3803,9 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [headingFont, setHeadingFont] = useState(initialTheme.heading_font);
   const [bodyFont, setBodyFont] = useState(initialTheme.body_font);
   const [textScale, setTextScale] = useState<"sm" | "base" | "lg">(initialTheme.text_scale);
-  // Social share image: off = photo card (banner/brand) with the store name;
-  // on = the store's logo shown as a badge on that card.
-  const [shareUseLogo, setShareUseLogo] = useState<boolean>(!!vendor.theme?.share_use_logo);
+  // Social share image: off (default) = the store's OWN image (cover photo, or
+  // logo badge). On = use the Everything Local brand image instead. Business first.
+  const [shareUseBrand, setShareUseBrand] = useState<boolean>(!!vendor.theme?.share_use_brand);
   const [category, setCategory] = useState(vendor.category ?? "");
   const [phone, setPhone] = useState(vendor.phone ?? "");
   const [website, setWebsite] = useState(vendor.website ?? "");
@@ -3965,7 +3965,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       banner_position: bannerPosition,
       banner_zoom: 1,
       logo_zoom: logoZoom,
-      theme: { heading_font: headingFont, body_font: bodyFont, text_scale: textScale, share_use_logo: shareUseLogo },
+      theme: { heading_font: headingFont, body_font: bodyFont, text_scale: textScale, share_use_brand: shareUseBrand },
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
       setSaved(true); setTimeout(() => setSaved(false), 3000);
@@ -3988,8 +3988,11 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
     const p = new URLSearchParams({ title: (businessName || vendor.business_name || "Your Store").slice(0, 60) });
     const sub = [category, [city, vendorState].filter(Boolean).join(", ")].filter(Boolean).join(" | ");
     if (sub) p.set("subtitle", sub);
-    if (vendor.banner_url) p.set("photo", vendor.banner_url);
-    if (shareUseLogo && vendor.logo_url) p.set("logo", vendor.logo_url);
+    const hasRealBanner = !!vendor.banner_url && vendor.banner_url !== vendor.logo_url;
+    if (!shareUseBrand) {
+      if (hasRealBanner) p.set("photo", vendor.banner_url);
+      else if (vendor.logo_url) p.set("logo", vendor.logo_url);
+    }
     return `/api/og?${p.toString()}`;
   })();
 
@@ -4178,26 +4181,25 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
           <label className="block text-sm font-semibold text-gray-700 mb-1">Social share image</label>
           <p className="text-xs text-gray-400 mb-3">
             This is what people see when your storefront link is shared on Facebook and in texts.
-            By default it uses your cover photo (or the Everything Local photo) with your business name on top.
+            By default it uses <span className="font-medium text-gray-500">your own photo</span> — your cover photo,
+            or your logo if you haven&apos;t added a cover — with your business name on top.
           </p>
           <div className="rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={shareCardSrc} alt="Share preview" width={1200} height={630} className="w-full aspect-[1200/630] object-cover" />
           </div>
-          <label className={`mt-3 flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${shareUseLogo ? "border-green-400 bg-green-50" : "border-gray-200 hover:border-gray-300"} ${!vendor.logo_url ? "opacity-60" : ""}`}>
+          <label className={`mt-3 flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${shareUseBrand ? "border-green-400 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
             <input
               type="checkbox"
-              checked={shareUseLogo}
-              disabled={!vendor.logo_url}
-              onChange={(e) => setShareUseLogo(e.target.checked)}
+              checked={shareUseBrand}
+              onChange={(e) => setShareUseBrand(e.target.checked)}
               className="mt-0.5 w-4 h-4 accent-green-600 shrink-0"
             />
             <span className="text-sm text-gray-700">
-              <span className="font-semibold">Show my logo on the share image</span>
+              <span className="font-semibold">Use the Everything Local brand image instead</span>
               <span className="block text-xs text-gray-500 mt-0.5">
-                {vendor.logo_url
-                  ? "Adds your logo as a badge on the card. Leave off to show just the photo and your name."
-                  : "Add a logo above first, then you can turn this on."}
+                Leave this off to feature your own photo. Turn it on to use the Everything Local
+                photo behind your name instead.
               </span>
             </span>
           </label>

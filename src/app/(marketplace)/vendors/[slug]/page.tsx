@@ -35,12 +35,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cardSubtitle = [vendor.category, [vendor.city, vendor.state].filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(" | ");
-  // Background defaults to the store's own banner (brand photo if none). If they
-  // opted in (Store Settings), their logo is shown as a badge on the card.
+  // The business's OWN image comes first: their cover photo, else their logo as a
+  // badge. The Everything Local brand photo is only the fallback (no image at all)
+  // or an explicit opt-in via Store Settings. Businesses lead; platform backs up.
+  const useBrand = vendor.theme?.share_use_brand === true;
+  const hasRealBanner = !!vendor.banner_url && vendor.banner_url !== vendor.logo_url;
   const cardParams = new URLSearchParams({ title: vendor.business_name });
   if (cardSubtitle) cardParams.set("subtitle", cardSubtitle);
-  if (vendor.banner_url) cardParams.set("photo", vendor.banner_url);
-  if (vendor.theme?.share_use_logo && vendor.logo_url) cardParams.set("logo", vendor.logo_url);
+  if (!useBrand) {
+    if (hasRealBanner) cardParams.set("photo", vendor.banner_url);       // their cover photo, full-bleed
+    else if (vendor.logo_url) cardParams.set("logo", vendor.logo_url);   // their logo as a badge on the brand backdrop
+  }
   const image = `/api/og?${cardParams.toString()}`;
 
   // Canonical is host-aware / self-referential so the two never supersede each
