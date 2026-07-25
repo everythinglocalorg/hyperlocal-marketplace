@@ -3981,6 +3981,18 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
     setSaving(false);
   }
 
+  // Live preview of the Facebook/social share card. Name/category/city update as
+  // you type; the photo & logo use what's already saved (upload + Save, then it
+  // refreshes). Pipe separator — the card font has no middle-dot glyph.
+  const shareCardSrc = (() => {
+    const p = new URLSearchParams({ title: (businessName || vendor.business_name || "Your Store").slice(0, 60) });
+    const sub = [category, [city, vendorState].filter(Boolean).join(", ")].filter(Boolean).join(" | ");
+    if (sub) p.set("subtitle", sub);
+    if (vendor.banner_url) p.set("photo", vendor.banner_url);
+    if (shareUseLogo && vendor.logo_url) p.set("logo", vendor.logo_url);
+    return `/api/og?${p.toString()}`;
+  })();
+
   return (
     <div className="p-6 max-w-2xl">
       <h2 className="text-xl font-bold text-gray-900 mb-1">Store Settings</h2>
@@ -4159,6 +4171,36 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
               />
             ))}
           </div>
+        </div>
+
+        {/* Social share image — the card shown when your storefront link is shared */}
+        <div className="border-t border-gray-100 pt-5">
+          <label className="block text-sm font-semibold text-gray-700 mb-1">Social share image</label>
+          <p className="text-xs text-gray-400 mb-3">
+            This is what people see when your storefront link is shared on Facebook and in texts.
+            By default it uses your cover photo (or the Everything Local photo) with your business name on top.
+          </p>
+          <div className="rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={shareCardSrc} alt="Share preview" width={1200} height={630} className="w-full aspect-[1200/630] object-cover" />
+          </div>
+          <label className={`mt-3 flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${shareUseLogo ? "border-green-400 bg-green-50" : "border-gray-200 hover:border-gray-300"} ${!vendor.logo_url ? "opacity-60" : ""}`}>
+            <input
+              type="checkbox"
+              checked={shareUseLogo}
+              disabled={!vendor.logo_url}
+              onChange={(e) => setShareUseLogo(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-green-600 shrink-0"
+            />
+            <span className="text-sm text-gray-700">
+              <span className="font-semibold">Show my logo on the share image</span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                {vendor.logo_url
+                  ? "Adds your logo as a badge on the card. Leave off to show just the photo and your name."
+                  : "Add a logo above first, then you can turn this on."}
+              </span>
+            </span>
+          </label>
         </div>
 
         {error && <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2">{error}</p>}

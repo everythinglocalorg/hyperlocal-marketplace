@@ -33,8 +33,14 @@ function loadArchivo(origin: string): Promise<ArrayBuffer | null> {
 // Pull the hero photo bytes so a missing file degrades to the brand background
 // instead of throwing the whole render.
 async function loadHero(origin: string): Promise<string | null> {
+  return loadRemoteImage(`${origin}/og-hero.jpg`);
+}
+
+// Fetch any image URL (a vendor's banner/logo, or the brand hero) as a data URI
+// so Satori can embed it. Returns null on any failure so the card still renders.
+async function loadRemoteImage(url: string): Promise<string | null> {
   try {
-    const res = await fetch(`${origin}/og-hero.jpg`);
+    const res = await fetch(url);
     if (!res.ok) return null;
     const buf = Buffer.from(await res.arrayBuffer());
     const type = res.headers.get("content-type") || "image/jpeg";
@@ -52,7 +58,19 @@ export async function GET(req: Request) {
   // (Archivo Black uppercase runs ~0.62em per char with the tight tracking).
   const titleSize = Math.max(40, Math.min(96, Math.floor(1080 / (title.length * 0.62))));
 
-  const [archivo, hero] = await Promise.all([loadArchivo(origin), loadHero(origin)]);
+  // Optional per-business overrides:
+  //  ?photo=<url>  → use that image (a vendor's banner) as the background.
+  //  ?logo=<url>   → show that logo as a badge in place of the brand pin.
+  const photoParam = searchParams.get("photo");
+  const logoParam = searchParams.get("logo");
+
+  const [archivo, heroLoaded, logo] = await Promise.all([
+    loadArchivo(origin),
+    photoParam ? loadRemoteImage(photoParam) : loadHero(origin),
+    logoParam ? loadRemoteImage(logoParam) : Promise.resolve(null),
+  ]);
+  // If a vendor's banner failed to load, fall back to the brand hero photo.
+  const hero = heroLoaded ?? (photoParam ? await loadHero(origin) : null);
   const fontFamily = archivo ? "Archivo Black" : "sans-serif";
 
   return new ImageResponse(
@@ -110,14 +128,36 @@ export async function GET(req: Request) {
             padding: "0 60px",
           }}
         >
-          <svg width="58" height="76" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 8 }}>
-            <path
-              d="M20 2C10.6 2 3.2 9.4 3.2 18.8c0 6.6 4.6 14.3 9.4 20.4a62 62 0 0 0 6 6.6 1.9 1.9 0 0 0 2.8 0 62 62 0 0 0 6-6.6c4.8-6.1 9.4-13.8 9.4-20.4C36.8 9.4 29.4 2 20 2z"
-              fill="#22c55e"
-            />
-            <path d="M20 10.6 28 18.4H25.4V27H14.6V18.4H12z" fill="#ffffff" />
-            <rect x="18" y="22" width="4" height="5" fill="#22c55e" />
-          </svg>
+          {logo ? (
+            // Vendor logo badge — a white rounded card so any logo (transparent
+            // or not) reads cleanly over the photo.
+            // eslint-disable-next-line @next/next/no-img-element
+            <div
+              style={{
+                display: "flex",
+                width: 150,
+                height: 150,
+                borderRadius: 28,
+                backgroundColor: "#ffffff",
+                border: "4px solid #22c55e",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 16,
+                marginBottom: 20,
+              }}
+            >
+              <img src={logo} alt="" width={114} height={114} style={{ width: 114, height: 114, objectFit: "contain" }} />
+            </div>
+          ) : (
+            <svg width="58" height="76" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg" style={{ marginBottom: 8 }}>
+              <path
+                d="M20 2C10.6 2 3.2 9.4 3.2 18.8c0 6.6 4.6 14.3 9.4 20.4a62 62 0 0 0 6 6.6 1.9 1.9 0 0 0 2.8 0 62 62 0 0 0 6-6.6c4.8-6.1 9.4-13.8 9.4-20.4C36.8 9.4 29.4 2 20 2z"
+                fill="#22c55e"
+              />
+              <path d="M20 10.6 28 18.4H25.4V27H14.6V18.4H12z" fill="#ffffff" />
+              <rect x="18" y="22" width="4" height="5" fill="#22c55e" />
+            </svg>
+          )}
           <div
             style={{
               display: "flex",

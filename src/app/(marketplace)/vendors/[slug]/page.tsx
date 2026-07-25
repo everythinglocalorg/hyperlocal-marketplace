@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createClient();
   const { data: vendor } = await supabase
     .from("vendors")
-    .select("business_name, description, category, city, state, logo_url, banner_url, custom_domain, domain_verified")
+    .select("business_name, description, category, city, state, logo_url, banner_url, theme, custom_domain, domain_verified")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     vendor.description ||
     `${vendor.business_name} · ${vendor.category} in ${vendor.city}, ${vendor.state}. Discover and support local on Everything Local.`;
-  // Per-store share card: THIS business's name baked over the brand photo, built
+  // Per-store share card: THIS business's name baked over a photo, built
   // dynamically from the slug — every storefront gets its own automatically, so a
   // shared link shows a projecting photo-with-words instead of a bare logo.
   // Separator is a pipe, not "·": the Archivo Black display font used on the card
@@ -35,7 +35,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cardSubtitle = [vendor.category, [vendor.city, vendor.state].filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(" | ");
-  const image = `/api/og?title=${encodeURIComponent(vendor.business_name)}${cardSubtitle ? `&subtitle=${encodeURIComponent(cardSubtitle)}` : ""}`;
+  // Background defaults to the store's own banner (brand photo if none). If they
+  // opted in (Store Settings), their logo is shown as a badge on the card.
+  const cardParams = new URLSearchParams({ title: vendor.business_name });
+  if (cardSubtitle) cardParams.set("subtitle", cardSubtitle);
+  if (vendor.banner_url) cardParams.set("photo", vendor.banner_url);
+  if (vendor.theme?.share_use_logo && vendor.logo_url) cardParams.set("logo", vendor.logo_url);
+  const image = `/api/og?${cardParams.toString()}`;
 
   // Canonical is host-aware / self-referential so the two never supersede each
   // other: the platform page (everythinglocal.org) is canonical to itself, and
