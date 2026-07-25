@@ -9,6 +9,7 @@ import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPick
 import ProfileDetailsEditor, { normalizeDetails } from "@/components/ProfileDetailsEditor";
 import VendorLogo from "@/components/vendor/VendorLogo";
 import QrCode from "@/components/QrCode";
+import WishlistGrid from "@/components/WishlistGrid";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
@@ -147,11 +148,11 @@ const STATUS_ICONS: Record<string, string> = {
 };
 
 export default function BuyerDashboardClient({ profile, bookings, rentalBookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks, profileDetails, ownedBusinessCount }: Props) {
-  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile">(() => {
+  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile" | "saved">(() => {
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tab");
-      if (t && ["overview", "bookings", "bucks", "referrals", "messages", "profile"].includes(t)) {
-        return t as "overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile";
+      if (t && ["overview", "bookings", "bucks", "referrals", "messages", "profile", "saved"].includes(t)) {
+        return t as "overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile" | "saved";
       }
     }
     return "overview";
@@ -246,6 +247,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
 
   const NAV = [
     { id: "overview", label: "Overview", icon: "🏠" },
+    { id: "saved", label: "Wish List", icon: "💚" },
     { id: "profile", label: "Local Profile", icon: "⭐" },
     { id: "bookings", label: "Bookings", icon: "📅" },
     { id: "bucks", label: "Local Bucks", icon: "🪙" },
@@ -263,6 +265,10 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
       <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-5 border-b border-gray-100">
           <Link href="/"><Logo size="sm" /></Link>
+          <Link href="/" className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            Back to homepage
+          </Link>
         </div>
 
         {/* Profile summary */}
@@ -389,7 +395,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <Logo size="sm" />
+          <Link href="/" aria-label="Everything Local home"><Logo size="sm" /></Link>
           <InboxBell className="ml-auto" />
         </div>
         <div className="p-4 sm:p-8">
@@ -582,6 +588,14 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
         )}
 
         {/* ── PUBLIC PROFILE ── */}
+        {tab === "saved" && (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">💚 Wish List</h1>
+            <p className="text-gray-500 text-sm mb-6">Items you’ve saved to revisit or buy. Tap the heart on any product to add it here.</p>
+            <WishlistGrid />
+          </div>
+        )}
+
         {tab === "profile" && (
           <div>
             <h1 className="text-2xl font-bold text-gray-900 mb-1">⭐ Your Local Profile</h1>

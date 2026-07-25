@@ -8,6 +8,7 @@ import Logo from "@/components/Logo";
 import ShareQrModal, { QrGlyph, type ShareSlide } from "@/components/ShareQrModal";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { BRAND_ORIGIN } from "@/lib/domains";
+import { useFavorites } from "@/lib/favorites";
 
 // Routes that render their own full-page chrome (own nav/sidebar) and should NOT
 // show the global browse header.
@@ -35,6 +36,7 @@ export default function GlobalHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const { wishlistCount } = useFavorites();
 
   // Close the mobile menu on outside click or when the route changes.
   useEffect(() => {
@@ -160,6 +162,14 @@ export default function GlobalHeader() {
                   </span>
                 )}
               </Link>
+              <Link href="/wishlist" title="Wish List" className="relative text-xl leading-none">
+                💚
+                {wishlistCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-green-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
+                    {wishlistCount > 9 ? "9+" : wishlistCount}
+                  </span>
+                )}
+              </Link>
               {/* Desktop: nav pills + Dashboard button */}
               <Link href={`/community/${activeCity}`} className="text-sm font-semibold text-green-700 border border-green-300 px-4 py-2 rounded-full hover:bg-green-50 transition-colors hidden lg:block">
                 🏘️ Local Loop
@@ -195,6 +205,10 @@ export default function GlobalHeader() {
                       </>
                     )}
                     <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">📊 Dashboard →</Link>
+                    <Link href="/wishlist" onClick={() => setMenuOpen(false)} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                      <span>💚 Wish List</span>
+                      {wishlistCount > 0 && <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold">{wishlistCount}</span>}
+                    </Link>
                     <div className="border-t border-gray-100 my-1" />
                     <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Loop</Link>
                     <Link href={`/jobs/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>

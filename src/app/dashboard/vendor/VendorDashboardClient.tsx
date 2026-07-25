@@ -531,6 +531,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         {/* Vendor info */}
         <div className="p-4 border-b border-gray-100">
+          <Link href="/" className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-green-700 transition-colors">
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+            Back to homepage
+          </Link>
           {/* Business row */}
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0 ${vendor.logo_url ? "bg-white border border-gray-100" : "bg-green-100"}`}>
@@ -716,7 +720,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <Logo size="sm" />
+          <Link href="/" aria-label="Everything Local home"><Logo size="sm" /></Link>
           <InboxBell className="ml-auto" />
         </div>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
@@ -3799,6 +3803,9 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
   const [headingFont, setHeadingFont] = useState(initialTheme.heading_font);
   const [bodyFont, setBodyFont] = useState(initialTheme.body_font);
   const [textScale, setTextScale] = useState<"sm" | "base" | "lg">(initialTheme.text_scale);
+  // Social share image: off = photo card (banner/brand) with the store name;
+  // on = the store's logo shown as a badge on that card.
+  const [shareUseLogo, setShareUseLogo] = useState<boolean>(!!vendor.theme?.share_use_logo);
   const [category, setCategory] = useState(vendor.category ?? "");
   const [phone, setPhone] = useState(vendor.phone ?? "");
   const [website, setWebsite] = useState(vendor.website ?? "");
@@ -3958,7 +3965,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       banner_position: bannerPosition,
       banner_zoom: 1,
       logo_zoom: logoZoom,
-      theme: { heading_font: headingFont, body_font: bodyFont, text_scale: textScale },
+      theme: { heading_font: headingFont, body_font: bodyFont, text_scale: textScale, share_use_logo: shareUseLogo },
     }).eq("id", vendor.id);
     if (updateErr) { setError(updateErr.message); } else {
       setSaved(true); setTimeout(() => setSaved(false), 3000);
