@@ -82,6 +82,14 @@ const SORT_OPTIONS = [
   { value: "local_bucks", label: "Most Local Bucks" },
 ];
 
+// Listing-type pills (thrift, rental) map to the vendor category that sells them,
+// so a type browse can also surface matching businesses — e.g. a thrift shop that
+// hasn't posted any items yet still shows up under "Thrift Sales".
+const TYPE_TO_VENDOR_CATEGORY: Record<string, string> = {
+  thrift: "Thrift Sales",
+  rental: "Events & Rentals",
+};
+
 // Airbnb-style save heart, wired to the Wish List (green heart / FavoritesProvider).
 function SaveHeart({ listingId }: { listingId: string }) {
   const favorites = useFavorites();
@@ -441,7 +449,8 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
     setLoading(true);
 
     try {
-      // Category pill / listing-type browse — show listings only (products first, no vendor section)
+      // Category pill / listing-type browse — products first, then the businesses
+      // in that same category below (so a store with no matching listings shows).
       if (listingMode) {
         let q = supabase
           .from("listings")
@@ -450,12 +459,41 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
         if (listingType) q = q.eq("type", listingType);
         else if (category) q = q.eq("category", category);
         q = q.order("is_featured", { ascending: false }).order("created_at", { ascending: false }).limit(80);
-        const { data } = await q;
-        const inRange = (data ?? []).filter(listingInRange);
+
+        // Businesses in this category — radius RPC when we have a center, else an
+        // exact-city fallback (mirrors the browse path below).
+        const vendorCategory = category || TYPE_TO_VENDOR_CATEGORY[listingType] || null;
+        const vendorReq = resolvedCoords
+          ? supabase.rpc("search_vendors_nearby", {
+              p_latitude: resolvedCoords.latitude,
+              p_longitude: resolvedCoords.longitude,
+              p_radius_miles: radius,
+              p_category: vendorCategory,
+              p_limit: 40,
+              p_offset: 0,
+            })
+          : (() => {
+              let vq = supabase.from("vendors").select("*").eq("is_active", true)
+                .order("tier", { ascending: false }).order("created_at", { ascending: false }).limit(40);
+              if (vendorCategory) vq = vq.eq("category", vendorCategory);
+              if (activeCityObj) vq = vq.ilike("city", activeCityObj.city);
+              return vq;
+            })();
+
+        const [listingRes, vendorRes] = await Promise.all([q, vendorReq]);
+        const inRange = (listingRes.data ?? []).filter(listingInRange);
+        let browseVendors: Vendor[] = vendorRes.data ?? [];
+        if (!resolvedCoords && activeCityObj) {
+          browseVendors = browseVendors.filter((v) => normalizeState(v.state ?? "") === activeCityObj.state);
+        }
+        if (sort === "rating") browseVendors = [...browseVendors].sort((a, b) => b.rating - a.rating);
+        else if (sort === "distance") browseVendors = [...browseVendors].sort((a, b) => (a.distance_miles ?? 0) - (b.distance_miles ?? 0));
+        else if (sort === "local_bucks") browseVendors = [...browseVendors].sort((a, b) => b.local_bucks_earned - a.local_bucks_earned);
+
         setListingResults(inRange);
+        setVendors(browseVendors);
         setKwListings([]);
         setKwVendors([]);
-        setVendors([]);
         trackSearch({
           query: "",
           mode: "listings",
@@ -463,7 +501,7 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
           category: category || undefined,
           city: activeCityObj?.label,
           radius,
-          result_count: inRange.length,
+          result_count: inRange.length + browseVendors.length,
         });
         return;
       }
@@ -981,7 +1019,9 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
                       ))}
                 </div>
               </section>
-            ) : !listingMode ? null : (
+            ) : !listingMode ? null : bizCount > 0 ? (
+              <p className="text-sm text-gray-500">No {listingType || category} listings in this area yet — browse the businesses below.</p>
+            ) : (
               <div className="text-center py-20">
                 <div className="text-5xl mb-4">🔍</div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No listings found</h3>
@@ -990,7 +1030,7 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
             )}
 
             {/* ── LOCAL BUSINESSES SECTION ── */}
-            {!listingMode && (isKeyword ? kwVendors : vendors).length > 0 && (
+            {(isKeyword ? kwVendors : vendors).length > 0 && (
               <section>
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <div>
