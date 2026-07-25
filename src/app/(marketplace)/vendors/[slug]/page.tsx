@@ -27,8 +27,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     vendor.description ||
     `${vendor.business_name} · ${vendor.category} in ${vendor.city}, ${vendor.state}. Discover and support local on Everything Local.`;
-  // Business logo/banner → branded card as last resort
-  const image = vendor.logo_url || vendor.banner_url || "/api/og";
+  // Per-store share card: THIS business's name baked over the brand photo, built
+  // dynamically from the slug — every storefront gets its own automatically, so a
+  // shared link shows a projecting photo-with-words instead of a bare logo.
+  const cardSubtitle = [vendor.category, [vendor.city, vendor.state].filter(Boolean).join(", ")]
+    .filter(Boolean)
+    .join(" · ");
+  const image = `/api/og?title=${encodeURIComponent(vendor.business_name)}${cardSubtitle ? `&subtitle=${encodeURIComponent(cardSubtitle)}` : ""}`;
 
   // Canonical is host-aware / self-referential so the two never supersede each
   // other: the platform page (everythinglocal.org) is canonical to itself, and
@@ -47,13 +52,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       type: "profile",
-      images: image ? [{ url: image, alt: vendor.business_name }] : undefined,
+      images: [{ url: image, width: 1200, height: 630, alt: vendor.business_name }],
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : undefined,
+      images: [image],
     },
   };
 }
