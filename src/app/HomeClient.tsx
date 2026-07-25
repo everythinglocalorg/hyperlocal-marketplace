@@ -33,6 +33,13 @@ const HERO_PHRASES = [
   "breweries & taprooms",
 ];
 
+function milesLabel(mi: number | null | undefined): string | null {
+  if (mi == null || !isFinite(mi)) return null;
+  if (mi < 0.1) return "Right here";
+  const val = mi < 10 ? mi.toFixed(1) : Math.round(mi).toString();
+  return `${val} mi away`;
+}
+
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
   "Services & Trades": "🔧",
@@ -171,7 +178,14 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
         .map((l: any) => ({ ...l, boosted: true }));
     }
     const restListings = filteredListings.filter((l: any) => !boostedListingIds.includes(l.id));
-    setRecentListings([...boostedListings, ...restListings].slice(0, 8));
+    const withDist = (l: any) => {
+      const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+      const dist = center && v?.latitude != null && v?.longitude != null
+        ? distanceMiles(center.latitude, center.longitude, v.latitude, v.longitude)
+        : null;
+      return { ...l, __dist: dist };
+    };
+    setRecentListings([...boostedListings, ...restListings].map(withDist).slice(0, 8));
 
     // Boosted businesses lead the New Businesses row.
     let boostedVendors: any[] = [];
@@ -423,11 +437,14 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                           : <span className="text-3xl text-gray-300">{{ product:"📦", service:"🔧", restaurant:"🍽️", event:"🎉", rental:"🏠", thrift:"🏷️" }[l.type as string] ?? "📦"}</span>}
                       </div>
                       <div className="p-2.5">
-                        <p className="text-xs font-semibold text-gray-900 line-clamp-1">{l.title}</p>
-                        <p className="text-xs text-gray-400 truncate">{vendor?.business_name}</p>
+                        <p className="text-xs font-bold text-gray-900 line-clamp-1">{l.title}</p>
                         {l.price != null
-                          ? <p className="text-xs font-bold text-green-700 mt-1">${Number(l.price).toFixed(2)}</p>
-                          : l.price_label && <p className="text-xs text-gray-500 mt-1">{l.price_label}</p>}
+                          ? <p className="text-xs font-bold text-green-700 mt-0.5">${Number(l.price).toFixed(2)}</p>
+                          : l.price_label && <p className="text-xs text-gray-500 mt-0.5">{l.price_label}</p>}
+                        <p className="text-xs text-gray-500 truncate mt-0.5">{vendor?.business_name}</p>
+                        <p className="text-[11px] text-gray-400 truncate">
+                          {vendor?.city ? `${vendor.city}, ${vendor.state}` : ""}{milesLabel(l.__dist) ? ` · ${milesLabel(l.__dist)}` : ""}
+                        </p>
                       </div>
                     </Link>
                   );
