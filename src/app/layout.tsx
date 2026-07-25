@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import AnalyticsListener from "@/components/AnalyticsListener";
+import ScrollToTop from "@/components/ScrollToTop";
 import GlobalHeader from "@/components/GlobalHeader";
 import CartDrawer from "@/components/CartDrawer";
 import CartButton from "@/components/CartButton";
@@ -44,6 +45,7 @@ export default function RootLayout({
     <html lang="en" className="h-full antialiased">
       <body className={`${geist.className} min-h-full flex flex-col bg-white text-gray-900`}>
         <AnalyticsListener />
+        <ScrollToTop />
         <FavoritesProvider>
           <CartProvider>
             <GlobalHeader />

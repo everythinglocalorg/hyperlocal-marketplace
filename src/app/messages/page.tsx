@@ -7,11 +7,16 @@ export const metadata: Metadata = { title: "Messages — Everything Local" };
 
 // One inbox for everything — the conversations where you're the customer and the
 // ones where you're the business, merged.
-export default async function MessagesPage() {
+export default async function MessagesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ c?: string }>;
+}) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/messages");
 
+  const { c } = await searchParams;
   const { data: profile } = await supabase
     .from("profiles")
     .select("id, full_name, avatar_url")
@@ -21,6 +26,7 @@ export default async function MessagesPage() {
   return (
     <UnifiedInbox
       me={{ id: user.id, full_name: profile?.full_name ?? null, avatar_url: profile?.avatar_url ?? null }}
+      initialConvoId={c ?? null}
     />
   );
 }

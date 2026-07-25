@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
         await sendPushToUser(recipientId, {
           title: `💬 ${senderName}`,
           body: body.trim().slice(0, 120),
-          url: senderIsBuyer ? "/dashboard/vendor?tab=messages" : "/dashboard/buyer?tab=messages",
+          url: `/messages?c=${conversation_id}`,   // unified inbox, deep-opens this thread
           tag: `msg-${conversation_id}`,   // one badge per conversation
         });
       }

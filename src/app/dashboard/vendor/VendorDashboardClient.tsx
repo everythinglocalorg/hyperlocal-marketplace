@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import InboxBell from "@/components/InboxBell";
 import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import RentalSetup from "@/components/rental/RentalSetup";
@@ -177,8 +178,6 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "referrals", label: "Referrals", icon: "🤝" },
-  { id: "notifications", label: "Notifications", icon: "🔔" },
-  { id: "messages", label: "Messages", icon: "💬", premiumOnly: true },
   { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true },
   { id: "rentals", label: "Rentals", icon: "🏕️" },
   { id: "offers", label: "Offers", icon: "🤝" },
@@ -613,16 +612,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             >
               <span>{item.icon}</span>
               <span>{item.label}</span>
-              {item.id === "messages" && unreadMsgCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadMsgCount}</span>
-              )}
-              {item.id === "notifications" && unreadCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadCount}</span>
-              )}
-              {item.premiumOnly && !can(item.id as FeatureKey) && item.id !== "messages" && (
-                <span className="ml-auto text-xs text-gray-300">🔒</span>
-              )}
-              {item.id === "messages" && !can("messages") && unreadMsgCount === 0 && (
+              {item.premiumOnly && !can(item.id as FeatureKey) && (
                 <span className="ml-auto text-xs text-gray-300">🔒</span>
               )}
               {item.id === "bookings" && stats.pendingBookings > 0 && (
@@ -722,14 +712,15 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
       {/* Main content */}
       <main className="flex-1 overflow-auto min-w-0">
-        {/* Mobile top bar with hamburger */}
-        <div className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-100 px-4 h-14 flex items-center gap-3">
-          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="p-2 -ml-2 text-gray-700 hover:text-green-700">
+        {/* Top bar — Messages + Notifications live here now (hamburger/logo on mobile) */}
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-100 px-4 h-14 flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="lg:hidden p-2 -ml-2 text-gray-700 hover:text-green-700">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <Logo size="sm" />
+          <div className="lg:hidden"><Logo size="sm" /></div>
+          <InboxBell className="ml-auto" />
         </div>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 

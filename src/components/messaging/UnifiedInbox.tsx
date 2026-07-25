@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Me = { id: string; full_name: string | null; avatar_url: string | null };
@@ -22,8 +23,9 @@ type Profile = { id: string; full_name: string | null; avatar_url: string | null
 
 // A single home for every conversation — the ones where I'm the customer AND the
 // ones where I'm the business — so nothing hides behind the buyer/vendor split.
-export default function UnifiedInbox({ me }: { me: Me }) {
+export default function UnifiedInbox({ me, initialConvoId = null }: { me: Me; initialConvoId?: string | null }) {
   const supabase = createClient();
+  const router = useRouter();
   const [convos, setConvos] = useState<Convo[]>([]);
   const [buyers, setBuyers] = useState<Record<string, Profile>>({}); // buyer_id -> profile (for vendor-side threads)
   const [myVendorIds, setMyVendorIds] = useState<Set<string>>(new Set());
@@ -98,6 +100,14 @@ export default function UnifiedInbox({ me }: { me: Me }) {
 
   const openConvo = useCallback(async (c: Convo) => {
     setActiveId(c.id);
+    setMenuOpen(false);
+    // One history entry means "a thread is open" — so the browser Back button (and
+    // the mobile ←) returns to the thread list instead of leaving Messages entirely.
+    // Switching between threads replaces that entry rather than stacking more.
+    if (typeof window !== "undefined") {
+      if (window.history.state?.__thread) window.history.replaceState({ __thread: c.id }, "");
+      else window.history.pushState({ __thread: c.id }, "");
+    }
     const { data } = await supabase.from("messages").select("*").eq("conversation_id", c.id).order("created_at", { ascending: true });
     setMessages(data ?? []);
     setTimeout(() => bottomRef.current?.scrollIntoView(), 60);
@@ -106,6 +116,29 @@ export default function UnifiedInbox({ me }: { me: Me }) {
     await supabase.from("conversations").update({ [field]: 0 }).eq("id", c.id);
     setConvos((prev) => prev.map((x) => (x.id === c.id ? { ...x, [field]: 0 } : x)));
   }, [roleOf]);
+
+  // Close the open thread. If a thread history entry exists, pop it (which fires
+  // popstate → clears the thread) so we don't leave a dangling Back step.
+  const closeThread = useCallback(() => {
+    setMenuOpen(false);
+    if (typeof window !== "undefined" && window.history.state?.__thread) window.history.back();
+    else setActiveId(null);
+  }, []);
+
+  // Browser/OS Back while a thread is open: return to the list, don't leave.
+  useEffect(() => {
+    const onPop = () => { setActiveId(null); setMenuOpen(false); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  // Deep link (e.g. tapped a message notification): open that thread once loaded.
+  const didAutoOpen = useRef(false);
+  useEffect(() => {
+    if (didAutoOpen.current || !initialConvoId || loading) return;
+    const c = convos.find((x) => x.id === initialConvoId);
+    if (c) { didAutoOpen.current = true; openConvo(c); }
+  }, [initialConvoId, loading, convos, openConvo]);
 
   // Realtime: new messages + edits (deletes) in the open thread.
   useEffect(() => {
@@ -142,7 +175,7 @@ export default function UnifiedInbox({ me }: { me: Me }) {
     await supabase.from("user_blocks").insert({ blocker_id: me.id, blocked_id: other });
     setBlockedUsers((s) => new Set(s).add(other));
     setIBlocked((s) => new Set(s).add(other));
-    setActiveId(null); // thread now hidden
+    closeThread(); // thread now hidden
   }
 
   async function unblockOther() {
@@ -186,8 +219,22 @@ export default function UnifiedInbox({ me }: { me: Me }) {
   return (
     <div className="max-w-5xl mx-auto h-[calc(100vh-64px)] flex flex-col">
       <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
+        <button
+          onClick={() => router.push("/")}
+          aria-label="Back to home"
+          title="Back to home"
+          className="text-gray-400 hover:text-gray-800 text-2xl leading-none -ml-1 shrink-0 transition-colors"
+        >
+          ←
+        </button>
         <h1 className="text-xl font-black text-gray-900">💬 Messages</h1>
         {totalUnread > 0 && <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">{totalUnread}</span>}
+        <button
+          onClick={() => router.push("/")}
+          className="ml-auto text-xs font-semibold text-gray-400 hover:text-gray-700 shrink-0 transition-colors"
+        >
+          Done
+        </button>
       </div>
 
       <div className="flex-1 flex min-h-0">
@@ -249,7 +296,7 @@ export default function UnifiedInbox({ me }: { me: Me }) {
           ) : (
             <>
               <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 shrink-0">
-                <button onClick={() => setActiveId(null)} className="md:hidden text-gray-400 hover:text-gray-700 text-xl">←</button>
+                <button onClick={closeThread} className="md:hidden text-gray-400 hover:text-gray-700 text-xl">←</button>
                 <Avatar name={otherName(active)} src={otherAvatar(active)} />
                 <div className="min-w-0">
                   {roleOf(active) === "buyer" && active.vendor?.slug ? (

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Logo from "@/components/Logo";
+import InboxBell from "@/components/InboxBell";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPicksManager";
 import ProfileDetailsEditor, { normalizeDetails } from "@/components/ProfileDetailsEditor";
@@ -246,7 +247,6 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
   const NAV = [
     { id: "overview", label: "Overview", icon: "🏠" },
     { id: "profile", label: "Local Profile", icon: "⭐" },
-    { id: "messages", label: "Messages", icon: "💬" },
     { id: "bookings", label: "Bookings", icon: "📅" },
     { id: "bucks", label: "Local Bucks", icon: "🪙" },
     { id: "referrals", label: "Referrals", icon: "🤝" },
@@ -335,9 +335,6 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
             >
               <span>{item.icon}</span>
               {item.label}
-              {item.id === "messages" && unreadMsgCount > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">{unreadMsgCount}</span>
-              )}
               {item.id === "bookings" && pendingBookings > 0 && (
                 <span className="ml-auto bg-yellow-400 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
                   {pendingBookings}
@@ -384,14 +381,15 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto min-w-0">
-        {/* Mobile top bar with hamburger */}
-        <div className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-100 px-4 h-14 flex items-center gap-3">
-          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="p-2 -ml-2 text-gray-700 hover:text-green-700">
+        {/* Top bar — Messages + Notifications live here now (hamburger/logo on mobile) */}
+        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-gray-100 px-4 h-14 flex items-center gap-3">
+          <button onClick={() => setSidebarOpen(true)} aria-label="Open menu" className="lg:hidden p-2 -ml-2 text-gray-700 hover:text-green-700">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <Logo size="sm" />
+          <div className="lg:hidden"><Logo size="sm" /></div>
+          <InboxBell className="ml-auto" />
         </div>
         <div className="p-4 sm:p-8">
 
