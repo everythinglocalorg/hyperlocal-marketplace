@@ -346,9 +346,14 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               <span className="text-xs font-semibold text-gray-600">Now live in <span className="text-green-700">4,000+ cities</span> nationwide</span>
             </div>
 
-            <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 mb-3 leading-[1.1] tracking-tight">
-              Discover the best <TypedRotator phrases={HERO_PHRASES} className="text-green-600" /> in {cityName}.
-            </h1>
+            {/* Reserve two lines' height so the rotating word can't reflow the
+                page (headline flipping 1↔2 lines was bouncing everything below,
+                including the open city selector). */}
+            <div className="mb-3 min-h-[4.2rem] sm:min-h-[6rem] flex items-center justify-center">
+              <h1 className="text-3xl sm:text-[2.7rem] font-black text-gray-900 leading-[1.1] tracking-tight">
+                Discover the best <TypedRotator phrases={HERO_PHRASES} className="text-green-600" /> in {cityName}.
+              </h1>
+            </div>
             <p className="text-base sm:text-lg text-gray-500 mb-5 max-w-2xl mx-auto">
               One click searching for every local business, product, and service near you —
               plus <span className="font-semibold text-amber-600">🪙 Local Bucks</span> rewards for supporting local.
