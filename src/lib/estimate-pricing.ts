@@ -86,6 +86,7 @@ export type ProposalLine = {
   substrate: string;
   unit_basis: UnitBasis;
   measurement: number;          // sqft / linear ft / each / hours
+  prep_hours: number;           // extra prep time, billed at labor_rate ($/hr) — added to labor
   coats: number;                // legacy (kept = 1); generalized out of the UI
   // snapshots from the catalog item / substrate at add-time
   spread_rate: number;          // material coverage (units per unit of product)
@@ -174,7 +175,7 @@ export function billableUnits(line: Pick<ProposalLine, "unit_basis" | "measureme
 
 export function computeLineTotal(line: Pick<ProposalLine,
   "unit_basis" | "measurement" | "coats" | "spread_rate" | "production_rate" | "width_inches" | "cost_of_goods" |
-  "labor_rate" | "markup_pct" | "manual_total">): number {
+  "labor_rate" | "markup_pct" | "manual_total" | "prep_hours">): number {
   // Flat lines (fees / discounts) are a plain amount held in manual_total; it may
   // be negative for a discount.
   if (line.unit_basis === "flat") return round2(num(line.manual_total));
@@ -207,6 +208,9 @@ export function computeLineTotal(line: Pick<ProposalLine,
   } else {
     laborCost = measurement * labor;
   }
+
+  // Prep time is billed at the line's labor rate ($/hr) and added to labor.
+  laborCost += num(line.prep_hours) * labor;
 
   // Markup applies to product/material cost only — never to labor.
   return round2(material * (1 + markup / 100) + laborCost);
@@ -252,11 +256,12 @@ export function estimateTotal(areas: Area[], addons: Addon[]): number {
 // markup); labor hours = billable units / production rate (or measurement for
 // per-hour lines); labor cost = hours × the vendor's hourly cost rate.
 
-export function lineLaborHours(line: Pick<ProposalLine, "unit_basis" | "measurement" | "width_inches" | "production_rate">): number {
+export function lineLaborHours(line: Pick<ProposalLine, "unit_basis" | "measurement" | "width_inches" | "production_rate" | "prep_hours">): number {
   if (line.unit_basis === "flat") return 0;
-  if (line.unit_basis === "hour") return num(line.measurement);
+  const prep = num(line.prep_hours);
+  if (line.unit_basis === "hour") return num(line.measurement) + prep;
   const pr = num(line.production_rate);
-  return pr > 0 ? billableUnits(line) / pr : 0;
+  return (pr > 0 ? billableUnits(line) / pr : 0) + prep;
 }
 
 export function lineMaterialCost(line: Pick<ProposalLine, "unit_basis" | "measurement" | "width_inches" | "spread_rate" | "cost_of_goods">): number {
@@ -378,6 +383,7 @@ export function newLineFromCatalog(item: CatalogItem): ProposalLine {
     substrate: item.substrate,
     unit_basis: item.unit_basis,
     measurement: 0,
+    prep_hours: 0,
     coats: 1,
     spread_rate: num(item.spread_rate),
     production_rate: num(item.production_rate),
@@ -413,6 +419,7 @@ export function newBlankLine(): ProposalLine {
     substrate: "General",
     unit_basis: "sqft",
     measurement: 0,
+    prep_hours: 0,
     coats: 1,
     spread_rate: 0,
     production_rate: 0,

@@ -229,7 +229,7 @@ function ItemEditor({ draft, substrates, subs, saving, onChange, onSave, onClose
         <div className="px-5 py-4 space-y-4">
           <Field label="Product name">
             <input autoFocus value={draft.name} onChange={(e) => set({ name: e.target.value })}
-              placeholder="e.g. Loxon XP Masonry Coat" className={inputCls} />
+              placeholder="e.g. Fill dirt, Class 5 gravel, Seed blanket, Duration Satin" className={inputCls} />
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
@@ -282,10 +282,14 @@ function ItemEditor({ draft, substrates, subs, saving, onChange, onSave, onClose
                 </Field>
               )}
               {coverage && (
-                <Field label={`Spread rate (${draft.unit_basis === "linear_ft" && draft.width_inches ? "sq ft" : UNIT_LABEL[draft.unit_basis]} per unit of material)`} hint="e.g. 250 sq ft per gallon">
+                <Field label={`Coverage per unit of product (${draft.unit_basis === "linear_ft" && draft.width_inches ? "sq ft" : UNIT_LABEL[draft.unit_basis]} per unit)`}
+                  hint="How much one unit of product covers — e.g. 375 sq ft per gallon of paint, or 250 sq ft per seed blanket.">
                   <input type="number" min={0} step="0.01" value={draft.spread_rate ?? ""}
                     onChange={(e) => set({ spread_rate: e.target.value === "" ? null : Number(e.target.value) })}
                     placeholder="250" className={inputCls} />
+                  {Number(draft.cost_of_goods) > 0 && !(Number(draft.spread_rate) > 0) && (
+                    <span className="text-[11px] text-amber-600 block mt-1">⚠ Set a coverage so material cost is calculated — otherwise this product adds $0 of material to estimates.</span>
+                  )}
                 </Field>
               )}
 

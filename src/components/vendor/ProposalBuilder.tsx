@@ -180,10 +180,7 @@ export default function ProposalBuilder({ vendorId, userId, defaultContact, onBa
           <button onClick={onBack} className="text-gray-400 hover:text-gray-600 text-sm">← Back to CRM</button>
           <h2 className="text-lg font-bold text-gray-900">Estimates & Proposals</h2>
         </div>
-        <button onClick={() => startNew(defaultContact)}
-          className="bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-green-700 transition-colors">
-          + New Proposal
-        </button>
+        <NewProposalMenu templates={templates} onStart={(t) => openNew(defaultContact ?? null, t)} />
       </div>
 
       {picking && (
@@ -454,6 +451,55 @@ function ProposalEditor({ estimate, vendorId, userId, onSave, onClose }: {
 }
 
 const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500";
+
+// Primary "start a proposal" control: a dropdown of Blank + saved job-type
+// templates, so you pick what you're estimating without a modal step.
+function NewProposalMenu({ templates, onStart }: {
+  templates: TemplateLite[]; onStart: (t: TemplateLite | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button onClick={() => setOpen((o) => !o)}
+        className="bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-green-700 transition-colors inline-flex items-center gap-1.5">
+        + New Proposal <span className="text-xs opacity-80">▾</span>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 max-h-96 overflow-y-auto">
+            <button onClick={() => { setOpen(false); onStart(null); }}
+              className="w-full text-left px-4 py-2.5 hover:bg-gray-50 transition-colors">
+              <p className="text-sm font-semibold text-gray-900">Blank proposal</p>
+              <p className="text-xs text-gray-400">Start from scratch with one empty area.</p>
+            </button>
+            {templates.length > 0 && (
+              <>
+                <div className="border-t border-gray-100 my-1" />
+                <p className="px-4 pt-1 pb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">Start from a job type</p>
+                {templates.map((t) => {
+                  const areas = (t.structure?.areas ?? []) as Area[];
+                  const addons = (t.structure?.addons ?? []) as Addon[];
+                  const total = estimateTotal(areas, addons);
+                  return (
+                    <button key={t.id} onClick={() => { setOpen(false); onStart(t); }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-green-50 transition-colors">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-gray-900 truncate">🧱 {t.name}</p>
+                        <span className="text-xs font-bold text-green-700 shrink-0">${total.toFixed(2)}</span>
+                      </div>
+                      {t.description && <p className="text-xs text-gray-400 truncate">{t.description}</p>}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function TemplatePicker({ templates, onPick, onClose }: {
   templates: TemplateLite[]; onPick: (t: TemplateLite | null) => void; onClose: () => void;

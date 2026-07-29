@@ -10,6 +10,17 @@ type Draft = { id?: string; name: string; calc_type: UnitBasis; production_rate:
 
 function blank(): Draft { return { name: "", calc_type: "sqft", production_rate: 0, labor_rate: 0, width_inches: 0 }; }
 
+// Required fields for an accurate estimate: a substrate must bill some labor,
+// and (unless it's priced purely by the hour) needs a production rate so the
+// builder can turn a measurement into labor time.
+function substrateErrors(d: Draft): string[] {
+  const e: string[] = [];
+  if (!d.name.trim()) e.push("Give this substrate a name.");
+  if (!(Number(d.labor_rate) > 0)) e.push("Labor rate must be greater than $0.");
+  if (d.calc_type !== "hour" && !(Number(d.production_rate) > 0)) e.push("Production rate must be greater than 0 so measurements become labor time.");
+  return e;
+}
+
 // Unit noun for a calc type, used in labels like "square feet per hour".
 function unitNoun(t: UnitBasis): string {
   return t === "sqft" ? "square feet" : t === "linear_ft" ? "linear feet" : t === "each" ? "items" : "hours";
@@ -34,7 +45,7 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
   }
 
   async function save() {
-    if (!editing || !editing.name.trim()) return;
+    if (!editing || substrateErrors(editing).length > 0) return;
     setSaving(true);
     const payload = {
       vendor_id: vendorId, name: editing.name.trim(), calc_type: editing.calc_type,
@@ -149,8 +160,13 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
                 </div>
               </label>
             </div>
+            <div className="px-5 pb-1 space-y-1">
+              {substrateErrors(editing).map((msg) => (
+                <p key={msg} className="text-[11px] text-amber-600 flex items-start gap-1"><span>⚠</span>{msg}</p>
+              ))}
+            </div>
             <div className="px-5 py-4 border-t border-gray-100 flex gap-3">
-              <button onClick={save} disabled={saving || !editing.name.trim()} className="flex-1 bg-green-600 text-white font-bold py-2.5 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
+              <button onClick={save} disabled={saving || substrateErrors(editing).length > 0} className="flex-1 bg-green-600 text-white font-bold py-2.5 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
               <button onClick={() => setEditing(null)} className="px-6 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors">Cancel</button>
             </div>
           </div>

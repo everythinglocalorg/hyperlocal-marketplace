@@ -2,7 +2,7 @@
 import { useState } from "react";
 import {
   CatalogItem, Substrate, Area, Addon, ProposalLine, DepositType, PaymentMethod, ProposalStructure, StructureVideo,
-  UNIT_LABEL, UnitBasis, computeLineTotal, billableUnits, areaTotal, estimateTotal, depositAmount,
+  UNIT_LABEL, UnitBasis, computeLineTotal, billableUnits, areaTotal, estimateTotal, depositAmount, round2,
   isLineOptional, optionalLinesTotal, newArea, newAddon, newLineFromCatalog, newLineFromSubstrate, newBlankLine, newFlatLine,
 } from "@/lib/estimate-pricing";
 
@@ -373,6 +373,13 @@ function LineRow({ line, onUpdate, onRemove, onDuplicate }: {
         {line.unit_basis !== "linear_ft" && (line.product_line || line.catalog_item_id) && (
           <p className="text-[11px] text-gray-400 mt-0.5 px-1 truncate">{line.product_line ?? "Custom"} · {UNIT_LABEL[line.unit_basis]}</p>
         )}
+        <div className="flex items-center gap-1.5 mt-1 px-1" title="Extra prep time — billed at this line's labor rate and added to the total">
+          <span className="text-[11px] text-gray-400">Prep</span>
+          <input type="number" min={0} step="0.25" value={line.prep_hours || ""}
+            onChange={(e) => onUpdate({ prep_hours: e.target.value === "" ? 0 : Number(e.target.value) })}
+            placeholder="0" className="w-14 border border-gray-200 rounded px-1.5 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-green-500" />
+          <span className="text-[11px] text-gray-400">hrs{line.prep_hours > 0 && line.labor_rate > 0 ? ` · $${round2(line.prep_hours * line.labor_rate).toFixed(2)}` : line.labor_rate > 0 ? ` @ $${line.labor_rate}/hr` : ""}</span>
+        </div>
       </div>
       <div className="col-span-6 sm:col-span-3 flex items-center gap-1">
         <input type="number" min={0} step="0.01" value={line.measurement} onChange={(e) => onUpdate({ measurement: Number(e.target.value) })}
