@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Substrate, UnitBasis, CALC_TYPE_LABEL } from "@/lib/estimate-pricing";
+import { Substrate, UnitBasis, CALC_TYPE_LABEL, EstimateSettings, DEFAULT_SETTINGS } from "@/lib/estimate-pricing";
 
 const CALC_TYPES: UnitBasis[] = ["sqft", "linear_ft", "each", "hour"];
 const inputCls = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500";
 
 type Draft = { id?: string; name: string; calc_type: UnitBasis; production_rate: number; labor_rate: number; width_inches: number };
 
-function blank(): Draft { return { name: "", calc_type: "sqft", production_rate: 0, labor_rate: 0, width_inches: 0 }; }
+function blank(laborRate = 0): Draft { return { name: "", calc_type: "sqft", production_rate: 0, labor_rate: laborRate, width_inches: 0 }; }
 
 // Required fields for an accurate estimate: a substrate must bill some labor,
 // and (unless it's priced purely by the hour) needs a production rate so the
@@ -34,6 +34,7 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Draft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [settings, setSettings] = useState<EstimateSettings>(DEFAULT_SETTINGS);
 
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [vendorId]);
 
@@ -41,6 +42,8 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
     setLoading(true);
     const { data } = await supabase.from("estimate_substrates").select("*").eq("vendor_id", vendorId).eq("is_active", true).order("name");
     setItems((data as Substrate[]) ?? []);
+    const { data: s } = await supabase.from("estimate_settings").select("default_labor_rate").eq("vendor_id", vendorId).maybeSingle();
+    if (s && Number(s.default_labor_rate) > 0) setSettings((prev) => ({ ...prev, default_labor_rate: Number(s.default_labor_rate) }));
     setLoading(false);
   }
 
@@ -78,7 +81,7 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
           A substrate is a type of work (Trim, Walls, Concrete, Lawn…). Set how it&apos;s measured and how
           much your crew completes in an hour — the builder turns measurements into labor time automatically.
         </p>
-        <button onClick={() => setEditing(blank())}
+        <button onClick={() => setEditing(blank(settings.default_labor_rate))}
           className="bg-green-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-green-700 transition-colors shrink-0">+ Add Substrate</button>
       </div>
 
@@ -158,6 +161,7 @@ export default function SubstrateManager({ vendorId }: { vendorId: string }) {
                     onChange={(e) => setEditing({ ...editing, labor_rate: Number(e.target.value) })}
                     className="w-full border border-gray-200 rounded-lg pl-7 pr-2 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
+                <span className="text-[11px] text-gray-400 block mt-1">Your standard billed rate — set once in Estimator Settings so every substrate stays the same.</span>
               </label>
             </div>
             <div className="px-5 pb-1 space-y-1">

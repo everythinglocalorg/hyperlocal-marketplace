@@ -66,8 +66,10 @@ export type EstimateSettings = {
   default_deposit_pct: number;
 };
 
+// Everything Local standard, tuned for easy math: it costs the business $50/hr,
+// billed at $100/hr (100% on labor), and materials carry a 100% markup.
 export const DEFAULT_SETTINGS: EstimateSettings = {
-  default_labor_rate: 0, hourly_cost_rate: 0, default_markup_pct: 0, tax_rate_pct: 0, min_job_price: 0, default_deposit_pct: 50,
+  default_labor_rate: 100, hourly_cost_rate: 50, default_markup_pct: 100, tax_rate_pct: 0, min_job_price: 0, default_deposit_pct: 50,
 };
 
 export const CALC_TYPE_LABEL: Record<UnitBasis, string> = {
