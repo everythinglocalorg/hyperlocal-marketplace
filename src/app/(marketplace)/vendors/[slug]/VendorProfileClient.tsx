@@ -1155,6 +1155,11 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                         )}
                       </div>
                       <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">{listing.title}</p>
+                      {(listing.price != null || listing.price_label) && (
+                        <p className="text-xs font-semibold text-green-700 mt-0.5">
+                          {listing.price != null ? `$${Number(listing.price).toFixed(0)}` : listing.price_label}
+                        </p>
+                      )}
                     </button>
                   ))}
                 </div>
