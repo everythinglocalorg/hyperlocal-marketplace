@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { BRAND_ORIGIN } from "@/lib/domains";
 import { formatPrice } from "@/lib/utils";
 import { LISTING_CTAS, ListingCtaType, ListingCtaAction, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 import { useCart } from "@/lib/cart";
@@ -109,9 +110,7 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   // Share the listing's own page — /listings/[id] carries og:image = the real
   // photo, so link previews show a clean image instead of a blank card.
   async function shareListing() {
-    const url = typeof window !== "undefined"
-      ? `${window.location.origin}/listings/${listing.id}`
-      : `/listings/${listing.id}`;
+    const url = `${BRAND_ORIGIN}/listings/${listing.id}`;
     if (typeof navigator !== "undefined" && navigator.share) {
       try {
         await navigator.share({ title: listing.title, url });

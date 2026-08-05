@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { BRAND_ORIGIN } from "@/lib/domains";
 import ProposalMedia from "@/components/vendor/ProposalMedia";
 import ProposalStructureEditor from "@/components/vendor/ProposalStructureEditor";
 import {
@@ -270,7 +271,7 @@ function ProposalEditor({ estimate, vendorId, userId, onSave, onClose }: {
   async function copyCustomerLink() {
     const token = await ensureShareLink();
     if (!token) { setSendMsg({ ok: false, text: "Could not create the link." }); return; }
-    const url = `${window.location.origin}/proposal/${token}`;
+    const url = `${BRAND_ORIGIN}/proposal/${token}`;
     try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800); }
     catch { window.prompt("Copy this proposal link:", url); }
   }

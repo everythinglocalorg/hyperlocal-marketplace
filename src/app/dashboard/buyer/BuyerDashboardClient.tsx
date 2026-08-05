@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Logo, { BackHome } from "@/components/Logo";
+import { BRAND_ORIGIN } from "@/lib/domains";
 import InboxBell from "@/components/InboxBell";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import BusinessPicksManager, { type PickVendor } from "@/components/BusinessPicksManager";
@@ -231,7 +232,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const appUrl = BRAND_ORIGIN;
   const signupLink = `${appUrl}/signup?ref=${profile.referral_code}`;
 
   function copyLink(type: "profile" | "signup") {

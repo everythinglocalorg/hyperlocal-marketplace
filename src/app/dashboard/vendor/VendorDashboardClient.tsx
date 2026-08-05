@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Logo, { BackHome } from "@/components/Logo";
+import { BRAND_ORIGIN } from "@/lib/domains";
 import InboxBell from "@/components/InboxBell";
 import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
@@ -3088,7 +3089,7 @@ function ReferralCopyButton({ referralCode }: { referralCode: string }) {
   if (!referralCode) return null;
 
   async function copy() {
-    const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+    const appUrl = BRAND_ORIGIN;
     const link = `${appUrl}/signup?ref=${referralCode}`;
     try {
       await navigator.clipboard.writeText(link);
@@ -3135,7 +3136,7 @@ function ReferralsTab({ userId, referralCode, businessName, vendorSlug }: {
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const appUrl = BRAND_ORIGIN;
   // Use the vendor's real slug — deriving it from the business name breaks on
   // punctuation ("Local Blue Collar Websites." -> a trailing dot -> 404) and on
   // any vendor whose slug was customised or de-duplicated.

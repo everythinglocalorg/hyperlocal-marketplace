@@ -241,7 +241,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
   // Hide the "website" link when it just points back to Everything Local itself
   // (imported vendors default their website to our own domain /vendors/…).
-  const externalWebsite = vendor.website && !/everythinglocal\.(shop|org)/i.test(vendor.website) ? vendor.website : null;
+  const externalWebsite = vendor.website && !/every1local|everythinglocal\.(shop|org|com)/i.test(vendor.website) ? vendor.website : null;
 
   // Service-based businesses request estimates; product/food/retail businesses "get in touch".
   const isServiceBased = SERVICE_CATEGORIES.has(vendor.category);
@@ -465,7 +465,10 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     document.body.appendChild(s);
   }
 
-  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+  // Always share the canonical brand host — never window.location.origin, which
+  // would bake a legacy domain (e.g. every1local.com) into the link if the page
+  // was loaded there. Vendors on a connected custom domain share that separately.
+  const appUrl = BRAND_ORIGIN;
   const shareLink = currentUserReferralCode
     ? `${appUrl}/vendors/${vendor.slug}?ref=${currentUserReferralCode}`
     : `${appUrl}/vendors/${vendor.slug}`;
