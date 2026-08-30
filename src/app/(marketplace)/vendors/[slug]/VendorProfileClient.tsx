@@ -1069,7 +1069,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
           {/* Trust stats — slim divided strip (a website footer-stat feel, not
               chunky directory cards) so the hero name/logo stay the focus. */}
-          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 rounded-xl border border-gray-100 divide-x divide-y sm:divide-y-0 divide-gray-100 overflow-hidden">
+          <div className="mt-6 grid grid-cols-3 rounded-xl border border-gray-100 divide-x divide-gray-100 overflow-hidden">
             <div className="py-3 px-2 text-center">
               <p className="text-sm font-bold text-gray-900">★ {(vendor.rating ?? 5).toFixed(1)}</p>
               <p className="text-[11px] text-gray-500">{vendor.review_count > 0 ? `${vendor.review_count} reviews` : "New business"}</p>
@@ -1081,10 +1081,6 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
             <div className="py-3 px-2 text-center">
               <p className="text-sm font-bold text-gray-900">{listings.length}</p>
               <p className="text-[11px] text-gray-500">{listings.length === 1 ? "Listing" : "Listings"}</p>
-            </div>
-            <div className="py-3 px-2 text-center">
-              <p className="text-sm font-bold text-gray-900">📍</p>
-              <p className="text-[11px] text-gray-500">Locally owned</p>
             </div>
           </div>
         </div>
