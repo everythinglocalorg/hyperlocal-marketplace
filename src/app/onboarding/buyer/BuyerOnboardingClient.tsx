@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LAUNCH_CITIES, CATEGORIES } from "@/types";
-import { getBrowserLocation, reverseGeocode, geocodeQuery } from "@/lib/geocode";
+import { getBrowserLocation, reverseGeocode, geocodeQuery, ipGeolocate } from "@/lib/geocode";
+import { LS_CITY_KEY, makeSlug, normalizeState } from "@/lib/cities";
 import WelcomeReferralModal from "@/components/WelcomeReferralModal";
 import Logo from "@/components/Logo";
 import { BRAND_ORIGIN } from "@/lib/domains";
@@ -40,6 +41,31 @@ export default function BuyerOnboardingClient() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
   const [showManual, setShowManual] = useState(false);
+
+  // Silent, permission-free pre-fill from the visitor's IP the moment onboarding
+  // opens (right after signup). No prompt — the user can still correct it below.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const geo = await ipGeolocate();
+      if (cancelled || !geo?.city) return;
+      setLocation((cur) => cur ?? {
+        city: geo.city,
+        state: geo.state,
+        latitude: geo.latitude,
+        longitude: geo.longitude,
+        displayName: geo.displayName,
+      });
+      // Seed the app-wide city so the first feed is already local — but never
+      // clobber a choice the user made elsewhere.
+      try {
+        if (!localStorage.getItem(LS_CITY_KEY) && geo.state) {
+          localStorage.setItem(LS_CITY_KEY, makeSlug(geo.city, normalizeState(geo.state)));
+        }
+      } catch { /* noop */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   function toggleInterest(cat: string) {
     setInterests((prev) =>
@@ -108,7 +134,17 @@ export default function BuyerOnboardingClient() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
 
-    await supabase.from("profiles").update({ phone: phone || null }).eq("id", user.id);
+    // Default the account's location to their city so their home feed & search
+    // land local from day one. Also mirror it to the app-wide city key.
+    const profileUpdate: { phone: string | null; city?: string; state?: string } = { phone: phone || null };
+    if (location?.city) {
+      profileUpdate.city = location.city;
+      profileUpdate.state = location.state;
+      try {
+        if (location.state) localStorage.setItem(LS_CITY_KEY, makeSlug(location.city, normalizeState(location.state)));
+      } catch { /* noop */ }
+    }
+    await supabase.from("profiles").update(profileUpdate).eq("id", user.id);
 
     if (phone) {
       await supabase.rpc("award_local_bucks", {

@@ -82,6 +82,27 @@ export async function reverseGeocode(lat: number, lon: number): Promise<GeoResul
   }
 }
 
+// Silent, permission-free location from the visitor's IP (via /api/geo, which
+// reads Vercel's edge geo headers). Returns null locally or when the IP can't
+// be resolved — callers should fall back to the manual picker.
+export async function ipGeolocate(): Promise<GeoResult | null> {
+  try {
+    const res = await fetch("/api/geo");
+    const d = await res.json();
+    if (!d?.city) return null;
+    return {
+      city: d.city,
+      state: d.region ?? "",
+      country: d.country ?? "US",
+      latitude: typeof d.latitude === "number" ? d.latitude : 0,
+      longitude: typeof d.longitude === "number" ? d.longitude : 0,
+      displayName: d.region ? `${d.city}, ${d.region}` : d.city,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function getBrowserLocation(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
