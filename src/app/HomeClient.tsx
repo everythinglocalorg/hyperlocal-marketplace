@@ -343,11 +343,11 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           <div className="pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
 
           <div className="relative max-w-3xl mx-auto text-center">
-            {/* trust chip */}
-            <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-4 shadow-sm">
-              <span className="text-sm leading-none">🇺🇸</span>
-              <span className="text-xs font-semibold text-gray-600">Now live in <span className="text-green-700">4,000+ cities</span> nationwide</span>
-            </div>
+            {/* trust chip — clickable CTA to launch a free storefront */}
+            <Link href="/signup?role=vendor" className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-4 shadow-sm hover:bg-green-50 hover:border-green-300 transition-colors">
+              <span className="text-sm leading-none">🚀</span>
+              <span className="text-xs font-semibold text-gray-600">Build your storefront &amp; launch your business — <span className="text-green-700">100% free</span></span>
+            </Link>
 
             {/* Reserve two lines' height so the rotating word can't reflow the
                 page (headline flipping 1↔2 lines was bouncing everything below,
