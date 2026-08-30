@@ -1067,23 +1067,24 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
             )}
           </div>
 
-          {/* Trust stats bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
-            <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-base font-black text-gray-900">★ {(vendor.rating ?? 5).toFixed(1)}</p>
+          {/* Trust stats — slim divided strip (a website footer-stat feel, not
+              chunky directory cards) so the hero name/logo stay the focus. */}
+          <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 rounded-xl border border-gray-100 divide-x divide-y sm:divide-y-0 divide-gray-100 overflow-hidden">
+            <div className="py-3 px-2 text-center">
+              <p className="text-sm font-bold text-gray-900">★ {(vendor.rating ?? 5).toFixed(1)}</p>
               <p className="text-[11px] text-gray-500">{vendor.review_count > 0 ? `${vendor.review_count} reviews` : "New business"}</p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-base font-black text-gray-900">{vendor.service_radius_miles} mi</p>
+            <div className="py-3 px-2 text-center">
+              <p className="text-sm font-bold text-gray-900">{vendor.service_radius_miles} mi</p>
               <p className="text-[11px] text-gray-500">Service area</p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-base font-black text-gray-900">{listings.length}</p>
+            <div className="py-3 px-2 text-center">
+              <p className="text-sm font-bold text-gray-900">{listings.length}</p>
               <p className="text-[11px] text-gray-500">{listings.length === 1 ? "Listing" : "Listings"}</p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-3 text-center">
-              <p className="text-base font-black text-gray-900">📍</p>
-              <p className="text-[11px] text-gray-500">Owned here</p>
+            <div className="py-3 px-2 text-center">
+              <p className="text-sm font-bold text-gray-900">📍</p>
+              <p className="text-[11px] text-gray-500">Locally owned</p>
             </div>
           </div>
         </div>
