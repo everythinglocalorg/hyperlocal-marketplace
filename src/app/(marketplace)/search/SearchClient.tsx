@@ -88,6 +88,7 @@ const SORT_OPTIONS = [
 const TYPE_TO_VENDOR_CATEGORY: Record<string, string> = {
   thrift: "Thrift Sales",
   rental: "Events & Rentals",
+  animals: "Pet Services",
 };
 
 // Airbnb-style save heart, wired to the Wish List (green heart / FavoritesProvider).
@@ -136,7 +137,7 @@ function ListingCard({ l, onClick, distanceMi }: { l: any; onClick?: () => void;
           <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className={`w-full h-full object-cover transition-transform duration-300 group-hover:scale-105 ${isSold ? "opacity-60" : ""}`} />
         ) : (
           <div className={`w-full h-full flex items-center justify-center text-4xl ${isSold ? "opacity-60" : ""}`}>
-            {l.type === "rental" ? "🏠" : isThrift ? "🏷️" : "📦"}
+            {l.type === "rental" ? "🏠" : l.type === "animals" ? "🐾" : isThrift ? "🏷️" : "📦"}
           </div>
         )}
         {vendor?.business_name && <StorePill name={vendor.business_name} />}

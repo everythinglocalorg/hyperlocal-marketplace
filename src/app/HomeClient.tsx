@@ -79,6 +79,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Thrift Sales": "🏷️",
   "Rentals": "🏠",
   "Housing & Rentals": "🏠",
+  "Animals": "🐴",
 };
 
 export default function HomeClient({ initialListings, initialVendors, initialBlog }: {
@@ -285,6 +286,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     const TYPE_MAP: Record<string, string> = {
       "Rentals": "rental",
       "Thrift Sales": "thrift",
+      "Animals": "animals",
     };
     const params = new URLSearchParams();
     if (activeCity) params.set("city", activeCity);
@@ -314,6 +316,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               ["Restaurants","🍽️"],
               ["Housing","🏠"],
               ["Thrift Sales","🏷️"],
+              ["Animals","🐴"],
               ["Products","📦"],
               ["Health & Beauty","💆"],
               ["Home & Garden","🏡"],
@@ -738,6 +741,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               <li><Link href="/search" className="hover:text-green-600">Browse All</Link></li>
               <li><Link href="/search?mode=listings&type=rental" className="hover:text-green-600">Rentals</Link></li>
               <li><Link href="/search?mode=listings&type=thrift" className="hover:text-green-600">Thrift Sales</Link></li>
+              <li><Link href="/search?mode=listings&type=animals" className="hover:text-green-600">Animals &amp; Livestock</Link></li>
               <li><Link href="/search?mode=listings&category=Restaurants+%26+Food" className="hover:text-green-600">Restaurants</Link></li>
             </ul>
           </div>

@@ -41,6 +41,7 @@ export function defaultCtaForListingType(type: string): ListingCtaType {
     case "restaurant": return "menu";
     case "service": return "estimate";
     case "event": return "book";
+    case "animals": return "buy"; // pets/livestock: Buy Now → cart/inquiry lead flow
     default: return "buy"; // product, thrift
   }
 }

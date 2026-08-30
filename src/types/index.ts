@@ -1,6 +1,6 @@
 export type UserRole = 'buyer' | 'vendor' | 'admin'
 export type VendorTier = 'free' | 'premium'
-export type ListingType = 'product' | 'service' | 'restaurant' | 'event' | 'rental' | 'thrift'
+export type ListingType = 'product' | 'service' | 'restaurant' | 'event' | 'rental' | 'thrift' | 'housing_sale' | 'housing_rent' | 'experience' | 'animals'
 export type ListingCondition = 'new' | 'used'
 export type PaymentMethod = 'stripe' | 'in_person' | 'venmo' | 'paypal' | 'cash'
 

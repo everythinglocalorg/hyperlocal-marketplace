@@ -1375,6 +1375,12 @@ function ListingsTab({
     year_built: "", garage: false, pets_allowed: false, furnished: false,
     available_date: "", lease_term: "12 months",
   });
+  const [animal, setAnimal] = useState({
+    species: "", breed: "", age: "", sex: "", quantity: "", location: "",
+    vet_checked: false, vaccinated: false, fixed: false, registered: false,
+    microchipped: false, health_guarantee: false,
+    good_with_kids: false, good_with_pets: false, notes: "",
+  });
   const [thriftHours, setThriftHours] = useState([
     { day: "Monday", open: "", close: "", closed: false },
     { day: "Tuesday", open: "", close: "", closed: false },
@@ -1428,6 +1434,12 @@ function ListingsTab({
         try {
           const ev = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__event:"))?.replace("__event:", "") ?? "null");
           if (ev) setEventDetails({ date: "", start_time: "", end_time: "", location: "", ...ev });
+        } catch {}
+      }
+      if (editingListing.type === "animals") {
+        try {
+          const a = JSON.parse(editingListing.tags?.find((t) => t.startsWith("__animal:"))?.replace("__animal:", "") ?? "null");
+          if (a) setAnimal((prev) => ({ ...prev, ...a }));
         } catch {}
       }
       if (editingListing.type === "rental") {
@@ -1530,10 +1542,12 @@ function ListingsTab({
     const isThrift = form.type === "thrift";
     const isHousing = form.type === "housing_sale" || form.type === "housing_rent";
     const isEvent = form.type === "event";
+    const isAnimals = form.type === "animals";
     const regularTags = form.tags ? form.tags.split(",").map((t: string) => t.trim()).filter(Boolean) : [];
     const thriftTags = isThrift ? [`__hours:${JSON.stringify(thriftHours)}`] : [];
     const housingTags = isHousing ? [`__housing:${JSON.stringify(housing)}`] : [];
     const eventTags = isEvent ? [`__event:${JSON.stringify(eventDetails)}`] : [];
+    const animalTags = isAnimals ? [`__animal:${JSON.stringify(animal)}`] : [];
     const finalCategories = isHousing
       ? (selectedCategories.includes("Housing & Rentals") ? selectedCategories : [...selectedCategories, "Housing & Rentals"])
       : selectedCategories;
@@ -1549,7 +1563,7 @@ function ListingsTab({
       categories: finalCategories,
       quantity: form.type === "product" ? (form.quantity ? Number(form.quantity) : null) : null,
       condition: form.type === "product" ? form.condition : null,
-      tags: isThrift ? thriftTags : isHousing ? housingTags : isEvent ? eventTags : regularTags,
+      tags: isThrift ? thriftTags : isHousing ? housingTags : isEvent ? eventTags : isAnimals ? animalTags : regularTags,
       images,
       is_active: true,
       listing_category_id: categoryId || null,
@@ -1665,6 +1679,7 @@ function ListingsTab({
     { value: "thrift", label: "Thrift Sale" },
     { value: "housing_sale", label: "Home For Sale" },
     { value: "housing_rent", label: "Rental Property" },
+    { value: "animals", label: "Animals / Livestock" },
   ];
   const CATEGORIES = ["Products", "Thrift Sales", "Services & Trades", "Restaurants & Food", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education", "Housing & Rentals"];
 
@@ -2059,6 +2074,123 @@ function ListingsTab({
                       </label>
                     ))}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── ANIMALS / LIVESTOCK FIELDS ── */}
+            {form.type === "animals" && (
+              <div className="sm:col-span-2 space-y-5 pt-2 border-t border-gray-100">
+                <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">🐾 Animal Details</p>
+
+                {/* Species / Breed */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Type of animal</label>
+                    <select value={animal.species}
+                      onChange={(e) => setAnimal((a) => ({ ...a, species: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                      <option value="">Select…</option>
+                      {["Dog","Cat","Horse","Chicken","Duck","Turkey","Goat","Sheep","Cattle","Pig","Rabbit","Bird","Reptile","Fish","Other"].map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Breed <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input type="text" value={animal.breed}
+                      onChange={(e) => setAnimal((a) => ({ ...a, breed: e.target.value }))}
+                      placeholder="e.g. Border Collie, Angus, Nigerian Dwarf"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                </div>
+
+                {/* Age / Sex / Quantity */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Age</label>
+                    <input type="text" value={animal.age}
+                      onChange={(e) => setAnimal((a) => ({ ...a, age: e.target.value }))}
+                      placeholder="e.g. 8 weeks, 2 years"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Sex</label>
+                    <select value={animal.sex}
+                      onChange={(e) => setAnimal((a) => ({ ...a, sex: e.target.value }))}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500">
+                      <option value="">Select…</option>
+                      {["Male","Female","Mixed group","Unknown"].map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Quantity available</label>
+                    <input type="text" value={animal.quantity}
+                      onChange={(e) => setAnimal((a) => ({ ...a, quantity: e.target.value }))}
+                      placeholder="e.g. 1, or 'litter of 6'"
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                  </div>
+                </div>
+
+                {/* Location */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Location <span className="font-normal text-gray-400">(city / farm — where the animal can be seen)</span></label>
+                  <input type="text" value={animal.location}
+                    onChange={(e) => setAnimal((a) => ({ ...a, location: e.target.value }))}
+                    placeholder="e.g. Faribault, MN"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                </div>
+
+                {/* Health & care toggles */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Health &amp; care</label>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { key: "vet_checked", label: "🩺 Seen a vet" },
+                      { key: "vaccinated", label: "💉 Vaccinated" },
+                      { key: "fixed", label: "✂️ Spayed / Neutered" },
+                      { key: "microchipped", label: "🔖 Microchipped" },
+                      { key: "registered", label: "📋 Registered / Papers" },
+                      { key: "health_guarantee", label: "✅ Health guarantee" },
+                    ].map(({ key, label }) => (
+                      <label key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-sm transition-colors ${
+                        (animal as any)[key] ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"
+                      }`}>
+                        <input type="checkbox" checked={(animal as any)[key]}
+                          onChange={() => setAnimal((a) => ({ ...a, [key]: !(a as any)[key] }))}
+                          className="accent-green-600" />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Temperament toggles */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-2">Temperament <span className="font-normal text-gray-400">(optional)</span></label>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      { key: "good_with_kids", label: "👶 Good with kids" },
+                      { key: "good_with_pets", label: "🐕 Good with other animals" },
+                    ].map(({ key, label }) => (
+                      <label key={key} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-sm transition-colors ${
+                        (animal as any)[key] ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"
+                      }`}>
+                        <input type="checkbox" checked={(animal as any)[key]}
+                          onChange={() => setAnimal((a) => ({ ...a, [key]: !(a as any)[key] }))}
+                          className="accent-green-600" />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Notes for buyers <span className="font-normal text-gray-400">(optional)</span></label>
+                  <textarea value={animal.notes}
+                    onChange={(e) => setAnimal((a) => ({ ...a, notes: e.target.value }))}
+                    rows={3}
+                    placeholder="Feeding, temperament, why rehoming, pickup details…"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
                 </div>
               </div>
             )}

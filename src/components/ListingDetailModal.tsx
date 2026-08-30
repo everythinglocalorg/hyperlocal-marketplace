@@ -34,7 +34,7 @@ export type DetailListing = {
   sold_at?: string | null;
 };
 
-export const TYPE_ICON: Record<string, string> = { product: "📦", service: "🔧", restaurant: "🍽️", event: "🎉", rental: "🏠", thrift: "🏷️", housing_sale: "🏠", housing_rent: "🏡" };
+export const TYPE_ICON: Record<string, string> = { product: "📦", service: "🔧", restaurant: "🍽️", event: "🎉", rental: "🏠", thrift: "🏷️", housing_sale: "🏠", housing_rent: "🏡", animals: "🐾" };
 
 export function parseHousing(listing: DetailListing): any | null {
   if (listing.type !== "housing_sale" && listing.type !== "housing_rent") return null;
@@ -52,6 +52,11 @@ function to12h(t: string): string {
 export function parseEvent(listing: DetailListing): { date: string; start_time: string; end_time: string; location: string } | null {
   if (listing.type !== "event") return null;
   try { const t = listing.tags?.find((t) => t.startsWith("__event:")); return t ? JSON.parse(t.replace("__event:", "")) : null; } catch { return null; }
+}
+
+export function parseAnimal(listing: DetailListing): any | null {
+  if (listing.type !== "animals") return null;
+  try { const t = listing.tags?.find((t) => t.startsWith("__animal:")); return t ? JSON.parse(t.replace("__animal:", "")) : null; } catch { return null; }
 }
 
 export function parseThrift(listing: DetailListing): { address: string | null; openDays: { day: string; open: string; close: string }[] } | null {
@@ -124,6 +129,7 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   const housingData = parseHousing(listing);
   const thriftData = parseThrift(listing);
   const eventData = parseEvent(listing);
+  const animalData = parseAnimal(listing);
   const priceLabel = derivePriceLabel(listing);
   const { ctaLabel, ctaAction } = resolveListingCta(listing, vendorPhone, menuPdfUrl);
   const images = listing.images ?? [];
@@ -343,6 +349,52 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
                     <span key={f as string} className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">{f}</span>
                   ))}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Animal / livestock details */}
+          {animalData && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                {[
+                  ["Type", animalData.species], ["Breed", animalData.breed],
+                  ["Age", animalData.age], ["Sex", animalData.sex],
+                  ["Quantity", animalData.quantity], ["Location", animalData.location],
+                ].filter(([, v]) => v).map(([label, v]) => (
+                  <div key={label as string} className="bg-gray-50 rounded-xl px-3 py-2">
+                    <p className="text-xs text-gray-400">{label}</p>
+                    <p className="font-semibold text-gray-800">{v as string}</p>
+                  </div>
+                ))}
+              </div>
+              {[
+                animalData.vet_checked && "🩺 Vet checked",
+                animalData.vaccinated && "💉 Vaccinated",
+                animalData.fixed && "✂️ Spayed / Neutered",
+                animalData.microchipped && "🔖 Microchipped",
+                animalData.registered && "📋 Registered / Papers",
+                animalData.health_guarantee && "✅ Health guarantee",
+                animalData.good_with_kids && "👶 Good with kids",
+                animalData.good_with_pets && "🐕 Good with other animals",
+              ].filter(Boolean).length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    animalData.vet_checked && "🩺 Vet checked",
+                    animalData.vaccinated && "💉 Vaccinated",
+                    animalData.fixed && "✂️ Spayed / Neutered",
+                    animalData.microchipped && "🔖 Microchipped",
+                    animalData.registered && "📋 Registered / Papers",
+                    animalData.health_guarantee && "✅ Health guarantee",
+                    animalData.good_with_kids && "👶 Good with kids",
+                    animalData.good_with_pets && "🐕 Good with other animals",
+                  ].filter(Boolean).map((f) => (
+                    <span key={f as string} className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-medium">{f}</span>
+                  ))}
+                </div>
+              )}
+              {animalData.notes && (
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{animalData.notes}</p>
               )}
             </div>
           )}
