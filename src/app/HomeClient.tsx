@@ -394,7 +394,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   type="submit"
                   className="flex-1 sm:flex-none bg-green-600 text-white px-5 py-3 rounded-xl text-base font-bold hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20 whitespace-nowrap"
                 >
-                  Ask Mike →
+                  Go Local →
                 </button>
               </div>
             </form>
