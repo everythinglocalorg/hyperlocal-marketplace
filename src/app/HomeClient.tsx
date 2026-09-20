@@ -380,10 +380,10 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           <div className="pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
 
           <div className="relative max-w-3xl mx-auto text-center">
-            {/* trust chip — clickable CTA to launch a free storefront */}
-            <Link href="/signup?role=vendor" className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-4 shadow-sm hover:bg-green-50 hover:border-green-300 transition-colors">
-              <span className="text-sm leading-none">🚀</span>
-              <span className="text-xs font-semibold text-gray-600">Build your storefront &amp; launch your business — <span className="text-green-700">100% free</span></span>
+            {/* Hero chip — inclusive value prop that speaks to everyone */}
+            <Link href="/signup" className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-4 shadow-sm hover:bg-green-50 hover:border-green-300 transition-colors">
+              <span className="text-sm leading-none">🏘️</span>
+              <span className="text-xs font-semibold text-gray-600">Build, Shop, Connect, and Grow your Community — <span className="text-green-700">all in one place</span></span>
             </Link>
 
             {/* Reserve two lines' height so the rotating word can't reflow the
@@ -394,17 +394,6 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                 Discover the best <TypedRotator phrases={HERO_PHRASES} className="text-green-600" /> in {cityName}.
               </h1>
             </div>
-            <p className="text-base sm:text-lg text-gray-500 mb-5 max-w-2xl mx-auto">
-              One click searching for every local business, product, and service near you —
-              plus <span className="font-semibold text-amber-600">🪙 Local Bucks</span> rewards for supporting local.
-            </p>
-
-            {/* Ask Mike — concierge framing for the primary search */}
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="w-7 h-7 rounded-full bg-green-600 text-white flex items-center justify-center text-sm font-bold shrink-0">M</span>
-              <span className="text-sm font-semibold text-gray-700">Ask Mike, your local guide — what do you need today?</span>
-            </div>
-
             {/* Search bar — query + location + submit on one line (desktop);
                 stacks on mobile so the input keeps full width. */}
             <form onSubmit={handleSearch} data-tour="search" className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
