@@ -5,10 +5,13 @@ import Link from "next/link";
 // Exciting, value-packed welcome shown to guests when they try a gated action
 // (search, browse, or a high-intent action). `next` is where to send them after
 // they create a profile.
-export default function WelcomeGateModal({ open, onClose, next }: {
+export default function WelcomeGateModal({ open, onClose, next, required }: {
   open: boolean;
   onClose: () => void;
   next?: string;
+  // When required, the gate can't be dismissed — no X, no "Maybe later", and
+  // clicking the backdrop does nothing. Used as the home-screen signup gate.
+  required?: boolean;
 }) {
   if (!open) return null;
   const signupHref = `/signup${next ? `?next=${encodeURIComponent(next)}` : ""}`;
@@ -24,7 +27,7 @@ export default function WelcomeGateModal({ open, onClose, next }: {
   return (
     <div
       className="fixed inset-0 z-[60] flex items-center justify-center bg-gray-900/60 p-4 overflow-y-auto"
-      onClick={onClose}
+      onClick={required ? undefined : onClose}
     >
       <div
         className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden my-8"
@@ -32,7 +35,9 @@ export default function WelcomeGateModal({ open, onClose, next }: {
       >
         {/* Header */}
         <div className="bg-green-600 px-6 pt-6 pb-5 text-center relative">
-          <button onClick={onClose} aria-label="Close" className="absolute top-4 right-4 text-white/70 hover:text-white text-xl leading-none">×</button>
+          {!required && (
+            <button onClick={onClose} aria-label="Close" className="absolute top-4 right-4 text-white/70 hover:text-white text-xl leading-none">×</button>
+          )}
           <span className="inline-flex items-center gap-1.5 bg-white/15 border border-white/30 text-white text-[11px] font-semibold px-3 py-1 rounded-full mb-3">
             📍 Now live in your neighborhood
           </span>
@@ -67,11 +72,14 @@ export default function WelcomeGateModal({ open, onClose, next }: {
           <Link href={signupHref} className="block bg-green-600 text-white text-center text-base font-bold py-3.5 rounded-xl hover:bg-green-700 transition-colors">
             Create my free profile →
           </Link>
-          <div className="flex items-center justify-center gap-3 mt-3 text-xs">
-            <span className="text-gray-500">Already a member? <Link href={loginHref} className="text-green-700 font-semibold hover:underline">Log in</Link></span>
-            <span className="text-gray-300">·</span>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">Maybe later</button>
-          </div>
+          <Link href={loginHref} className="block mt-2 border-2 border-gray-200 text-gray-800 text-center text-base font-bold py-3 rounded-xl hover:border-gray-400 transition-colors">
+            Log in
+          </Link>
+          {!required && (
+            <div className="flex items-center justify-center mt-3 text-xs">
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-600">Maybe later</button>
+            </div>
+          )}
           <p className="text-center text-[10px] text-gray-400 mt-3">100% free · No credit card · Takes 30 seconds</p>
         </div>
       </div>

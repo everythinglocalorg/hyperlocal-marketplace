@@ -17,6 +17,17 @@ import TypedRotator from "@/components/TypedRotator";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import SearchSuggestions from "@/components/SearchSuggestions";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
+import ProductTour, { type TourStep } from "@/components/ProductTour";
+
+// First-run guided tour, shown once right after onboarding (flag set on finish).
+const TOUR_STEPS: TourStep[] = [
+  { selector: '[data-tour="home"]', title: "Welcome home 🏡", body: "This is your home base — the best local shops, food, and finds near you, all in one place." },
+  { selector: '[data-tour="search"]', title: "Search anything 🔎", body: "Look up any product, service, or business right here — or type @ to find a specific person or shop." },
+  { selector: '[data-tour="wishlist"]', title: "Your Wish List 💚", body: "Tap the heart on anything you love and it's saved here for later." },
+  { selector: '[data-tour="messages"]', title: "Messages 💬", body: "Chat directly with local businesses — ask questions, get quotes, place orders." },
+  { selector: '[data-tour="notifications"]', title: "Notifications 🔔", body: "Order updates, replies, and local alerts all land here." },
+  { selector: '[data-tour="menu"]', title: "Everything else ☰", body: "Almost everything else — Local Pages (community & events), Local Jobs, Explore, and your Dashboard — lives in this menu." },
+];
 
 // Rotating hero categories — "Discover the best ___ in {City}." keeps the town
 // fixed and types through these one after another.
@@ -97,6 +108,22 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
   const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [radius, setRadius] = useState(50);
+  const [showTour, setShowTour] = useState(false);
+
+  // First-run tour: onboarding sets el_tour_pending; show it once, then mark done.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const pending = localStorage.getItem("el_tour_pending") === "1" || url.searchParams.get("tour") === "1";
+      const done = localStorage.getItem("el_tour_done") === "1";
+      if (pending && !done) {
+        localStorage.removeItem("el_tour_pending");
+        // Let the header + hero mount and paint before spotlighting.
+        const t = setTimeout(() => setShowTour(true), 600);
+        return () => clearTimeout(t);
+      }
+    } catch { /* noop */ }
+  }, []);
 
   // Businesses near the active city, plotted on the map.
   useEffect(() => {
@@ -117,6 +144,15 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
 
   // Soft signup gate: guests see the welcome modal before searching/browsing.
   const [gateNext, setGateNext] = useState<string | null>(null);
+  // Hard gate: a few seconds after a guest lands on home, require an account to
+  // go further (can't be dismissed). Signup + login both live in the modal.
+  const [autoGate, setAutoGate] = useState(false);
+
+  useEffect(() => {
+    if (!authChecked || user) return;
+    const t = setTimeout(() => setAutoGate(true), 2500);
+    return () => clearTimeout(t);
+  }, [authChecked, user]);
 
   // Returns true (and opens the welcome modal) if the visitor is a guest.
   function gate(href: string): boolean {
@@ -306,6 +342,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
+      {showTour && <ProductTour steps={TOUR_STEPS} onDone={() => setShowTour(false)} />}
       <main className="flex-1">
         {/* Category bar — single horizontal-scroll row on mobile (top picks lead,
             swipe for the rest); wraps and centers on sm+ to show everything. */}
@@ -370,7 +407,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
 
             {/* Search bar — query + location + submit on one line (desktop);
                 stacks on mobile so the input keeps full width. */}
-            <form onSubmit={handleSearch} className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
+            <form onSubmit={handleSearch} data-tour="search" className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
               <div className="relative flex-1 min-w-0">
                 <input
                   type="text"
@@ -791,7 +828,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
       </footer>
 
       {/* Soft signup gate for guests (search / browse) */}
-      <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
+      <WelcomeGateModal open={autoGate || !!gateNext} required={autoGate} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
 
       {/* Spacer so the sticky bar never covers footer content on mobile */}
       <div className="h-20 lg:hidden" />

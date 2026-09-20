@@ -140,7 +140,7 @@ export default function GlobalHeader() {
       )}
     <header className={`border-b border-gray-100 bg-white sticky top-0 z-50 ${isDashboard ? "hidden lg:block" : ""}`}>
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
-        <Link href="/" className="flex items-center min-w-0 shrink" aria-label="Everything Local home">
+        <Link href="/" data-tour="home" className="flex items-center min-w-0 shrink" aria-label="Everything Local home">
           <Logo size="sm" />
         </Link>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -151,7 +151,7 @@ export default function GlobalHeader() {
               <span className="text-sm text-gray-600 hidden sm:block max-w-[220px] truncate">
                 Hello, <strong>{user.name}</strong>
               </span>
-              <Link href="/messages" title="Messages" className="relative text-xl leading-none">
+              <Link href="/messages" data-tour="messages" title="Messages" className="relative text-xl leading-none">
                 💬
                 {msgUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
@@ -159,7 +159,7 @@ export default function GlobalHeader() {
                   </span>
                 )}
               </Link>
-              <Link href="/notifications" title="Notifications" className="relative text-xl leading-none">
+              <Link href="/notifications" data-tour="notifications" title="Notifications" className="relative text-xl leading-none">
                 🔔
                 {notifUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
@@ -167,7 +167,7 @@ export default function GlobalHeader() {
                   </span>
                 )}
               </Link>
-              <Link href="/wishlist" title="Wish List" className="relative text-xl leading-none">
+              <Link href="/wishlist" data-tour="wishlist" title="Wish List" className="relative text-xl leading-none">
                 💚
                 {wishlistCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-green-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
@@ -179,7 +179,7 @@ export default function GlobalHeader() {
                   all in one discoverable place (replaces the old desktop pills +
                   green Dashboard button). */}
               <div className="relative" ref={menuRef}>
-                <button onClick={() => setMenuOpen((v) => !v)} aria-label="Menu" aria-expanded={menuOpen} className="p-1 -mr-1 text-gray-700 hover:text-gray-900 transition-colors">
+                <button onClick={() => setMenuOpen((v) => !v)} data-tour="menu" aria-label="Menu" aria-expanded={menuOpen} className="p-1 -mr-1 text-gray-700 hover:text-gray-900 transition-colors">
                   <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" /></svg>
                 </button>
                 {menuOpen && (
@@ -215,10 +215,9 @@ export default function GlobalHeader() {
             </>
           ) : (
             <>
-              <Link href="/login" className="text-sm text-gray-600 hover:text-gray-900">Log in</Link>
-              <Link href="/signup" className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors">
-                Sign up free
-              </Link>
+              {/* Signup lives in the home-screen welcome gate now, so the header
+                  just offers a fast Log in. */}
+              <Link href="/login" className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors">Log in</Link>
             </>
           )}
         </div>
