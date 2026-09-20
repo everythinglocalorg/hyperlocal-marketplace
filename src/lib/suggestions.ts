@@ -1,13 +1,13 @@
-// Ask Mike — search suggestions.
+// Search suggestions.
 //
 // Two blended sources, so the chips feel local and personal:
 //   1. Recent  — searches this device has made (localStorage; private, instant,
-//                works for guests). This is how "Mike learns your searches."
+//                works for guests). This is how search learns your recent queries.
 //   2. Trending — what people in THIS area are searching now, from the
 //                analytics event stream (server RPC via /api/suggestions).
 //                Trending in Phoenix, AZ looks nothing like Eau Claire, WI.
 // Cold start (a brand-new area with no data) falls back to a curated seed
-// list so Mike is never blank.
+// list so the suggestions are never blank.
 
 export type SuggestionSource = "recent" | "trending" | "seed";
 export type Suggestion = { term: string; source: SuggestionSource };

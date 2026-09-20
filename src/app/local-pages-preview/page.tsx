@@ -1,6 +1,6 @@
 "use client";
 
-// Static prototype — Local Loop + Ask Mike, Hiring, and Offers.
+// Static prototype — Local Pages + local search, Hiring, and Offers.
 // Isolated at /local-pages-preview. Uses the live site's real Tailwind style.
 // No data fetching, no backend, no shared imports. Safe to delete anytime.
 
@@ -84,7 +84,7 @@ const POSTS: Post[] = [
   },
 ];
 
-const MIKE_RESULTS = [
+const SAMPLE_RESULTS = [
   { name: "Rivertown Plumbing", initials: "RP", color: "bg-green-600", meta: "★ 4.9 · open now · 0.8 mi", tier: "Local Pro+", cta: "Free estimate" },
   { name: "Foster & Sons", initials: "FS", color: "bg-cyan-600", meta: "★ 4.8 · open · 1.2 mi", tier: "Local Pro", cta: "Message" },
   { name: "Clearwater Repair", initials: "CR", color: "bg-purple-600", meta: "★ 4.7 · opens 8a · 2.0 mi", tier: "Verified local", cta: "Call" },
@@ -107,7 +107,7 @@ export default function LocalPagesPreview() {
   function ask(text?: string) {
     const q = (text ?? query).trim();
     if (text !== undefined) setQuery(text);
-    if (q) rememberSearch(q); // Mike learns it — next visit it shows as a 🕘 recent chip
+    if (q) rememberSearch(q); // remembered — next visit it shows as a 🕘 recent chip
     setAsked(q || "a local");
   }
 
@@ -142,12 +142,12 @@ export default function LocalPagesPreview() {
 
         <h1 className="text-2xl font-bold text-gray-900 mb-5">Local Pages in Eau Claire</h1>
 
-        {/* Ask Mike concierge */}
+        {/* Local search concierge */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">
           <div className="flex items-center gap-3 mb-3">
-            <Avatar initials="M" color="bg-green-600" />
+            <Avatar initials="EL" color="bg-green-600" />
             <div>
-              <p className="text-[15px] font-semibold text-gray-900">Ask Mike</p>
+              <p className="text-[15px] font-semibold text-gray-900">Local Search</p>
               <p className="text-xs text-gray-500">Your local guide · finds you a trusted business fast</p>
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function LocalPagesPreview() {
               onClick={() => ask()}
               className="shrink-0 bg-green-600 text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-green-700 transition-colors"
             >
-              Ask Mike
+              Search local
             </button>
           </div>
 
@@ -182,9 +182,9 @@ export default function LocalPagesPreview() {
           {asked && (
             <div className="mt-4 space-y-2.5">
               <div className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
-                <strong>Mike found 3 trusted locals for “{asked}”</strong> — ranked by neighbor reviews and distance.
+                <strong>Found 3 trusted locals for “{asked}”</strong> — ranked by neighbor reviews and distance.
               </div>
-              {MIKE_RESULTS.map((r) => (
+              {SAMPLE_RESULTS.map((r) => (
                 <div key={r.name} className="flex items-center gap-3 border border-gray-200 rounded-xl p-3">
                   <Avatar initials={r.initials} color={r.color} />
                   <div className="flex-1 min-w-0">
@@ -314,9 +314,9 @@ export default function LocalPagesPreview() {
 
                         {post.type === "help" && (
                           <div className="bg-green-50 border border-green-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
-                            <Avatar initials="M" color="bg-green-600" size="sm" />
+                            <Avatar initials="EL" color="bg-green-600" size="sm" />
                             <span className="text-sm text-green-800">
-                              <strong>Mike suggests:</strong> Rivertown Plumbing · ★4.9 · open now
+                              <strong>Suggested:</strong> Rivertown Plumbing · ★4.9 · open now
                             </span>
                             <button className="ml-auto bg-green-600 text-white text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-green-700 transition-colors">
                               See

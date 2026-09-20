@@ -425,7 +425,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               </div>
             </form>
 
-            {/* Ask Mike — location-aware + learned search suggestions */}
+            {/* Search suggestions — location-aware + learned */}
             <SearchSuggestions
               citySlug={activeCity}
               cityLabel={resolveCity(activeCity)?.label ?? cityName}

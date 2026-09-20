@@ -807,7 +807,7 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
                   updateURL({ q: v });
                 }}
                 onSearch={runSearch}
-                placeholder="Ask Mike — plumber, fresh eggs, haircut…"
+                placeholder="Search local — plumber, fresh eggs, haircut…"
               />
             </div>
             {/* City selector: hidden on mobile (shown in row 2), visible on sm+ */}
@@ -883,7 +883,7 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
         </div>
       </div>
 
-      {/* Ask Mike suggestions — shown before the shopper has typed anything */}
+      {/* Search suggestions — shown before the shopper has typed anything */}
       {!query.trim() && (
         <div className="bg-white border-b border-gray-100">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">

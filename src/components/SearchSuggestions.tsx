@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { buildSuggestions, fetchTrending, getRecentSearches, type Suggestion } from "@/lib/suggestions";
 
-// Ask Mike's suggestion chips. Renders instantly from the device's recent
+// Search suggestion chips. Renders instantly from the device's recent
 // searches + seeds, then merges in area trending when it arrives. Purely
 // additive — sits under any search box and calls onPick with the chosen term.
 

@@ -111,7 +111,7 @@ export function trackSearch(data: SearchEventData, delayMs = 1500): void {
   if (searchTimer) clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     searchTimer = null;
-    rememberSearch(data.query); // Ask Mike learns this device's searches
+    rememberSearch(data.query); // search suggestions learn this device's searches
     track("search", { ...data, zero_results: data.result_count === 0 });
   }, delayMs);
 }
