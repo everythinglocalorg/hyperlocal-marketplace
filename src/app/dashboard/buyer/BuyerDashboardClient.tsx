@@ -264,6 +264,17 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
 
       {/* Sidebar — off-canvas drawer on mobile, fixed sidebar on desktop */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:shrink-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Mobile: Log Out pinned to the top of the drawer for quick access */}
+        <button
+          onClick={async () => {
+            const { createClient: cc } = await import("@/lib/supabase/client");
+            await cc().auth.signOut();
+            window.location.href = "/";
+          }}
+          className="lg:hidden w-full flex items-center gap-2 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 border-b border-gray-100 transition-colors"
+        >
+          <span>🚪</span> Log Out
+        </button>
         <div className="p-5 border-b border-gray-100">
           <Link href="/"><Logo size="sm" /></Link>
           <BackHome className="mt-3" />

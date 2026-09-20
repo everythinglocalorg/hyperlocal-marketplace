@@ -530,6 +530,13 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
       {/* Sidebar — off-canvas drawer on mobile, fixed sidebar on desktop */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-gray-100 flex flex-col overflow-y-auto transform transition-transform duration-200 lg:translate-x-0 lg:static lg:sticky lg:top-0 lg:min-h-screen lg:z-auto ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Mobile: Log Out pinned to the top of the drawer for quick access */}
+        <button
+          onClick={async () => { await supabase.auth.signOut(); window.location.href = "/"; }}
+          className="lg:hidden w-full flex items-center gap-2 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 border-b border-gray-100 transition-colors"
+        >
+          <span>🚪</span> Log Out
+        </button>
         {/* Vendor info */}
         <div className="p-4 border-b border-gray-100">
           <BackHome className="mb-3" />
@@ -648,7 +655,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           </button>
           <button
             onClick={async () => { await supabase.auth.signOut(); window.location.href = "/"; }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+            className="hidden lg:flex w-full items-center gap-2 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition-colors"
           >
             <span>🚪</span> Sign out
           </button>
