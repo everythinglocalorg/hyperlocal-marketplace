@@ -203,7 +203,7 @@ export default function GlobalHeader() {
                       {wishlistCount > 0 && <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold">{wishlistCount}</span>}
                     </Link>
                     <div className="border-t border-gray-100 my-1" />
-                    <Link href="/search" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🛍️ Shop Local</Link>
+                    <Link href="/search?mode=listings" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🛍️ Shop Local</Link>
                     <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Loop</Link>
                     <Link href={`/jobs/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
                     <Link href={`/explore/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
