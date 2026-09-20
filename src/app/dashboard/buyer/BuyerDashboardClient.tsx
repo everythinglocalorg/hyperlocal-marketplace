@@ -172,6 +172,15 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
   });
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  // "Getting started" card — dismissible, remembered per browser.
+  const [showGettingStarted, setShowGettingStarted] = useState(false);
+  useEffect(() => {
+    try { setShowGettingStarted(localStorage.getItem("el_getting_started_done") !== "1"); } catch { setShowGettingStarted(true); }
+  }, []);
+  function dismissGettingStarted() {
+    setShowGettingStarted(false);
+    try { localStorage.setItem("el_getting_started_done", "1"); } catch { /* noop */ }
+  }
   const [showDropdown, setShowDropdown] = useState(false);
   const [localProfile, setLocalProfile] = useState({ full_name: profile.full_name, avatar_url: profile.avatar_url, phone: profile.phone });
   const supabase = createClient();
@@ -427,6 +436,45 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
             <p className="text-gray-500 text-sm mb-6">
               {profile.city && profile.state ? `Browsing near ${profile.city}, ${profile.state}` : "Discover local businesses near you"}
             </p>
+
+            {/* ── Getting started ── */}
+            {showGettingStarted && (
+              <div className="relative bg-white rounded-2xl p-5 shadow-sm border border-green-100 ring-1 ring-green-50 mb-8">
+                <button onClick={dismissGettingStarted} aria-label="Dismiss getting started" className="absolute top-3 right-3 text-gray-300 hover:text-gray-500 text-xl leading-none">×</button>
+                <p className="text-sm font-bold text-gray-900">🚀 Getting started</p>
+                <p className="text-xs text-gray-500 mb-4">A few great first moves — tap any to jump in.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <Link href="/search?mode=listings" className="group flex items-start gap-3 rounded-xl border border-gray-100 p-3.5 hover:border-green-300 hover:bg-green-50/60 transition-colors">
+                    <span className="w-9 h-9 rounded-xl bg-green-100 text-green-700 flex items-center justify-center text-lg shrink-0">🛍️</span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-gray-900">Shop Local <span className="inline-block text-green-600 transition-transform group-hover:translate-x-0.5">→</span></span>
+                      <span className="block text-xs text-gray-500">Browse products, food & services near you.</span>
+                    </span>
+                  </Link>
+                  <Link href="/sell" className="group flex items-start gap-3 rounded-xl border border-gray-100 p-3.5 hover:border-green-300 hover:bg-green-50/60 transition-colors">
+                    <span className="w-9 h-9 rounded-xl bg-green-100 text-green-700 flex items-center justify-center text-lg shrink-0">🏷️</span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-gray-900">Sell an item <span className="inline-block text-green-600 transition-transform group-hover:translate-x-0.5">→</span></span>
+                      <span className="block text-xs text-gray-500">List something for sale in a couple taps.</span>
+                    </span>
+                  </Link>
+                  <Link href="/onboarding/vendor" className="group flex items-start gap-3 rounded-xl border border-gray-100 p-3.5 hover:border-green-300 hover:bg-green-50/60 transition-colors">
+                    <span className="w-9 h-9 rounded-xl bg-green-100 text-green-700 flex items-center justify-center text-lg shrink-0">🏪</span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-gray-900">List your business <span className="inline-block text-green-600 transition-transform group-hover:translate-x-0.5">→</span></span>
+                      <span className="block text-xs text-gray-500">Launch a free storefront for your shop.</span>
+                    </span>
+                  </Link>
+                  <button onClick={() => setTab("referrals")} className="group flex items-start gap-3 rounded-xl border border-gray-100 p-3.5 text-left hover:border-green-300 hover:bg-green-50/60 transition-colors">
+                    <span className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center text-lg shrink-0">🪙</span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-gray-900">Invite &amp; earn <span className="inline-block text-green-600 transition-transform group-hover:translate-x-0.5">→</span></span>
+                      <span className="block text-xs text-gray-500">Get 20 Local Bucks for every friend who joins.</span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
