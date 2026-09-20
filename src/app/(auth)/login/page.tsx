@@ -16,8 +16,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [resetStep, setResetStep] = useState<"email" | "code">("email");
+  const [resetCode, setResetCode] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetPwVisible, setResetPwVisible] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [captchaToken, setCaptchaToken] = useState("");
@@ -112,20 +116,58 @@ export default function LoginPage() {
   async function handlePasswordReset(e: React.FormEvent) {
     e.preventDefault();
     if (CAPTCHA_ON && !captchaToken) {
-      setError("Please complete the verification below.");
+      setResetError("Please complete the verification below.");
       return;
     }
     setLoading(true);
+    setResetError(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/callback?next=/reset-password`,
       ...(captchaToken ? { captchaToken } : {}),
     });
     resetCaptcha();
     if (error) {
-      setError(friendlyAuthError(error));
+      setResetError(friendlyAuthError(error));
     } else {
-      setResetSent(true);
+      setResetStep("code"); // email sent — now enter the code + new password here
     }
+    setLoading(false);
+  }
+
+  // Verify the 6-digit recovery code and set the new password — all on this
+  // device, no cross-device link needed.
+  async function handleResetVerify(e: React.FormEvent) {
+    e.preventDefault();
+    const token = resetCode.replace(/\D/g, "");
+    if (token.length < 6) { setResetError("Enter the 6-digit code from your email."); return; }
+    if (resetNewPassword.length < 8) { setResetError("New password must be at least 8 characters."); return; }
+    setLoading(true);
+    setResetError(null);
+    const { error: otpError } = await supabase.auth.verifyOtp({ email, token, type: "recovery" });
+    if (otpError) {
+      setResetError(otpError.message ?? "That code didn't work. Check it or resend a new one.");
+      setLoading(false);
+      return;
+    }
+    const { error: pwError } = await supabase.auth.updateUser({ password: resetNewPassword });
+    if (pwError) {
+      setResetError(pwError.message);
+      setLoading(false);
+      return;
+    }
+    router.push("/");
+  }
+
+  async function handleResendResetCode() {
+    if (CAPTCHA_ON && !captchaToken) { setResetError("Complete the verification to resend."); return; }
+    setLoading(true);
+    setResetError(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/callback?next=/reset-password`,
+      ...(captchaToken ? { captchaToken } : {}),
+    });
+    resetCaptcha();
+    if (error) setResetError(friendlyAuthError(error));
     setLoading(false);
   }
 
@@ -133,44 +175,91 @@ export default function LoginPage() {
     return (
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
         <button
-          onClick={() => setShowReset(false)}
+          onClick={() => { setShowReset(false); setResetStep("email"); setResetCode(""); setResetNewPassword(""); setResetError(null); }}
           className="text-sm text-gray-500 hover:text-gray-700 mb-4 flex items-center gap-1"
         >
           ← Back to login
         </button>
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Reset password</h1>
-        <p className="text-gray-500 text-sm mb-6">
-          Enter your email and we'll send you a reset link.
-        </p>
 
-        {resetSent ? (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 text-sm text-green-800">
-            ✓ Reset link sent to <strong>{email}</strong>. Check your inbox.
-          </div>
+        {resetStep === "email" ? (
+          <>
+            <p className="text-gray-500 text-sm mb-6">Enter your email and we'll send you a 6-digit code.</p>
+            <form onSubmit={handlePasswordReset} className="space-y-4">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="your@email.com"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              {resetError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{resetError}</div>
+              )}
+              <TurnstileWidget onVerify={setCaptchaToken} />
+              <button
+                type="submit"
+                disabled={loading || (CAPTCHA_ON && !captchaToken)}
+                className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Sending..." : "Send code"}
+              </button>
+            </form>
+          </>
         ) : (
-          <form onSubmit={handlePasswordReset} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="your@email.com"
-              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-                {error}
+          <>
+            <p className="text-gray-500 text-sm mb-6">
+              We sent a 6-digit code to <strong>{email}</strong>. Enter it below with your new password.
+            </p>
+            <form onSubmit={handleResetVerify} className="space-y-4">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={resetCode}
+                onChange={(e) => setResetCode(e.target.value.replace(/\D/g, ""))}
+                placeholder="123456"
+                className="w-full text-center tracking-[0.5em] text-2xl font-bold border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <div className="relative">
+                <input
+                  type={resetPwVisible ? "text" : "password"}
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  required
+                  minLength={8}
+                  placeholder="New password (min 8 chars)"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setResetPwVisible((v) => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-xs font-medium text-gray-500 hover:text-gray-700"
+                >
+                  {resetPwVisible ? "Hide" : "Show"}
+                </button>
               </div>
-            )}
-            <TurnstileWidget onVerify={setCaptchaToken} />
-            <button
-              type="submit"
-              disabled={loading || (CAPTCHA_ON && !captchaToken)}
-              className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
-            >
-              {loading ? "Sending..." : "Send reset link"}
-            </button>
-          </form>
+              {resetError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{resetError}</div>
+              )}
+              <button
+                type="submit"
+                disabled={loading || resetCode.length < 6}
+                className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                {loading ? "Updating..." : "Reset password & sign in"}
+              </button>
+            </form>
+            {CAPTCHA_ON && <div className="mt-3"><TurnstileWidget onVerify={setCaptchaToken} /></div>}
+            <p className="text-center text-sm text-gray-500 mt-4">
+              Didn't get it?{" "}
+              <button type="button" onClick={handleResendResetCode} disabled={loading || (CAPTCHA_ON && !captchaToken)} className="text-green-600 font-medium hover:underline disabled:opacity-50 disabled:no-underline">
+                Resend code
+              </button>
+            </p>
+          </>
         )}
       </div>
     );

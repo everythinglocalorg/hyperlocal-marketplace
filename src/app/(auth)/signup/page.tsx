@@ -26,6 +26,9 @@ function SignupForm() {
   const [success, setSuccess] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [captchaToken, setCaptchaToken] = useState("");
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
 
   const supabase = createClient();
 
@@ -90,6 +93,24 @@ function SignupForm() {
     setResendState(error ? "error" : "sent");
   }
 
+  // Verify the 6-digit code from the confirmation email — establishes the
+  // session right here on this device (no cross-device link needed).
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    const token = code.replace(/\D/g, "");
+    if (token.length < 6) { setVerifyError("Enter the 6-digit code from your email."); return; }
+    setVerifying(true);
+    setVerifyError(null);
+    const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });
+    if (error || !data.session) {
+      setVerifyError(error?.message ?? "That code didn't work. Check it or resend a new one.");
+      setVerifying(false);
+      return;
+    }
+    track("sign_up", { role, method: "email", verified: "code" });
+    router.push(role === "vendor" ? "/onboarding/vendor" : "/onboarding/buyer");
+  }
+
   async function handleGoogleSignup() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
@@ -109,15 +130,38 @@ function SignupForm() {
         <div className="text-5xl mb-4">📬</div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h2>
         <p className="text-gray-600 mb-4">
-          We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
+          We sent a 6-digit code to <strong>{email}</strong>. Enter it below to activate your account — no need to leave this page.
         </p>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+
+        <form onSubmit={handleVerifyCode} className="space-y-3">
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            placeholder="123456"
+            className="w-full text-center tracking-[0.5em] text-2xl font-bold border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          {verifyError && <p className="text-sm text-red-600">{verifyError}</p>}
+          <button
+            type="submit"
+            disabled={verifying || code.length < 6}
+            className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+          >
+            {verifying ? "Verifying..." : "Verify & continue"}
+          </button>
+        </form>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
           <p className="text-amber-800 font-semibold text-sm">
             🪙 You'll earn 10 Local Bucks the moment you confirm!
           </p>
         </div>
         {CAPTCHA_ON && resendState !== "sent" && <TurnstileWidget onVerify={setCaptchaToken} />}
         <div className="mt-4 text-sm text-gray-500">
+          <p className="mb-2">You can also just tap the button in the email if you opened it on this device.</p>
           Didn't get it? Check your spam folder, or{" "}
           <button
             type="button"
