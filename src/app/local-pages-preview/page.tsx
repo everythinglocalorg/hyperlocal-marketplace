@@ -133,7 +133,7 @@ export default function LocalPagesPreview() {
             🏘️ Local Pages
           </span>
           <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors cursor-pointer">
-            💼 Local Jobs
+            💼 Local Jobs/Gigs
           </span>
           <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors cursor-pointer">
             🌿 Things To Do Near Me

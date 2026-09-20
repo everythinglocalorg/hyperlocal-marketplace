@@ -17,7 +17,7 @@ const STEPS = [
   { n: "1", icon: "💡", title: "Shape your idea", body: "Validate what your town actually needs. Browse local demand, see what's missing, and define your offer." },
   { n: "2", icon: "📋", title: "Set up the basics", body: "Name, structure, and the essentials. We point you to the right local + state resources so nothing gets missed." },
   { n: "3", icon: "🏪", title: "Build your storefront", body: "Create your free Everything Local page in minutes — logo, listings, services, and pricing. No website needed." },
-  { n: "4", icon: "📣", title: "Reach your neighbors", body: "Get discovered in local search, Local Pages, and Local Jobs — in front of people already shopping local." },
+  { n: "4", icon: "📣", title: "Reach your neighbors", body: "Get discovered in local search, Local Pages, and Local Jobs/Gigs — in front of people already shopping local." },
   { n: "5", icon: "📈", title: "Run & grow", body: "Take bookings, send estimates, manage customers with the built-in CRM, and reward loyalty with Local Bucks." },
 ];
 

@@ -630,7 +630,7 @@ export default function CommunityBoardClient({
                   {PAID_TYPES.includes(postType) && (
                     <p className="text-xs text-gray-500 mt-2">
                       {postType === "hiring"
-                        ? "Business post · $5/mo · goes live after payment and also posts to Local Jobs."
+                        ? "Business post · $5/mo · goes live after payment and also posts to Local Jobs/Gigs."
                         : "Business post · $5/mo · goes live after payment. Cancel anytime by deleting it."}
                     </p>
                   )}

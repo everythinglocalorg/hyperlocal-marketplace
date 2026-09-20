@@ -633,7 +633,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                 onClick={(e) => { if (gate(`/jobs/${activeCity}`)) e.preventDefault(); }}
                 className="inline-block bg-white border border-green-300 text-green-700 font-bold px-8 py-3.5 rounded-full hover:bg-green-50 transition-colors"
               >
-                💼 Browse Local Jobs
+                💼 Browse Local Jobs/Gigs
               </Link>
               <Link
                 href={`/explore/${activeCity}`}

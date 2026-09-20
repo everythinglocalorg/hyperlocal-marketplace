@@ -389,7 +389,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
               href={`/jobs/${savedCity.toLowerCase().replace(/\s+/g, "-")}-${(savedState || "mn").toLowerCase()}`}
               className="w-full flex items-center justify-center gap-2 bg-white/10 border border-white/20 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-white/20 transition-colors"
             >
-              💼 Local Jobs
+              💼 Local Jobs/Gigs
             </Link>
           </div>
         )}

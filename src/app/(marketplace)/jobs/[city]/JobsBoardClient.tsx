@@ -314,7 +314,7 @@ export default function JobsBoardClient({
         )}
 
         <h1 className="text-2xl font-bold text-gray-900 mb-1">
-          Jobs in {cityName}
+          Jobs/Gigs in {cityName}
         </h1>
         <p className="text-sm text-gray-500 mb-5">Local openings, plus jobs from nearby towns within their posted radius.</p>
 

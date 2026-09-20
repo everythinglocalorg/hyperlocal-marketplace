@@ -882,7 +882,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                   <Link href="/" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏠 Home</Link>
                   <Link href="/search" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🔍 Browse local</Link>
                   <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
-                  <Link href={`/jobs/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
+                  <Link href={`/jobs/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs/Gigs</Link>
                   <Link href={`/explore/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Things To Do Near Me</Link>
                   {shareSlides.length > 0 && (
                     <>
