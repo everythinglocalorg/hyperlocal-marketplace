@@ -15,7 +15,9 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const defaultRole = searchParams.get("role") === "vendor" ? "vendor" : "buyer";
 
-  const [role, setRole] = useState<"buyer" | "vendor">(defaultRole);
+  // One unified account. `role` is only signup metadata now (no buyer/business
+  // fork) — everyone routes to the intent hub after signup.
+  const [role] = useState<"buyer" | "vendor">(defaultRole);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,7 +67,7 @@ function SignupForm() {
     } else if (data.session) {
       // Email confirmation is disabled — the user is already logged in.
       track("sign_up", { role, method: "email", referred: !!referralCode });
-      router.push(role === "vendor" ? "/onboarding/vendor" : "/onboarding/buyer");
+      router.push("/onboarding");
       return;
     } else {
       track("sign_up", { role, method: "email", referred: !!referralCode });
@@ -141,38 +143,16 @@ function SignupForm() {
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
-      {/* Header */}
+      {/* Header — one account for everyone; what you do (browse, sell an item,
+          open a storefront) is chosen after signup, not here. */}
       <div className="text-center mb-6">
         <div className="inline-flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-medium mb-3">
           🪙 Earn 10 Local Bucks on signup — free
         </div>
         <h1 className="text-2xl font-bold text-gray-900">Create your account</h1>
-      </div>
-
-      {/* Role toggle */}
-      <div className="flex bg-gray-100 rounded-xl p-1 mb-6">
-        <button
-          type="button"
-          onClick={() => setRole("buyer")}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-            role === "buyer"
-              ? "bg-white shadow text-green-700"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Explore Local
-        </button>
-        <button
-          type="button"
-          onClick={() => setRole("vendor")}
-          className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-            role === "vendor"
-              ? "bg-white shadow text-green-700"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          List My Business
-        </button>
+        <p className="text-sm text-gray-500 mt-1">
+          Browse, <strong>sell your stuff</strong>, or run a business — you choose after signup. No business account needed to sell.
+        </p>
       </div>
 
       {/* Google OAuth */}
@@ -259,37 +239,6 @@ function SignupForm() {
           {loading ? "Creating account..." : "Create free account"}
         </button>
       </form>
-
-      {role === "vendor" && (
-        <div className="mt-4 space-y-3">
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-lg">🎉</span>
-              <p className="text-sm font-bold text-green-800">Local Pro+ — Free during launch</p>
-            </div>
-            <p className="text-xs text-green-700 mb-3">Every new business gets full Local Pro+ access free right now. No trial, no credit card.</p>
-            <ul className="space-y-1.5">
-              {[
-                { icon: "📊", label: "Store & listing analytics" },
-                { icon: "📋", label: "Estimate creator & manager" },
-                { icon: "👥", label: "Customer CRM" },
-                { icon: "💬", label: "Direct customer messaging" },
-                { icon: "⭐", label: "Local Verified badge" },
-                { icon: "🔝", label: "Priority placement in search" },
-                { icon: "∞", label: "Unlimited listings" },
-              ].map(({ icon, label }) => (
-                <li key={label} className="flex items-center gap-2 text-xs text-green-800">
-                  <span>{icon}</span>
-                  <span>{label}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-sm text-green-800">
-            🏪 After signup you'll set up your business storefront — takes about 3 minutes.
-          </div>
-        </div>
-      )}
 
       <p className="text-center text-sm text-gray-500 mt-6">
         Already have an account?{" "}

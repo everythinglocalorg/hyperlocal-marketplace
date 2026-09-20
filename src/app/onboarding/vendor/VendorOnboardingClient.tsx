@@ -123,10 +123,16 @@ export default function VendorOnboardingClient() {
     const baseSlug = slugify(form.business_name);
     const slug = `${baseSlug}-${Math.random().toString(36).substring(2, 6)}`;
 
-    const { error: vendorError } = await supabase.from("vendors").insert({
-      user_id: user.id,
+    // If they already have a lightweight personal-seller profile (is_business=
+    // false), UPGRADE it in place — keep its slug and any listings — instead of
+    // creating a duplicate. Otherwise create a fresh business.
+    const { data: existingRows } = await supabase
+      .from("vendors").select("id, is_business")
+      .eq("user_id", user.id).order("created_at", { ascending: true }).limit(1);
+    const upgradeTarget = existingRows?.[0]?.is_business === false ? existingRows[0] : null;
+
+    const vendorFields = {
       business_name: form.business_name,
-      slug,
       category: form.category,
       phone: form.phone || null,
       website: form.website || null,
@@ -145,8 +151,13 @@ export default function VendorOnboardingClient() {
       // Card/storefront convention: banner shows the logo
       banner_url: form.logo_url || null,
       tier: "premium_plus",
+      is_business: true,
       features: { messages: true, analytics: true, bookings: true, crm: true, estimates: true },
-    });
+    };
+
+    const { error: vendorError } = upgradeTarget
+      ? await supabase.from("vendors").update(vendorFields).eq("id", upgradeTarget.id)
+      : await supabase.from("vendors").insert({ user_id: user.id, slug, ...vendorFields });
 
     if (vendorError) {
       setError(vendorError.message);

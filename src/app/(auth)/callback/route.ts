@@ -36,9 +36,9 @@ export async function GET(request: Request) {
       // users, business owners — lands on the home page.
       const isNewSignup = Date.now() - new Date(data.user.created_at).getTime() < 2 * 60 * 1000;
       if (isNewSignup && !hasVendor && !profile?.is_admin) {
-        return NextResponse.redirect(
-          `${origin}${profile?.role === "vendor" ? "/onboarding/vendor" : "/onboarding/buyer"}`
-        );
+        // Everyone lands on the same intent hub — they choose to explore, sell an
+        // item, or launch a storefront (no buyer/business fork at signup).
+        return NextResponse.redirect(`${origin}/onboarding`);
       }
 
       return NextResponse.redirect(`${origin}/`);

@@ -172,20 +172,20 @@ type Customer = {
   last_booking_at: string | null;
 };
 
-const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean; foodTruckOnly?: boolean }[] = [
+const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean; foodTruckOnly?: boolean; businessOnly?: boolean }[] = [
   { id: "overview", label: "Overview", icon: "🏠" },
   { id: "foodtruck", label: "Food Truck", icon: "🚚", foodTruckOnly: true },
   { id: "orders", label: "Orders", icon: "🧾", foodTruckOnly: true },
   { id: "store", label: "Store Settings", icon: "🏪" },
   { id: "listings", label: "Listings", icon: "📦" },
   { id: "referrals", label: "Referrals", icon: "🤝" },
-  { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true },
-  { id: "rentals", label: "Rentals", icon: "🏕️" },
+  { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true, businessOnly: true },
+  { id: "rentals", label: "Rentals", icon: "🏕️", businessOnly: true },
   { id: "offers", label: "Offers", icon: "🤝" },
-  { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true },
-  { id: "reports", label: "Reports", icon: "📈", premiumOnly: true },
-  { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true },
-  { id: "myplaces", label: "My Places", icon: "🌿" },
+  { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true, businessOnly: true },
+  { id: "reports", label: "Reports", icon: "📈", premiumOnly: true, businessOnly: true },
+  { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true, businessOnly: true },
+  { id: "myplaces", label: "My Places", icon: "🌿", businessOnly: true },
   { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
   { id: "alllistings", label: "All Listings", icon: "🗂️", adminOnly: true },
   { id: "allplaces", label: "All Places", icon: "🌿", adminOnly: true },
@@ -195,6 +195,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   // Local Pro+ exclusive tier (admins always count as top tier).
   const isPlus = isAdmin || isPlusTier(vendor.tier);
   const isFoodTruckVendor = isFoodTruck(vendor.category);
+  // Individual/private sellers (is_business=false) get a slimmed dashboard —
+  // business-only tabs are hidden until they upgrade to a business storefront.
+  const isBusiness = (vendor as { is_business?: boolean }).is_business !== false;
   // Features gated to Pro+ only; everything else unlocks for any paid tier.
   const PLUS_ONLY = new Set<FeatureKey>(["estimates", "reports"]);
   const can = (f: FeatureKey) => hasFeature(features, f) || (PLUS_ONLY.has(f) ? isPlus : isPremium);
@@ -540,6 +543,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
         {/* Vendor info */}
         <div className="p-4 border-b border-gray-100">
           <BackHome className="mb-3" />
+          {!isBusiness && (
+            <a href="/onboarding/vendor" className="mb-3 flex items-center justify-center gap-2 bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-700 transition-colors">
+              🏪 Open a business storefront →
+            </a>
+          )}
           {/* Business row */}
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-green-700 overflow-hidden shrink-0 ${vendor.logo_url ? "bg-white border border-gray-100" : "bg-green-100"}`}>
@@ -583,7 +591,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 href={`/community/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
                 className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-green-300 text-green-700 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-green-50 transition-colors"
               >
-                🏘️ Local Loop
+                🏘️ Local Pages
               </Link>
               <Link
                 href={`/jobs/${vendor.city.toLowerCase().replace(/\s+/g, "-")}-${(vendor.state || "mn").toLowerCase()}`}
@@ -605,7 +613,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
         {/* Navigation */}
         <nav className="flex-1 p-3">
-          {NAV.filter((item) => (!item.adminOnly || isAdmin) && (!item.foodTruckOnly || isFoodTruckVendor)).map((item) => (
+          {NAV.filter((item) => (!item.adminOnly || isAdmin) && (!item.foodTruckOnly || isFoodTruckVendor) && (!item.businessOnly || isBusiness)).map((item) => (
             <button
               key={item.id}
               onClick={() => goToTab(item.id)}
@@ -4370,7 +4378,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
         <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-5 flex items-center justify-between gap-4">
           <div>
             <p className="font-bold text-gray-900 text-sm">🚀 Boost your business</p>
-            <p className="text-xs text-gray-500 mt-0.5">Feature in <strong>New Businesses</strong> on the homepage ($5/mo) or pin to your town's <strong>Local Loop</strong> ($10/mo). Cancel anytime.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Feature in <strong>New Businesses</strong> on the homepage ($5/mo) or pin to your town's <strong>Local Pages</strong> ($10/mo). Cancel anytime.</p>
           </div>
           <button type="button" onClick={() => setShowBoost(true)} className="shrink-0 bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-xl hover:bg-amber-600 transition-colors">
             Boost →

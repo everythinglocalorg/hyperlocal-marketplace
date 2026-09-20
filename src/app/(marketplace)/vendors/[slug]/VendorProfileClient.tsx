@@ -49,7 +49,7 @@ type Vendor = {
   category: string; city: string; state: string; zip_code: string;
   address: string | null; phone: string | null; website: string | null;
   logo_url: string | null; banner_url: string | null; tier: string;
-  is_verified: boolean; is_claimed: boolean; rating: number; review_count: number;
+  is_verified: boolean; is_claimed: boolean; is_business?: boolean; rating: number; review_count: number;
   local_bucks_earned: number; service_radius_miles: number;
   latitude?: number | null; longitude?: number | null;
   service_locations?: string[] | null;
@@ -881,7 +881,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
                   <Link href="/" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏠 Home</Link>
                   <Link href="/search" onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🔍 Browse local</Link>
-                  <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Loop</Link>
+                  <Link href={`/community/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
                   <Link href={`/jobs/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs</Link>
                   <Link href={`/explore/${citySlug}`} onClick={() => setSiteMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Explore</Link>
                   {shareSlides.length > 0 && (
@@ -954,7 +954,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
           <span className="absolute top-4 left-4 text-[11px] font-bold tracking-[0.2em] text-white/90 uppercase">
-            {vendor.category}
+            {vendor.is_business === false ? "🏷️ Private seller" : vendor.category}
           </span>
           {/* Title block over the cover: logo + name + rating */}
           <div className="absolute inset-x-0 bottom-0">
