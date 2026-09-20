@@ -138,11 +138,11 @@ function SignupForm() {
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
-            maxLength={6}
+            maxLength={8}
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-            placeholder="123456"
-            className="w-full text-center tracking-[0.5em] text-2xl font-bold border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+            placeholder="12345678"
+            className="w-full text-center tracking-[0.35em] text-2xl font-bold border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
           />
           {verifyError && <p className="text-sm text-red-600">{verifyError}</p>}
           <button
