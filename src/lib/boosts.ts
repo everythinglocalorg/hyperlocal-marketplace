@@ -7,7 +7,7 @@
 
 export const BOOST_PLACEMENTS = {
   homepage: { label: "Homepage feature", priceCents: 500, priceLabel: "$5/mo" },
-  local_pages: { label: "Local Loop feature", priceCents: 1000, priceLabel: "$10/mo" },
+  local_pages: { label: "Local Pages feature", priceCents: 1000, priceLabel: "$10/mo" },
 } as const;
 
 export type BoostPlacement = keyof typeof BOOST_PLACEMENTS;

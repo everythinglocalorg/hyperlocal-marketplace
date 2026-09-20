@@ -70,8 +70,8 @@ export async function POST(req: Request) {
     }
 
     const productName = post.type === "hiring"
-      ? "Everything Local — Local Loop hiring post"
-      : "Everything Local — Local Loop offer";
+      ? "Everything Local — Local Pages hiring post"
+      : "Everything Local — Local Pages offer";
     const meta = { type: "local_pages_post", post_id: post.id, user_id: user.id, lb: String(charge.appliedLB) };
 
     const session = await stripe.checkout.sessions.create({

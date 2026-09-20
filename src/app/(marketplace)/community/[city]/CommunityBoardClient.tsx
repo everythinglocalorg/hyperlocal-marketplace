@@ -534,7 +534,7 @@ export default function CommunityBoardClient({
         {/* Return from Stripe Checkout */}
         {payToast === "posted" && (
           <div className="mb-5 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 text-sm text-green-800">
-            🎉 Your post is live on Local Loop. Thanks for supporting local.
+            🎉 Your post is live on Local Pages. Thanks for supporting local.
           </div>
         )}
         {payToast === "cancelled" && (
@@ -546,7 +546,7 @@ export default function CommunityBoardClient({
         <BoardTabs citySlug={citySlug} active="community" />
 
         <h1 className="text-2xl font-bold text-gray-900 mb-5">
-          Local Loop in {cityName}
+          Local Pages in {cityName}
         </h1>
 
         {/* Featured locally — paid Local Loop boosts */}
@@ -665,7 +665,7 @@ export default function CommunityBoardClient({
           <div className="text-center py-16">
             <p className="text-4xl mb-3">📋</p>
             <p className="text-gray-600 font-semibold mb-1">No posts yet</p>
-            <p className="text-gray-400 text-sm">Be the first to post on your town&apos;s Local Loop!</p>
+            <p className="text-gray-400 text-sm">Be the first to post on your town&apos;s Local Pages!</p>
           </div>
         ) : (
           <div className="space-y-3">

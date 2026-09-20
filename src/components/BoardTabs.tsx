@@ -9,7 +9,7 @@ import Link from "next/link";
 export type BoardId = "community" | "jobs" | "food-trucks" | "explore";
 
 const BOARDS: { id: BoardId; href: (city: string) => string; label: string }[] = [
-  { id: "community",   href: (c) => `/community/${c}`,   label: "🏘️ Local Loop" },
+  { id: "community",   href: (c) => `/community/${c}`,   label: "🏘️ Local Pages" },
   { id: "jobs",        href: (c) => `/jobs/${c}`,        label: "💼 Local Jobs" },
   { id: "food-trucks", href: (c) => `/food-trucks/${c}`, label: "🚚 Food Trucks" },
   { id: "explore",     href: (c) => `/explore/${c}`,     label: "🌿 Explore" },
