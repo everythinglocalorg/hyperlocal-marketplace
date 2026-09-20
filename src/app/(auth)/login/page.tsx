@@ -82,11 +82,12 @@ export default function LoginPage() {
       } catch {}
     }
 
-    // Signing into an existing account lands on the home page. We never force
+    // Signing into an existing account lands on the Latest Products browse page
+    // (Shop Local) so users drop straight into local shopping. We never force
     // onboarding on login, and a user can own multiple businesses (the old
     // .single() vendor check errored on multiple rows and wrongly redirected
     // established owners to onboarding).
-    router.push("/");
+    router.push("/search?mode=listings");
   }
 
   async function handleGoogleLogin() {

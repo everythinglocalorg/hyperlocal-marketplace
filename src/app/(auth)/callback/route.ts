@@ -41,7 +41,9 @@ export async function GET(request: Request) {
         return NextResponse.redirect(`${origin}/onboarding`);
       }
 
-      return NextResponse.redirect(`${origin}/`);
+      // Returning users / business owners land on the Latest Products browse
+      // page (Shop Local) so they drop straight into local shopping.
+      return NextResponse.redirect(`${origin}/search?mode=listings`);
     }
   }
 
