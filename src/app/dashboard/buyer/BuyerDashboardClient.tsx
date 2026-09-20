@@ -276,8 +276,9 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
           <span>🚪</span> Log Out
         </button>
         <div className="p-5 border-b border-gray-100">
-          <Link href="/"><Logo size="sm" /></Link>
-          <BackHome className="mt-3" />
+          {/* Logo lives in the global top bar (desktop) + mobile top bar — no
+              need to repeat it here; just the back link. */}
+          <BackHome />
         </div>
 
         {/* Profile summary */}
