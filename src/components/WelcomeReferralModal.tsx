@@ -122,7 +122,7 @@ export default function WelcomeReferralModal({
           {/* Install instructions */}
           {!installed && (
             <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50">
-              <p className="text-sm font-bold text-gray-900 mb-0.5">📲 Put it on your phone</p>
+              <p className="text-sm font-bold text-gray-900 mb-0.5">📲 Add the Web App</p>
               <p className="text-xs text-gray-500 mb-3">
                 Add Everything Local to your home screen — it opens full-screen like an app and can send
                 you notifications.

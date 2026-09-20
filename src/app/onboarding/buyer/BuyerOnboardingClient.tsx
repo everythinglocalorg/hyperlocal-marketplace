@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LAUNCH_CITIES, CATEGORIES } from "@/types";
+import { CATEGORIES } from "@/types";
 import { getBrowserLocation, reverseGeocode, geocodeQuery, ipGeolocate } from "@/lib/geocode";
 import { LS_CITY_KEY, makeSlug, normalizeState } from "@/lib/cities";
 import WelcomeReferralModal from "@/components/WelcomeReferralModal";
@@ -117,16 +117,6 @@ export default function BuyerOnboardingClient() {
       setLocError("Couldn't find that location. Try a city name or ZIP code.");
     }
     setSearchLoading(false);
-  }
-
-  function selectLaunchCity(city: typeof LAUNCH_CITIES[0]) {
-    setLocation({
-      city: city.name,
-      state: city.state,
-      latitude: city.latitude,
-      longitude: city.longitude,
-      displayName: `${city.name}, ${city.state}`,
-    });
   }
 
   async function handleFinish() {
@@ -304,26 +294,6 @@ export default function BuyerOnboardingClient() {
 
               {locError && (
                 <p className="text-xs text-red-600 mb-4">{locError}</p>
-              )}
-
-              {/* Launch city quick-picks */}
-              {!location && (
-                <>
-                  <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">Or pick a launch city</p>
-                  <div className="grid grid-cols-2 gap-2 mb-5">
-                    {LAUNCH_CITIES.map((city) => (
-                      <button
-                        key={city.slug}
-                        type="button"
-                        onClick={() => selectLaunchCity(city)}
-                        className="p-3 rounded-xl border-2 border-gray-200 text-left hover:border-green-400 hover:bg-green-50 transition-all"
-                      >
-                        <p className="font-semibold text-gray-900 text-sm">{city.name}</p>
-                        <p className="text-xs text-gray-500">{city.state}</p>
-                      </button>
-                    ))}
-                  </div>
-                </>
               )}
 
               {/* Phone */}
