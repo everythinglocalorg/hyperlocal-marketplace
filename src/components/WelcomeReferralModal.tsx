@@ -76,8 +76,9 @@ export default function WelcomeReferralModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-8">
+    <div className="fixed inset-0 z-50 bg-black/50 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-8">
         {/* Header */}
         <div className="bg-green-600 rounded-t-2xl px-6 py-6 text-center">
           <p className="text-4xl mb-2">🪙</p>
@@ -136,12 +137,18 @@ export default function WelcomeReferralModal({
         </div>
 
         <div className="px-6 pb-6">
+          <div className="mb-3 rounded-xl bg-green-50 border border-green-100 px-4 py-2.5 text-center">
+            <p className="text-xs text-green-800">
+              <span className="font-bold">↗ Find this anytime</span> — tap the <strong>☰ menu → Share</strong> in the top-right corner.
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-colors"
           >
             Start exploring →
           </button>
+        </div>
         </div>
       </div>
     </div>

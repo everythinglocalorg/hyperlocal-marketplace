@@ -172,6 +172,12 @@ export default function BuyerOnboardingClient() {
       destination = `/search?city=${citySlug}&radius=25`;
     }
 
+    // Kick off the guided tour on the home page — it spotlights the search bar,
+    // the header tabs, and where to find Local Pages. Land them on home (their
+    // city is already saved, so the feed is local) so the tour has its anchors.
+    try { localStorage.setItem("el_tour_pending", "1"); } catch { /* noop */ }
+    destination = "/";
+
     // Send them off with the referral QR + "install the app" prompt. If we can't
     // read a referral code, don't block the hand-off — just go.
     const { data: profile } = await supabase
