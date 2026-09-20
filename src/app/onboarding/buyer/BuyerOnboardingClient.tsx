@@ -227,7 +227,7 @@ export default function BuyerOnboardingClient() {
             <div>
               <div className="mb-6">
                 <div className="text-3xl mb-2">📍</div>
-                <h1 className="text-2xl font-bold text-gray-900">Where do you call home?</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Where&apos;s home?</h1>
                 <p className="text-gray-500 text-sm mt-1">
                   Set your location and we'll bring you the best local shops, products, services, and events near you. Any city, any state — change it anytime.
                 </p>

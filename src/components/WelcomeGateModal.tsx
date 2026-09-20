@@ -214,7 +214,7 @@ export default function WelcomeGateModal({ open, onClose, next, required }: {
                     disabled={loading || (CAPTCHA_ON && !captchaToken)}
                     className="w-full bg-green-600 text-white text-base font-bold py-3.5 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50"
                   >
-                    {loading ? "Creating account..." : "Create Free Account"}
+                    {loading ? "Joining…" : "Join Your Community"}
                   </button>
                 </form>
 
