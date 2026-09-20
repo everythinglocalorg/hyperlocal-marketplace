@@ -40,6 +40,7 @@ export default function AccountSettingsModal({ profile, onClose, onSaved }: Prop
 
   // Password change
   const [showPassword, setShowPassword] = useState(false);
+  const [pwVisible, setPwVisible] = useState(false); // reveal both password fields
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pwError, setPwError] = useState<string | null>(null);
@@ -231,20 +232,42 @@ export default function AccountSettingsModal({ profile, onClose, onSaved }: Prop
 
             {showPassword && (
               <form onSubmit={handlePasswordChange} className="mt-4 space-y-3">
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="New password (min 8 chars)"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                />
+                <div className="relative">
+                  <input
+                    type={pwVisible ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="New password (min 8 chars)"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPwVisible((v) => !v)}
+                    aria-label={pwVisible ? "Hide password" : "Show password"}
+                    aria-pressed={pwVisible}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600"
+                  >
+                    <EyeIcon open={pwVisible} />
+                  </button>
+                </div>
+                <div className="relative">
+                  <input
+                    type={pwVisible ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPwVisible((v) => !v)}
+                    aria-label={pwVisible ? "Hide password" : "Show password"}
+                    aria-pressed={pwVisible}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-gray-600"
+                  >
+                    <EyeIcon open={pwVisible} />
+                  </button>
+                </div>
                 {pwError && <p className="text-sm text-red-600">{pwError}</p>}
                 {pwSuccess && <p className="text-sm text-green-600">✓ Password updated!</p>}
                 <button
@@ -270,5 +293,21 @@ export default function AccountSettingsModal({ profile, onClose, onSaved }: Prop
         </div>
       </div>
     </div>
+  );
+}
+
+// Eye / eye-off toggle icon for password visibility.
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c6.5 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+      <path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3.5 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
   );
 }
