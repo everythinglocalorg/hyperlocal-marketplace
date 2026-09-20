@@ -75,7 +75,7 @@ export default function PlaceProfileClient({ place, creator, currentUserId }: Pr
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800"
         >
           <ChevronLeft className="w-4 h-4" />
-          Explore {place.city}, {place.state}
+          Things To Do in {place.city}, {place.state}
         </Link>
       </div>
 

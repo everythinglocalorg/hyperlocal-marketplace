@@ -189,7 +189,7 @@ function ExperienceEditor({ listingId, onBack }: { listingId: string; onBack: ()
   }
 
   async function pause() {
-    if (!confirm("Pause this Experience? It comes off Explore until you publish it again.")) return;
+    if (!confirm("Pause this Experience? It comes off Things To Do Near Me until you publish it again.")) return;
     await supabase.from("listings").update({ is_active: false }).eq("id", listingId);
     await supabase.from("experience_meta").update({ is_published: false, updated_at: new Date().toISOString() }).eq("listing_id", listingId);
     setIsPublished(false);

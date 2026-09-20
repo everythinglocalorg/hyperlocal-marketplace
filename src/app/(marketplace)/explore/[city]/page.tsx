@@ -29,9 +29,9 @@ function cityLabel(citySlug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ city: string }> }): Promise<Metadata> {
   const { city } = await params;
   const { cityName, stateCode } = cityLabel(city);
-  const title = `Explore ${cityName}, ${stateCode} — Everything Local`;
+  const title = `Things To Do in ${cityName}, ${stateCode} — Everything Local`;
   const description = `Discover local parks, trails, campgrounds, attractions, and hidden gems around ${cityName}, ${stateCode}.`;
-  const og = `/api/og?title=${encodeURIComponent(`Explore ${cityName}`)}&subtitle=${encodeURIComponent("Local parks, trails & hidden gems")}`;
+  const og = `/api/og?title=${encodeURIComponent(`Things To Do in ${cityName}`)}&subtitle=${encodeURIComponent("Local parks, trails & hidden gems")}`;
   return {
     title,
     description,

@@ -12,7 +12,7 @@ const BOARDS: { id: BoardId; href: (city: string) => string; label: string }[] =
   { id: "community",   href: (c) => `/community/${c}`,   label: "🏘️ Local Pages" },
   { id: "jobs",        href: (c) => `/jobs/${c}`,        label: "💼 Local Jobs" },
   { id: "food-trucks", href: (c) => `/food-trucks/${c}`, label: "🚚 Food Trucks" },
-  { id: "explore",     href: (c) => `/explore/${c}`,     label: "🌿 Explore" },
+  { id: "explore",     href: (c) => `/explore/${c}`,     label: "🌿 Things To Do Near Me" },
 ];
 
 export default function BoardTabs({ citySlug, active }: { citySlug: string; active: BoardId }) {
