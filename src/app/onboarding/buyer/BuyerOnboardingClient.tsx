@@ -134,15 +134,26 @@ export default function BuyerOnboardingClient() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
 
-    // Default the account's location to their city so their home feed & search
-    // land local from day one. Also mirror it to the app-wide city key.
-    const profileUpdate: { phone: string | null; city?: string; state?: string } = { phone: phone || null };
-    if (location?.city) {
+    // Default the account's location to their chosen city so their home feed &
+    // search land local from day one. `default_city` (a slug) is the value every
+    // page reads as the active location — writing only `city`/`state` here (as we
+    // used to) left the app defaulting to whatever they last browsed. We set both.
+    const profileUpdate: {
+      phone: string | null; city?: string; state?: string;
+      default_city?: string; default_radius?: number;
+    } = { phone: phone || null };
+    let citySlug: string | null = null;
+    if (location?.city && location?.state) {
+      const stateAbbr = normalizeState(location.state);
+      citySlug = makeSlug(location.city, stateAbbr);
+      profileUpdate.city = location.city;
+      profileUpdate.state = stateAbbr;
+      profileUpdate.default_city = citySlug;
+      profileUpdate.default_radius = 25;
+      try { localStorage.setItem(LS_CITY_KEY, citySlug); } catch { /* noop */ }
+    } else if (location?.city) {
       profileUpdate.city = location.city;
       profileUpdate.state = location.state;
-      try {
-        if (location.state) localStorage.setItem(LS_CITY_KEY, makeSlug(location.city, normalizeState(location.state)));
-      } catch { /* noop */ }
     }
     await supabase.from("profiles").update(profileUpdate).eq("id", user.id);
 
@@ -154,17 +165,11 @@ export default function BuyerOnboardingClient() {
       });
     }
 
-    // Build search URL with detected location
+    // Build search URL with the chosen location. Use the city SLUG (not the raw
+    // name) so /search resolves it correctly and persists a valid default_city.
     let destination = "/search";
-    if (location) {
-      const params = new URLSearchParams({
-        lat: location.latitude.toString(),
-        lng: location.longitude.toString(),
-        city: location.city,
-        state: location.state,
-        radius: "25",
-      });
-      destination = `/search?${params.toString()}`;
+    if (citySlug) {
+      destination = `/search?city=${citySlug}&radius=25`;
     }
 
     // Send them off with the referral QR + "install the app" prompt. If we can't
@@ -340,6 +345,16 @@ export default function BuyerOnboardingClient() {
                 <p className="text-gray-500 text-sm mt-1">
                   We'll surface the best local businesses in your area for the things you care about.
                 </p>
+              </div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">Categories</p>
+                <button
+                  type="button"
+                  onClick={() => setInterests(interests.length === CATEGORIES.length ? [] : [...CATEGORIES])}
+                  className="text-xs font-semibold text-green-600 hover:underline"
+                >
+                  {interests.length === CATEGORIES.length ? "Clear all" : "Select all"}
+                </button>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-4">
                 {CATEGORIES.map((cat) => (
