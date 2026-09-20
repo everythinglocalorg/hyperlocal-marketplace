@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { track, trackSearch } from "@/lib/analytics";
@@ -236,15 +236,19 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
   const supabase = createClient();
 
   const [query, setQuery] = useState(searchParams.get("q") ?? "");
-  // Eagerly resolve city on first render: URL param > profile (initialCity) > localStorage > default
+  // Eagerly resolve city on first render: URL param > profile (initialCity) > localStorage > default.
+  // Profile MUST beat localStorage — otherwise a stale/IP-seeded el_city overrides
+  // the location the signed-in user actually saved, and the mount effect below then
+  // writes that wrong value back into default_city.
   const [citySlug, setCitySlug] = useState<string>(() => {
     const urlCity = searchParams.get("city");
     if (urlCity) return urlCity;
+    if (initialCity) return initialCity;
     if (typeof window !== "undefined") {
       const fromStorage = localStorage.getItem(LS_CITY_KEY);
       if (fromStorage) return fromStorage;
     }
-    return initialCity ?? DEFAULT_CITY_SLUG;
+    return DEFAULT_CITY_SLUG;
   });
   const [category, setCategory] = useState(searchParams.get("category") ?? "");
   // Radius: URL param > saved profile radius > localStorage (guests) > 50.
@@ -403,6 +407,45 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
       supabase.from("profiles").update({ default_radius: radius }).eq("id", userId).then(() => {});
     }
   }, [radius, userId, supabase]);
+
+  // ── Scroll restoration ──────────────────────────────────────────────
+  // Results load async, so the browser's native back/forward restoration runs
+  // before they paint and lands at the top ("losing your place"). We stash the
+  // scroll position per search URL and reapply it once results are in — retrying
+  // for a beat because the page grows taller as results (and their images) paint.
+  // Restored once per mount, so it never fights the user's own scrolling or
+  // filter tweaks (city/radius changes don't remount this component).
+  const scrollRestored = useRef(false);
+  const restoringScroll = useRef(false);
+  const scrollKey = () => "el_search_scroll:" + window.location.search;
+  useEffect(() => {
+    const save = () => {
+      if (restoringScroll.current) return; // don't clobber the target mid-restore
+      try { sessionStorage.setItem(scrollKey(), String(window.scrollY)); } catch { /* noop */ }
+    };
+    window.addEventListener("scroll", save, { passive: true });
+    return () => window.removeEventListener("scroll", save);
+  }, []);
+  useEffect(() => {
+    if (loading || scrollRestored.current) return;
+    scrollRestored.current = true;
+    let y = 0;
+    try { y = Number(sessionStorage.getItem(scrollKey()) || 0); } catch { /* noop */ }
+    if (!y) return;
+    restoringScroll.current = true;
+    const start = Date.now();
+    const tick = () => {
+      window.scrollTo(0, y);
+      // Keep nudging until we reach the target (page tall enough) or ~1.5s passes.
+      if (Math.abs(window.scrollY - y) > 2 && Date.now() - start < 1500) {
+        setTimeout(tick, 80);
+      } else {
+        restoringScroll.current = false;
+        try { sessionStorage.removeItem(scrollKey()); } catch { /* noop */ }
+      }
+    };
+    requestAnimationFrame(tick);
+  }, [loading]);
 
   const updateURL = useCallback((params: Record<string, string>) => {
     const current = new URLSearchParams(searchParams.toString());
