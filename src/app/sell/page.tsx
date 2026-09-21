@@ -215,9 +215,16 @@ export default function SellPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Photos</label>
-            <input type="file" accept="image/*" multiple onChange={onPickFiles} className="block w-full text-sm text-gray-600" />
-            {files.length > 0 && <p className="text-xs text-gray-400 mt-1">{files.length} photo{files.length > 1 ? "s" : ""} selected</p>}
+            <p className="block text-sm font-medium text-gray-700 mb-1">Photos</p>
+            <label className="flex flex-col items-center justify-center gap-1 w-full cursor-pointer rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-6 text-center hover:border-green-400 hover:bg-green-50 transition-colors">
+              <span className="text-2xl leading-none">📷</span>
+              <span className="text-sm font-semibold text-green-700">Choose photos</span>
+              <span className="text-xs text-gray-400">Tap to add up to 6 · JPG or PNG</span>
+              <input type="file" accept="image/*" multiple onChange={onPickFiles} className="hidden" />
+            </label>
+            {files.length > 0 && (
+              <p className="text-xs text-gray-500 mt-2 font-medium">✓ {files.length} photo{files.length > 1 ? "s" : ""} selected</p>
+            )}
           </div>
 
           <div>
