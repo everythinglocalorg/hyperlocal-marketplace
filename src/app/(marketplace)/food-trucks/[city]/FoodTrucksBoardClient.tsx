@@ -8,8 +8,11 @@ import { Truck, Search, MapPin, Star, Phone } from "lucide-react";
 import CitySelector from "@/components/CitySelector";
 import BoardTabs from "@/components/BoardTabs";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
-import { LS_CITY_KEY } from "@/lib/cities";
+import { LS_CITY_KEY, distanceMiles, normalizeState } from "@/lib/cities";
 import { normalizeFoodTruck, isLive, externalOrderUrl } from "@/lib/foodtruck";
+
+const RADIUS_OPTIONS = [10, 25, 50, 100, 200];
+const LS_TRUCK_RADIUS = "el_truck_radius";
 
 // Whether a truck is currently live (open / on the way).
 function truckLive(t: { food_truck?: unknown }): boolean {
@@ -41,16 +44,29 @@ interface Props {
   citySlug: string;
   cityName: string;
   stateCode: string;
+  center: { latitude: number; longitude: number } | null;
   trucks: FoodTruck[];
   currentUserId: string | null;
 }
 
 export default function FoodTrucksBoardClient({
-  citySlug, cityName, stateCode, trucks, currentUserId,
+  citySlug, cityName, stateCode, center, trucks, currentUserId,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
+
+  // Viewer-chosen search radius. Default 50mi; remembered per browser. Initialized
+  // to 50 for SSR, then synced from localStorage on mount to avoid a hydration
+  // mismatch.
+  const [radius, setRadius] = useState(50);
+  useEffect(() => {
+    try { const s = localStorage.getItem(LS_TRUCK_RADIUS); if (s) setRadius(Number(s)); } catch { /* noop */ }
+  }, []);
+  function changeRadius(v: number) {
+    setRadius(v);
+    try { localStorage.setItem(LS_TRUCK_RADIUS, String(v)); } catch { /* noop */ }
+  }
   const [showMap, setShowMap] = useState(false);
   const [payToast, setPayToast] = useState<"featured" | "cancelled" | null>(null);
 
@@ -65,13 +81,31 @@ export default function FoodTrucksBoardClient({
     router.push(`/food-trucks/${slug}`);
   }
 
+  // Distance from the town center (null when either side lacks coordinates).
+  const distOf = (t: FoodTruck) =>
+    center && t.latitude != null && t.longitude != null
+      ? distanceMiles(center.latitude, center.longitude, t.latitude, t.longitude)
+      : null;
+
+  // In range if within the chosen radius; trucks without coordinates only ever
+  // show on their own town's board (exact city/state match).
+  const inRadius = (t: FoodTruck) => {
+    const d = distOf(t);
+    if (d != null) return d <= radius;
+    return t.city?.toLowerCase() === cityName.toLowerCase() && normalizeState(t.state ?? "") === stateCode;
+  };
+
   const filtered = useMemo(() => {
-    if (!query) return trucks;
-    const q = query.toLowerCase();
-    return trucks.filter(
-      (t) => t.business_name.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q)
-    );
-  }, [trucks, query]);
+    let list = trucks.filter(inRadius);
+    if (query) {
+      const q = query.toLowerCase();
+      list = list.filter(
+        (t) => t.business_name.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trucks, query, radius, center, cityName, stateCode]);
 
   const byLiveFirst = (a: FoodTruck, b: FoodTruck) => Number(truckLive(b)) - Number(truckLive(a));
   const featured = filtered.filter((t) => t.food_truck_featured).sort(byLiveFirst);
@@ -149,6 +183,24 @@ export default function FoodTrucksBoardClient({
             />
           </div>
 
+          {/* Radius — widen or narrow the search in place */}
+          {center && (
+            <div className="mt-3 flex items-center gap-2 text-sm text-gray-600">
+              <MapPin className="w-4 h-4 text-gray-400 shrink-0" />
+              <span>Within</span>
+              <select
+                value={radius}
+                onChange={(e) => changeRadius(Number(e.target.value))}
+                className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+              >
+                {RADIUS_OPTIONS.map((mi) => (
+                  <option key={mi} value={mi}>{mi} miles</option>
+                ))}
+              </select>
+              <span className="truncate">of {cityName}</span>
+            </div>
+          )}
+
           {/* Feature CTA — only for someone who actually owns a truck here */}
           {mine.length > 0 && mine.some((t) => !t.food_truck_featured) && (
             <FeatureBar trucks={mine.filter((t) => !t.food_truck_featured)} />
@@ -167,8 +219,13 @@ export default function FoodTrucksBoardClient({
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <Truck className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p className="font-medium text-gray-500">No food trucks in {cityName} yet</p>
-            <p className="text-sm mt-1">
+            <p className="font-medium text-gray-500">No food trucks within {radius} miles of {cityName}</p>
+            {center && radius < RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1] && (
+              <button onClick={() => changeRadius(RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1])} className="text-sm mt-1 text-orange-600 underline">
+                Try widening to {RADIUS_OPTIONS[RADIUS_OPTIONS.length - 1]} miles
+              </button>
+            )}
+            <p className="text-sm mt-2">
               Run one?{" "}
               <Link href="/onboarding/vendor" className="text-orange-600 underline">
                 Add your truck free
