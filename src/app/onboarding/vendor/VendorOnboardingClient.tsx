@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { LAUNCH_CITIES, CATEGORIES } from "@/types";
 import { slugify } from "@/lib/utils";
 import { geocodeQuery, getBrowserLocation, reverseGeocode } from "@/lib/geocode";
+import { normalizeState } from "@/lib/cities";
 import Logo from "@/components/Logo";
 import ImageUpload from "@/components/ui/ImageUpload";
 import WelcomeReferralModal from "@/components/WelcomeReferralModal";
@@ -137,7 +138,7 @@ export default function VendorOnboardingClient() {
       phone: form.phone || null,
       website: form.website || null,
       city: geoLocation?.city ?? "",
-      state: geoLocation?.state ?? "",
+      state: geoLocation?.state ? normalizeState(geoLocation.state) : "",
       zip_code: form.zip_code,
       address: form.address || null,
       latitude: geoLocation?.latitude ?? null,

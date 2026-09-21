@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import AccountSettingsModal from "@/components/AccountSettingsModal";
 import RentalSetup from "@/components/rental/RentalSetup";
 import { formatLocalBucks, formatPrice, slugify } from "@/lib/utils";
+import { normalizeState } from "@/lib/cities";
 import PremiumGate from "@/components/vendor/PremiumGate";
 import BoostModal from "@/components/BoostModal";
 import CrmBoard from "@/components/vendor/CrmBoard";
@@ -4101,7 +4102,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       })(),
       address: address.trim() || null,
       city: city.trim(),
-      state: vendorState.trim(),
+      state: normalizeState(vendorState.trim()),
       pickup_info: pickupInfo.trim() || null,
       drop_info: dropInfo.trim() || null,
       service_locations: serviceLocations.map((s) => s.trim()).filter(Boolean),
