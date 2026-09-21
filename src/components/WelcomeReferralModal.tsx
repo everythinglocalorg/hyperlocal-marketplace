@@ -78,7 +78,14 @@ export default function WelcomeReferralModal({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md my-8">
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md my-8">
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute top-3 right-3 z-10 w-8 h-8 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/15 text-xl leading-none transition-colors"
+        >
+          ×
+        </button>
         {/* Header */}
         <div className="bg-green-600 rounded-t-2xl px-6 py-6 text-center">
           <p className="text-4xl mb-2">🪙</p>

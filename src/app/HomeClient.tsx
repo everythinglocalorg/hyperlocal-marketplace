@@ -381,11 +381,11 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           <div className="pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
 
           <div className="relative max-w-3xl mx-auto text-center">
-            {/* Hero chip — inclusive value prop that speaks to everyone */}
-            <Link href="/signup" className="inline-flex items-center gap-2 bg-white/80 backdrop-blur border border-green-200 rounded-full px-4 py-1.5 mb-4 shadow-sm hover:bg-green-50 hover:border-green-300 transition-colors">
+            {/* Hero tagline — plain text, not a button/link (per request) */}
+            <div className="inline-flex items-center gap-2 mb-4">
               <span className="text-sm leading-none">🏘️</span>
               <span className="text-xs font-semibold text-gray-600">Build, Shop, Connect, and Grow your Community — <span className="text-green-700">all in one place</span></span>
-            </Link>
+            </div>
 
             {/* Reserve two lines' height so the rotating word can't reflow the
                 page (headline flipping 1↔2 lines was bouncing everything below,

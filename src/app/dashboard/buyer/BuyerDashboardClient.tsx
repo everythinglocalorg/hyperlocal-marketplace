@@ -303,7 +303,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                   : (localProfile.full_name || profile.email || "?")[0]?.toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-gray-900 truncate">{localProfile.full_name ?? "Account"}</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{localProfile.full_name || "Account"}</p>
                 <p className="text-xs text-amber-600 font-medium">🪙 {profile.local_bucks.toLocaleString()} LB</p>
               </div>
               <span className="text-gray-400 text-xs">{showDropdown ? "▲" : "▼"}</span>
@@ -669,7 +669,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                   : (localProfile.full_name || profile.email || "?")[0]?.toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">{localProfile.full_name ?? "Your name"}</p>
+                <p className="font-semibold text-gray-900 truncate">{localProfile.full_name || "Your name"}</p>
                 <p className="text-xs text-gray-400">This photo shows at the top of your Local Profile.</p>
               </div>
               <button
