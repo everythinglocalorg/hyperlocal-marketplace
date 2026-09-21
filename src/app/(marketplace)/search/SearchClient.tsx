@@ -10,6 +10,7 @@ import { cityFromSlug, resolveCity, makeSlug, normalizeState, fetchCityCenter, d
 import VendorCard from "@/components/vendor/VendorCard";
 import SearchBar from "@/components/search/SearchBar";
 import SearchSuggestions from "@/components/SearchSuggestions";
+import QuickSellFab from "@/components/QuickSellFab";
 import CitySelector from "@/components/CitySelector";
 import Link from "next/link";
 import ListingDetailModal, { DetailListing } from "@/components/ListingDetailModal";
@@ -1160,6 +1161,8 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
           </>
         )}
       </div>
+      {/* Persistent quick-add: list an item for sale */}
+      <QuickSellFab />
     </div>
   );
 }

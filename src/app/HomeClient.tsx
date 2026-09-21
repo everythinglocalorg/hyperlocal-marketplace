@@ -17,6 +17,7 @@ import TypedRotator from "@/components/TypedRotator";
 import WelcomeGateModal from "@/components/WelcomeGateModal";
 import SearchSuggestions from "@/components/SearchSuggestions";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
+import QuickSellFab from "@/components/QuickSellFab";
 import ProductTour, { type TourStep } from "@/components/ProductTour";
 
 // First-run guided tour, shown once right after onboarding (flag set on finish).
@@ -838,6 +839,9 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           List your business
         </Link>
       </div>
+
+      {/* Persistent quick-add: list an item for sale (raised above the mobile bar) */}
+      <QuickSellFab positionClass="bottom-24 lg:bottom-6 right-4 sm:right-6" />
     </div>
   );
 }
