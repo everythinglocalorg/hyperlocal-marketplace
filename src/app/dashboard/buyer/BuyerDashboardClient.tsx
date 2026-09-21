@@ -300,7 +300,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
               <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
                 {localProfile.avatar_url
                   ? <img src={localProfile.avatar_url} alt="" className="w-full h-full object-cover" />
-                  : (localProfile.full_name ?? profile.email)[0].toUpperCase()}
+                  : (localProfile.full_name || profile.email || "?")[0]?.toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-gray-900 truncate">{localProfile.full_name ?? "Account"}</p>
@@ -666,7 +666,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center text-2xl font-bold text-green-700 overflow-hidden shrink-0">
                 {localProfile.avatar_url
                   ? <img src={localProfile.avatar_url} alt="" className="w-full h-full object-cover" />
-                  : (localProfile.full_name ?? profile.email)[0]?.toUpperCase()}
+                  : (localProfile.full_name || profile.email || "?")[0]?.toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 truncate">{localProfile.full_name ?? "Your name"}</p>
@@ -1072,7 +1072,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                 <h2 className="font-semibold text-gray-900 mb-3">You were referred by</h2>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0">
-                    {(referredBy.full_name ?? referredBy.email)[0].toUpperCase()}
+                    {(referredBy.full_name || referredBy.email || "?")[0]?.toUpperCase()}
                   </div>
                   <div>
                     <p className="font-medium text-gray-900 text-sm">{referredBy.full_name ?? "—"}</p>
@@ -1101,7 +1101,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
                     return (
                       <div key={r.id} className="flex items-center gap-4 px-6 py-4">
                         <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 shrink-0 text-sm">
-                          {(person?.full_name ?? person?.email ?? "?")[0].toUpperCase()}
+                          {(person?.full_name || person?.email || "?")[0]?.toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900">{person?.full_name ?? "—"}</p>

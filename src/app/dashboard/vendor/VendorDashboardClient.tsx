@@ -3187,7 +3187,7 @@ function CRMTab({ customers }: { customers: Customer[] }) {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-sm font-bold text-green-700 shrink-0">
-                        {(c.full_name ?? c.email)[0].toUpperCase()}
+                        {(c.full_name || c.email || "?")[0]?.toUpperCase()}
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">{c.full_name ?? "—"}</p>
@@ -3455,7 +3455,7 @@ function ReferralsTab({ userId, referralCode, businessName, vendorSlug }: {
           <h2 className="font-semibold text-gray-900 mb-3">You were referred by</h2>
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0">
-              {(referredBy.full_name ?? referredBy.email)[0].toUpperCase()}
+              {(referredBy.full_name || referredBy.email || "?")[0]?.toUpperCase()}
             </div>
             <div>
               <p className="font-medium text-gray-900 text-sm">{referredBy.full_name ?? "—"}</p>
@@ -3488,7 +3488,7 @@ function ReferralsTab({ userId, referralCode, businessName, vendorSlug }: {
               return (
                 <div key={r.id} className="flex items-center gap-4 px-6 py-4">
                   <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 shrink-0 text-sm">
-                    {(person?.full_name ?? person?.email ?? "?")[0].toUpperCase()}
+                    {(person?.full_name || person?.email || "?")[0]?.toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{person?.full_name ?? "—"}</p>

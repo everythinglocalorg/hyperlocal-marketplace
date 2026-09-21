@@ -229,7 +229,7 @@ export default function JobsBoardClient({
   function avatar(name: string | null, url: string | null, size = "w-8 h-8") {
     return (
       <div className={`${size} rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden text-sm`}>
-        {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : (name ?? "?")[0].toUpperCase()}
+        {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : (name || "?")[0]?.toUpperCase()}
       </div>
     );
   }

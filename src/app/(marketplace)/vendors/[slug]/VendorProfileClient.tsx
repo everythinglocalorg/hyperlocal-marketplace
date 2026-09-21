@@ -1242,7 +1242,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center font-bold text-green-700 shrink-0 overflow-hidden">
-                        {r.reviewer?.avatar_url ? <img src={r.reviewer.avatar_url} alt="" className="w-full h-full object-cover" /> : (r.reviewer?.full_name ?? "?")[0].toUpperCase()}
+                        {r.reviewer?.avatar_url ? <img src={r.reviewer.avatar_url} alt="" className="w-full h-full object-cover" /> : (r.reviewer?.full_name || "?")[0]?.toUpperCase()}
                       </div>
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{r.reviewer?.full_name ?? "Anonymous"}</p>
