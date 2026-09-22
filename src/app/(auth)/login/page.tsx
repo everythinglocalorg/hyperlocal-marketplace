@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -25,8 +25,20 @@ export default function LoginPage() {
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [captchaToken, setCaptchaToken] = useState("");
+  // When the user submits before Turnstile has issued its token, we hold the
+  // intent here and fire the login automatically the moment the token lands —
+  // so it's one click (or Enter), never a "complete verification" bounce.
+  const [pendingLogin, setPendingLogin] = useState(false);
 
   const supabase = createClient();
+
+  useEffect(() => {
+    if (pendingLogin && captchaToken) {
+      setPendingLogin(false);
+      submitLogin();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingLogin, captchaToken]);
 
   // Turnstile tokens are single-use — after any auth attempt, clear the token
   // and ask the widget for a fresh one so a retry (or resend) still verifies.
@@ -36,12 +48,20 @@ export default function LoginPage() {
     try { window.turnstile?.reset(); } catch { /* noop */ }
   }
 
-  async function handleLogin(e: React.FormEvent) {
+  function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    // Token not issued yet (Turnstile still loading) — hold the submit and let
+    // the effect fire it once the token lands. No red alert, no double-click.
     if (CAPTCHA_ON && !captchaToken) {
-      setError("Please complete the verification below.");
+      setError(null);
+      setLoading(true);
+      setPendingLogin(true);
       return;
     }
+    submitLogin();
+  }
+
+  async function submitLogin() {
     setLoading(true);
     setError(null);
     setNeedsConfirmation(false);
@@ -364,7 +384,7 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          disabled={loading || (CAPTCHA_ON && !captchaToken)}
+          disabled={loading}
           className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
         >
           {loading ? "Logging in..." : "Log in"}
