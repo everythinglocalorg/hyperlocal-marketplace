@@ -44,8 +44,16 @@ export async function POST(request: Request) {
     let accountId = vendor.stripe_connect_account_id as string | null;
 
     if (!accountId) {
+      // Our platform is configured as a losses collector, so Stripe rejects the
+      // legacy `type: "express"` field. Use `controller` properties instead:
+      // Express dashboard, the connected account pays Stripe fees, and Stripe
+      // collects losses. (Equivalent to the old Express account, minus `type`.)
       const account = await stripe.accounts.create({
-        type: "express",
+        controller: {
+          losses: { payments: "stripe" },
+          fees: { payer: "account" },
+          stripe_dashboard: { type: "express" },
+        },
         email: user.email,
         business_profile: { name: vendor.business_name },
         capabilities: {
