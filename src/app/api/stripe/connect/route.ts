@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 
-export async function POST() {
+export async function POST(request: Request) {
   // Fail loudly if Stripe isn't configured rather than throwing a vague 500
   if (!process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json(
@@ -15,11 +15,22 @@ export async function POST() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Please sign in to connect Stripe." }, { status: 401 });
 
-  const { data: vendor, error: vendorError } = await supabase
+  // A user can own SEVERAL businesses, so never use .single() (it errors on
+  // multiple rows). Connect the specific vendor the dashboard has selected
+  // (?vendor=), scoped to this user so they can only touch their own; fall back
+  // to their first business when none is specified.
+  const body = await request.json().catch(() => ({} as { vendor_id?: string }));
+  const vendorId = typeof body?.vendor_id === "string" ? body.vendor_id : null;
+
+  let vendorQuery = supabase
     .from("vendors")
     .select("id, business_name, stripe_connect_account_id")
-    .eq("user_id", user.id)
-    .single();
+    .eq("user_id", user.id);
+  if (vendorId) vendorQuery = vendorQuery.eq("id", vendorId);
+  const { data: vendor, error: vendorError } = await vendorQuery
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
   if (vendorError || !vendor) {
     return NextResponse.json(

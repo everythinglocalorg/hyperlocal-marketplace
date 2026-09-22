@@ -471,7 +471,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   async function connectStripe() {
     setConnectingStripe(true);
     try {
-      const res = await fetch("/api/stripe/connect", { method: "POST" });
+      const res = await fetch("/api/stripe/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendor_id: vendor.id }),
+      });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;
@@ -486,7 +490,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
   async function openConnectDashboard() {
     setOpeningConnectDashboard(true);
-    const res = await fetch("/api/stripe/connect/dashboard", { method: "POST" });
+    const res = await fetch("/api/stripe/connect/dashboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vendor_id: vendor.id }),
+    });
     const data = await res.json();
     if (data.url) window.open(data.url, "_blank");
     setOpeningConnectDashboard(false);
