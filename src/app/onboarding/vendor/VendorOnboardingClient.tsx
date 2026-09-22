@@ -156,9 +156,9 @@ export default function VendorOnboardingClient() {
       features: { messages: true, analytics: true, bookings: true, crm: true, estimates: true },
     };
 
-    const { error: vendorError } = upgradeTarget
-      ? await supabase.from("vendors").update(vendorFields).eq("id", upgradeTarget.id)
-      : await supabase.from("vendors").insert({ user_id: user.id, slug, ...vendorFields });
+    const { data: savedVendor, error: vendorError } = upgradeTarget
+      ? await supabase.from("vendors").update(vendorFields).eq("id", upgradeTarget.id).select("id").single()
+      : await supabase.from("vendors").insert({ user_id: user.id, slug, ...vendorFields }).select("id").single();
 
     if (vendorError) {
       setError(vendorError.message);
@@ -167,9 +167,11 @@ export default function VendorOnboardingClient() {
     }
 
     // Refine map coordinates from the street address (fire-and-forget; the
-    // insert seeds city-center coords, this pins the real address).
-    if (form.address && form.address.trim().length > 3) {
-      fetch("/api/vendors/geocode", { method: "POST" }).catch(() => {});
+    // insert seeds city-center coords, this pins the real address). Pass the
+    // saved vendor's id so the geocode targets THIS business (owners can have many).
+    const savedVendorId = savedVendor?.id ?? upgradeTarget?.id ?? null;
+    if (form.address && form.address.trim().length > 3 && savedVendorId) {
+      fetch("/api/vendors/geocode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vendor_id: savedVendorId }) }).catch(() => {});
     }
 
     // Update profile role to vendor

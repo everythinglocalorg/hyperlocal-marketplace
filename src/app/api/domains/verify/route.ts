@@ -16,11 +16,14 @@ export async function POST() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // A user can own several businesses — never .single() (errors on multiple).
   const { data: vendor } = await supabase
     .from("vendors")
     .select("id, custom_domain, domain_verified")
     .eq("user_id", user.id)
-    .single();
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
 
   if (!vendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
   if (!vendor.custom_domain)

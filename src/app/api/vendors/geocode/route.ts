@@ -22,17 +22,20 @@ async function geocode(v: { address: string; city?: string | null; state?: strin
   return j?.[0] ? { lat: parseFloat(j[0].lat), lng: parseFloat(j[0].lon) } : null;
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  // A user can own several businesses — geocode the one the caller specifies
+  // (scoped to this user), else the first. Never .single() (errors on multiple).
+  const body = await request.json().catch(() => ({} as { vendor_id?: string }));
+  const vendorId = typeof body?.vendor_id === "string" ? body.vendor_id : null;
+
   const admin = createAdminClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
-  const { data: v } = await admin
-    .from("vendors")
-    .select("id, address, city, state, zip_code")
-    .eq("user_id", user.id)
-    .single();
+  let vq = admin.from("vendors").select("id, address, city, state, zip_code").eq("user_id", user.id);
+  if (vendorId) vq = vq.eq("id", vendorId);
+  const { data: v } = await vq.order("created_at", { ascending: true }).limit(1).maybeSingle();
 
   if (!v || !v.address || v.address.trim().length < 4) return NextResponse.json({ skipped: true });
 

@@ -14,16 +14,16 @@ export async function POST(req: Request) {
     }
 
     // Body is optional (older callers POST with none) — default LB to 0.
-    const { apply_local_bucks } = await req.json().catch(() => ({}));
+    const { apply_local_bucks, vendor_id } = await req.json().catch(() => ({}));
 
-    const { data: vendor, error: vendorError } = await supabase
-      .from("vendors")
-      .select("id, business_name, stripe_customer_id")
-      .eq("user_id", user.id)
-      .single();
+    // A user can own several businesses — never .single() (errors on multiple).
+    // Upgrade the selected vendor_id (scoped to this user); else the first.
+    const vendorId = typeof vendor_id === "string" ? vendor_id : null;
+    let vq = supabase.from("vendors").select("id, business_name, stripe_customer_id").eq("user_id", user.id);
+    if (vendorId) vq = vq.eq("id", vendorId);
+    const { data: vendor } = await vq.order("created_at", { ascending: true }).limit(1).maybeSingle();
 
-    if (vendorError || !vendor) {
-      console.error("Vendor lookup failed:", vendorError);
+    if (!vendor) {
       return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
     }
 

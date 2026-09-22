@@ -462,7 +462,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
   async function manageSubscription() {
     setManagingSubscription(true);
-    const res = await fetch("/api/stripe/portal", { method: "POST" });
+    const res = await fetch("/api/stripe/portal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ vendor_id: vendor.id }),
+    });
     const data = await res.json();
     if (data.url) window.location.href = data.url;
     else setManagingSubscription(false);
@@ -727,6 +731,18 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             )}
             {isPlus && connectEnabled && (
               <p className="text-xs text-center text-green-600 mt-1.5">✓ Payments enabled</p>
+            )}
+            {/* Platform (admin) one-time setup: Stripe Connect must be enabled on
+                the platform account before any vendor can connect. */}
+            {isAdmin && (
+              <a
+                href="https://dashboard.stripe.com/connect"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 w-full flex items-center justify-center gap-2 border border-indigo-200 text-indigo-700 rounded-xl py-2 text-xs font-medium hover:bg-indigo-50 transition-colors"
+              >
+                ⚙️ Enable Stripe Connect (platform setup) ↗
+              </a>
             )}
           </div>
         </div>
@@ -4125,7 +4141,7 @@ function StoreSettingsTab({ vendor, supabase }: { vendor: any; supabase: any }) 
       setSaved(true); setTimeout(() => setSaved(false), 3000);
       // Re-geocode map coordinates when the address changed (fire-and-forget).
       if (address.trim() && address.trim() !== (vendor.address ?? "")) {
-        fetch("/api/vendors/geocode", { method: "POST" }).catch(() => {});
+        fetch("/api/vendors/geocode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ vendor_id: vendor.id }) }).catch(() => {});
       }
       // Redirect to the new URL if the slug changed
       if (newSlug !== vendor.slug) {

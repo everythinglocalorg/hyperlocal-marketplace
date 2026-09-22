@@ -24,11 +24,14 @@ async function getVendorContext() {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" as const, status: 401 };
 
+  // A user can own several businesses — never .single() (errors on multiple).
   const { data: vendor } = await supabase
     .from("vendors")
     .select("id, slug, tier, custom_domain")
     .eq("user_id", user.id)
-    .single();
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
   if (!vendor) return { error: "Vendor not found" as const, status: 404 };
 
   const { data: profile } = await supabase
