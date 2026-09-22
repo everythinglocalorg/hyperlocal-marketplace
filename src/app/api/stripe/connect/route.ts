@@ -44,14 +44,14 @@ export async function POST(request: Request) {
     let accountId = vendor.stripe_connect_account_id as string | null;
 
     if (!accountId) {
-      // Our platform is configured as a losses collector, so Stripe rejects the
-      // legacy `type: "express"` field. Use `controller` properties instead:
-      // Express dashboard, the connected account pays Stripe fees, and Stripe
-      // collects losses. (Equivalent to the old Express account, minus `type`.)
+      // Stripe rejects the legacy `type: "express"` field for this platform, so
+      // create the Express-equivalent via `controller` properties. Express
+      // dashboards require the PLATFORM to collect fees and be liable for losses
+      // (negative balances, refunds, chargebacks) — the standard marketplace model.
       const account = await stripe.accounts.create({
         controller: {
-          losses: { payments: "stripe" },
-          fees: { payer: "account" },
+          fees: { payer: "application" },
+          losses: { payments: "application" },
           stripe_dashboard: { type: "express" },
         },
         email: user.email,
