@@ -17,7 +17,7 @@ function normalizeDomain(input: unknown): string | null {
   return d;
 }
 
-async function getVendorContext() {
+async function getVendorContext(vendorId?: string | null) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -25,10 +25,13 @@ async function getVendorContext() {
   if (!user) return { error: "Unauthorized" as const, status: 401 };
 
   // A user can own several businesses — never .single() (errors on multiple).
-  const { data: vendor } = await supabase
+  // Act on the specific vendor the caller passes (scoped to this user); else first.
+  let vq = supabase
     .from("vendors")
     .select("id, slug, tier, custom_domain")
-    .eq("user_id", user.id)
+    .eq("user_id", user.id);
+  if (vendorId) vq = vq.eq("id", vendorId);
+  const { data: vendor } = await vq
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -46,7 +49,8 @@ async function getVendorContext() {
 
 // Connect (or replace) a custom domain for the signed-in vendor.
 export async function POST(request: Request) {
-  const ctx = await getVendorContext();
+  const body = await request.json().catch(() => ({}));
+  const ctx = await getVendorContext(typeof body.vendor_id === "string" ? body.vendor_id : null);
   if ("error" in ctx)
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   const { supabase, vendor } = ctx;
@@ -61,7 +65,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const body = await request.json().catch(() => ({}));
   const domain = normalizeDomain(body.domain);
   if (!domain) {
     return NextResponse.json(
@@ -121,8 +124,9 @@ export async function POST(request: Request) {
 }
 
 // Disconnect the vendor's custom domain.
-export async function DELETE() {
-  const ctx = await getVendorContext();
+export async function DELETE(request: Request) {
+  const body = await request.json().catch(() => ({} as { vendor_id?: string }));
+  const ctx = await getVendorContext(typeof body?.vendor_id === "string" ? body.vendor_id : null);
   if ("error" in ctx)
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   const { supabase, vendor } = ctx;

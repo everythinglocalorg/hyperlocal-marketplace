@@ -195,6 +195,9 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
 export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab, vendorOptions }: Props) {
   // Local Pro+ exclusive tier (admins always count as top tier).
   const isPlus = isAdmin || isPlusTier(vendor.tier);
+  // Upgrade links carry the selected business so checkout upgrades THIS vendor
+  // (owners can have several), not just their first.
+  const upgradeHref = `/dashboard/vendor/upgrade?vendor=${vendor.id}`;
   const isFoodTruckVendor = isFoodTruck(vendor.category);
   // Individual/private sellers (is_business=false) get a slimmed dashboard —
   // business-only tabs are hidden until they upgrade to a business storefront.
@@ -690,7 +693,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             </button>
           ) : (
             <Link
-              href="/dashboard/vendor/upgrade"
+              href={upgradeHref}
               className="mt-2 flex items-center justify-center gap-2 bg-green-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-green-700 transition-colors"
             >
               ⭐ Upgrade to Local Pro
@@ -701,7 +704,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           <div className="mt-3 pt-3 border-t border-gray-100">
             {!isPlus ? (
               <Link
-                href="/dashboard/vendor/upgrade"
+                href={upgradeHref}
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-indigo-700 transition-colors"
               >
                 💳 Get paid with Stripe
@@ -890,7 +893,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                     </button>
                   ) : (
                     <Link
-                      href="/dashboard/vendor/upgrade"
+                      href={upgradeHref}
                       className="shrink-0 bg-indigo-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-indigo-700 transition-colors"
                     >
                       Upgrade to get paid →
@@ -992,7 +995,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                         Get analytics, CRM tools, booking management, and smart buttons for <LocalProPriceInline inverted />.
                       </p>
                       <Link
-                        href="/dashboard/vendor/upgrade"
+                        href={upgradeHref}
                         className="inline-block bg-white text-green-700 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-50 transition-colors"
                       >
                         Upgrade Now →
@@ -1112,7 +1115,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                     <p className="text-3xl mb-2">📋</p>
                     <p className="font-bold text-gray-900">Estimate Creator is a Local Pro+ feature</p>
                     <p className="text-sm text-gray-500 mt-1 mb-4">Build and send professional, itemized estimates to your customers.</p>
-                    <Link href="/dashboard/vendor/upgrade" className="inline-block bg-green-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-green-700 transition-colors">Upgrade to Local Pro+ →</Link>
+                    <Link href={upgradeHref} className="inline-block bg-green-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-green-700 transition-colors">Upgrade to Local Pro+ →</Link>
                   </div>
                 ) : crmView === "tools" ? (
                   <EstimatorTools vendorId={vendor.id} userId={vendor.user_id} />
@@ -1154,6 +1157,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 isPremium={true}
                 initialDomain={vendor.custom_domain ?? null}
                 initialVerified={vendor.domain_verified ?? false}
+                vendorId={vendor.id}
               />
             </div>
           )}

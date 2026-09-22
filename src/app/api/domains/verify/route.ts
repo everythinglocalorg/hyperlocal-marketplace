@@ -9,18 +9,20 @@ import {
 
 // Re-check whether the vendor's DNS is in place yet, and flip domain_verified
 // once Vercel confirms it. The dashboard calls this from the "Verify" button.
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // A user can own several businesses — never .single() (errors on multiple).
-  const { data: vendor } = await supabase
-    .from("vendors")
-    .select("id, custom_domain, domain_verified")
-    .eq("user_id", user.id)
+  // A user can own several businesses — verify the one the caller passes (scoped
+  // to this user); else the first. Never .single() (errors on multiple).
+  const body = await request.json().catch(() => ({} as { vendor_id?: string }));
+  const vendorId = typeof body?.vendor_id === "string" ? body.vendor_id : null;
+  let vq = supabase.from("vendors").select("id, custom_domain, domain_verified").eq("user_id", user.id);
+  if (vendorId) vq = vq.eq("id", vendorId);
+  const { data: vendor } = await vq
     .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();

@@ -16,6 +16,9 @@ const FEATURES = PRO_FEATURES;
 function UpgradePageInner() {
   const searchParams = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "1";
+  // Which business is being upgraded (owners can have several). Passed through
+  // from the dashboard's ?vendor=; checkout falls back to the first if absent.
+  const vendorId = searchParams.get("vendor");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState(0);
@@ -41,7 +44,7 @@ function UpgradePageInner() {
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ apply_local_bucks: charge.appliedLB }),
+      body: JSON.stringify({ apply_local_bucks: charge.appliedLB, ...(vendorId ? { vendor_id: vendorId } : {}) }),
     });
     const data = await res.json();
 

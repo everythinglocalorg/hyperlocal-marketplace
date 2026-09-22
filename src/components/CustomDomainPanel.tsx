@@ -9,6 +9,7 @@ interface Props {
   isPremium: boolean;
   initialDomain: string | null;
   initialVerified: boolean;
+  vendorId: string;
 }
 
 function dnsFor(domain: string): Dns {
@@ -22,6 +23,7 @@ export default function CustomDomainPanel({
   isPremium,
   initialDomain,
   initialVerified,
+  vendorId,
 }: Props) {
   const [domain, setDomain] = useState<string | null>(initialDomain);
   const [verified, setVerified] = useState(initialVerified);
@@ -38,7 +40,7 @@ export default function CustomDomainPanel({
       const res = await fetch("/api/domains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: input }),
+        body: JSON.stringify({ domain: input, vendor_id: vendorId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Could not connect domain");
@@ -57,7 +59,11 @@ export default function CustomDomainPanel({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/domains/verify", { method: "POST" });
+      const res = await fetch("/api/domains/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendor_id: vendorId }),
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Verification failed");
       setVerified(data.verified);
@@ -77,7 +83,11 @@ export default function CustomDomainPanel({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/domains", { method: "DELETE" });
+      const res = await fetch("/api/domains", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendor_id: vendorId }),
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error ?? "Could not disconnect");
