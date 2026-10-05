@@ -19,8 +19,17 @@ export default async function VendorDashboardPage({ searchParams }: { searchPara
     .eq("user_id", user.id)
     .order("created_at", { ascending: true });
 
+  // When opening the Orders / Food Truck tabs without an explicit ?vendor=,
+  // prefer the user's food-truck vendor so order notifications never land on a
+  // non-truck vendor (which would show a blank Orders board).
+  const wantsTruckTab = (initialNew ? "listings" : initialTab) === "orders" || (initialNew ? "listings" : initialTab) === "foodtruck";
+  const truckVendor = wantsTruckTab
+    ? vendors?.find((v) => v.category === "Food Trucks" || (v.food_truck && typeof v.food_truck === "object" && Object.keys(v.food_truck).length > 0))
+    : undefined;
+
   const vendor =
     (vendorParam ? vendors?.find((v) => v.id === vendorParam) : undefined) ??
+    truckVendor ??
     vendors?.[0] ??
     null;
 
