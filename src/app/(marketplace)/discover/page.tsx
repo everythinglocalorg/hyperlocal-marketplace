@@ -1,20 +1,17 @@
-import type { Metadata } from "next";
-import { createClient } from "@/lib/supabase/server";
-import DiscoverClient from "./DiscoverClient";
+"use client";
 
-export const metadata: Metadata = { title: "Discover — Everything Local" };
-export const revalidate = 300;
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
-// The Discover hub: jump to Local Pages, Jobs, Events, Places to Explore, the
-// blog, and learn how Everything Local works.
-export default async function DiscoverPage() {
-  const supabase = await createClient();
-  const { data: posts } = await supabase
-    .from("blog_posts")
-    .select("slug, title, excerpt, cover_image_url, category, published_at")
-    .eq("is_published", true)
-    .order("published_at", { ascending: false })
-    .limit(3);
-
-  return <DiscoverClient posts={posts ?? []} />;
+// Discover merged into Local Pages — send visitors to their city's board (which
+// now carries the community chat, blogs, and a recent event/place).
+export default function DiscoverRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    let city = DEFAULT_CITY_SLUG;
+    try { const s = localStorage.getItem(LS_CITY_KEY); if (s) city = s; } catch { /* noop */ }
+    router.replace(`/community/${city}`);
+  }, [router]);
+  return <div className="min-h-screen bg-gray-50" />;
 }

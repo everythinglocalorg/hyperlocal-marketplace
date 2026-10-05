@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
               type: "food_order",
               title: "💳 New paid order",
               body: `$${Number(fo.total ?? 0).toFixed(2)}${fo.customer_name ? ` · ${fo.customer_name}` : ""} — paid`,
-              link: "/dashboard/vendor?tab=orders",
+              link: `/dashboard/vendor?vendor=${fo.vendor_id}&tab=orders`,
               is_read: false,
             });
           }

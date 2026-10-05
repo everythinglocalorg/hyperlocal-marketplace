@@ -88,6 +88,18 @@ export default async function CommunityBoardPage({ params }: { params: Promise<{
       .eq("is_active", true)
       .order("business_name");
 
+    // Discover extras merged into Local Pages: latest blog posts + a recent
+    // event and a place to explore in this city.
+    const [{ data: blogPosts }, { data: eventRows }, { data: placeRows }] = await Promise.all([
+      supabase.from("blog_posts").select("slug, title, excerpt, cover_image_url, category").eq("is_published", true).order("published_at", { ascending: false }).limit(3),
+      supabase.from("listings").select("id, title, images, vendor:vendors(slug, business_name, city)").eq("type", "event").eq("is_active", true).order("created_at", { ascending: false }).limit(20),
+      supabase.from("places").select("slug, name, type, images").eq("city_slug", citySlug).order("created_at", { ascending: false }).limit(1),
+    ]);
+    const evMatch = (eventRows ?? []).map((e: any) => ({ ...e, vendor: Array.isArray(e.vendor) ? e.vendor[0] : e.vendor }))
+      .find((e: any) => e.vendor?.city?.toLowerCase() === cityName.toLowerCase()) ?? null;
+    const recentEvent = evMatch ? { id: evMatch.id, title: evMatch.title, images: evMatch.images, vendor: evMatch.vendor ? { slug: evMatch.vendor.slug, business_name: evMatch.vendor.business_name } : null } : null;
+    const recentPlace = (placeRows ?? [])[0] ?? null;
+
     return (
       <CommunityBoardClient
         citySlug={citySlug}
@@ -99,6 +111,9 @@ export default async function CommunityBoardPage({ params }: { params: Promise<{
         currentVendor={currentVendor ?? null}
         myHighfives={myHighfives}
         flaggedIds={flaggedIds}
+        blogPosts={blogPosts ?? []}
+        recentEvent={recentEvent}
+        recentPlace={recentPlace as any}
       />
     );
   } catch (err) {

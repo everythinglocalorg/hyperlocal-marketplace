@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Map, Plus, Mail, Smile } from "lucide-react";
 import SellMenu from "./SellMenu";
+import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
 // Native-style bottom tab bar — mobile only. Home · Discover (map) · Sell (+) ·
 // Inbox · My Space (your dashboard). Hidden on full-chrome flows (auth,
@@ -15,10 +16,13 @@ const HIDDEN_PREFIXES = ["/login", "/signup", "/reset-password", "/auth", "/call
 export default function MobileNav() {
   const pathname = usePathname() || "/";
   const [sellOpen, setSellOpen] = useState(false);
+  const [city, setCity] = useState(DEFAULT_CITY_SLUG);
+  useEffect(() => { try { const s = localStorage.getItem(LS_CITY_KEY); if (s) setCity(s); } catch { /* noop */ } }, []);
   if (HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return null;
 
   const isHome = pathname === "/";
-  const isDiscover = pathname.startsWith("/discover");
+  // Discover now = the merged Local Pages hub (community board + blogs + events).
+  const isDiscover = pathname.startsWith("/discover") || pathname.startsWith("/community");
   const isInbox = pathname.startsWith("/messages");
   const isSpace = pathname.startsWith("/dashboard");
 
@@ -33,7 +37,7 @@ export default function MobileNav() {
           <Home className="w-6 h-6" strokeWidth={2} />
           <span className="text-[10px] font-medium">Home</span>
         </Link>
-        <Link href="/discover" className={`${base} ${isDiscover ? on : off}`}>
+        <Link href={`/community/${city}`} className={`${base} ${isDiscover ? on : off}`}>
           <Map className="w-6 h-6" strokeWidth={2} />
           <span className="text-[10px] font-medium">Discover</span>
         </Link>

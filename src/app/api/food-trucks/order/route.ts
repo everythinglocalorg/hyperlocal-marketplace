@@ -98,7 +98,9 @@ export async function POST(req: Request) {
       type: "food_order",
       title: "🧾 New pickup order",
       body: `${clean.length} item${clean.length === 1 ? "" : "s"} · $${total.toFixed(2)}${name ? ` · ${name}` : ""}`,
-      link: "/dashboard/vendor?tab=orders",
+      // Target the exact vendor so multi-business owners land on the right
+      // Orders board instead of their first (non-truck) vendor.
+      link: `/dashboard/vendor?vendor=${vendorId}&tab=orders`,
       is_read: false,
     });
   }

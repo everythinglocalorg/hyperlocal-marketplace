@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeFoodTruck, orderPingMessage } from "@/lib/foodtruck";
+import { sendPushToUser } from "@/lib/push";
 
 // The truck advances an order ticket (New → Preparing → Ready → Completed).
 // Verifies ownership and pings the customer when the order is "ready" (order up!).
@@ -31,20 +32,31 @@ export async function POST(req: Request) {
   const { error } = await db.from("food_orders").update(patch).eq("id", orderId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Ping the customer when the truck starts the order and when it's ready — with
-  // the truck's own custom message when set.
-  if ((status === "preparing" || status === "ready") && order.customer_id) {
+  // Keep the customer posted through the whole order — started, ready, and
+  // complete (with a nudge to leave a review). Uses the truck's own custom
+  // messages when set. Delivered to the inbox (Notifications tab) + web push.
+  if (order.customer_id && (status === "preparing" || status === "ready" || status === "completed")) {
     const ft = normalizeFoodTruck(vendor.food_truck);
-    const kind = status === "ready" ? "ready" : "started";
+    let type: string, title: string, body: string;
+    let link = `/vendors/${vendor.slug}`;
+    if (status === "preparing") {
+      type = "food_order_started";
+      title = `👨‍🍳 ${vendor.business_name} is on it`;
+      body = orderPingMessage(ft, "started", ft.spot.name);
+    } else if (status === "ready") {
+      type = "food_order_ready";
+      title = `🔔 Order up at ${vendor.business_name}!`;
+      body = orderPingMessage(ft, "ready", ft.spot.name);
+    } else {
+      type = "food_order_complete";
+      title = `✅ Thanks for ordering from ${vendor.business_name}!`;
+      body = `Your order is complete. Tap to leave a quick review — it really helps ${vendor.business_name}.`;
+      link = `/vendors/${vendor.slug}?review=1`;
+    }
     await db.from("notifications").insert({
-      user_id: order.customer_id,
-      actor_id: user.id,
-      type: status === "ready" ? "food_order_ready" : "food_order_started",
-      title: status === "ready" ? `🔔 Order up at ${vendor.business_name}!` : `👨‍🍳 ${vendor.business_name} is on it`,
-      body: orderPingMessage(ft, kind, ft.spot.name),
-      link: `/vendors/${vendor.slug}`,
-      is_read: false,
+      user_id: order.customer_id, actor_id: user.id, type, title, body, link, is_read: false,
     });
+    sendPushToUser(order.customer_id, { title, body, url: link, tag: `order-${order.id}` }).catch(() => {});
   }
 
   return NextResponse.json({ ok: true });

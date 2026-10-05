@@ -58,16 +58,22 @@ interface Props {
   currentVendor: { id: string; business_name: string; slug: string } | null;
   myHighfives: string[];
   flaggedIds: { post_id: string | null; response_id: string | null }[];
+  // Discover extras merged into Local Pages: blogs + a recent event / place.
+  blogPosts?: { slug: string; title: string; excerpt: string | null; cover_image_url: string | null; category: string | null }[];
+  recentEvent?: { id: string; title: string; images: string[] | null; vendor: { slug: string; business_name: string } | null } | null;
+  recentPlace?: { slug: string; name: string; type: string | null; images: string[] | null } | null;
 }
 
 export default function CommunityBoardClient({
   citySlug, cityName, stateCode,
   posts: initialPosts, vendors, currentUser, currentVendor,
   myHighfives: initialHighfives, flaggedIds,
+  blogPosts = [], recentEvent = null, recentPlace = null,
 }: Props) {
   const supabase = createClient();
   const router = useRouter();
   const isAdmin = currentUser?.role === "admin";
+  const [discoverTab, setDiscoverTab] = useState<"event" | "place">(recentEvent ? "event" : "place");
   const canPostPaid = !!currentVendor;
   const [postError, setPostError] = useState<string | null>(null);
   // Post-payment return banner (Stripe redirects back with ?posted / ?post_cancelled).
@@ -856,6 +862,73 @@ export default function CommunityBoardClient({
               );
             })}
           </div>
+        )}
+
+        {/* ── Discover: a recent event / place (tabbed, like a product profile) ── */}
+        {(recentEvent || recentPlace) && (
+          <section className="mt-10">
+            <div className="flex items-center gap-4 border-b border-gray-200 mb-4">
+              {recentEvent && (
+                <button onClick={() => setDiscoverTab("event")} className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${discoverTab === "event" ? "border-green-600 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"}`}>Recent event</button>
+              )}
+              {recentPlace && (
+                <button onClick={() => setDiscoverTab("place")} className={`pb-2 text-sm font-semibold border-b-2 transition-colors ${discoverTab === "place" ? "border-green-600 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-700"}`}>Place to explore</button>
+              )}
+              <Link href={`/explore/${citySlug}`} className="ml-auto text-xs text-green-600 font-medium hover:underline pb-2">See all →</Link>
+            </div>
+            {discoverTab === "event" && recentEvent && (
+              <Link href={`/listings/${recentEvent.id}`} className="group block rounded-2xl border border-gray-100 overflow-hidden hover:border-green-300 hover:shadow-md transition-all">
+                <div className="aspect-[16/9] bg-gray-100 overflow-hidden">
+                  {recentEvent.images?.[0]
+                    ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={recentEvent.images[0]} alt={recentEvent.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    : <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">🎉</div>}
+                </div>
+                <div className="p-4">
+                  <span className="text-[11px] font-semibold text-green-600 uppercase tracking-wide">Event</span>
+                  <p className="font-bold text-gray-900">{recentEvent.title}</p>
+                  {recentEvent.vendor && <p className="text-xs text-gray-500 mt-0.5">{recentEvent.vendor.business_name}</p>}
+                </div>
+              </Link>
+            )}
+            {discoverTab === "place" && recentPlace && (
+              <Link href={`/places/${recentPlace.slug}`} className="group block rounded-2xl border border-gray-100 overflow-hidden hover:border-green-300 hover:shadow-md transition-all">
+                <div className="aspect-[16/9] bg-gray-100 overflow-hidden">
+                  {recentPlace.images?.[0]
+                    ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={recentPlace.images[0]} alt={recentPlace.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    : <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">🌿</div>}
+                </div>
+                <div className="p-4">
+                  <span className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wide">{recentPlace.type || "Place"}</span>
+                  <p className="font-bold text-gray-900">{recentPlace.name}</p>
+                </div>
+              </Link>
+            )}
+          </section>
+        )}
+
+        {/* ── From the blog ── */}
+        {blogPosts.length > 0 && (
+          <section className="mt-10">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-bold text-gray-900">From the blog</h2>
+              <Link href="/blog" className="text-sm text-green-600 font-medium hover:underline">Visit the blog →</Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {blogPosts.map((p) => (
+                <Link key={p.slug} href={`/blog/${p.slug}`} className="group rounded-2xl border border-gray-100 overflow-hidden hover:border-green-300 hover:shadow-md transition-all">
+                  <div className="aspect-[16/9] bg-gray-100 overflow-hidden">
+                    {p.cover_image_url
+                      ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={p.cover_image_url} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      : <div className="w-full h-full flex items-center justify-center text-gray-300 text-2xl">📰</div>}
+                  </div>
+                  <div className="p-3">
+                    {p.category && <span className="text-[11px] font-semibold text-green-600 uppercase tracking-wide">{p.category}</span>}
+                    <p className="text-sm font-semibold text-gray-900 line-clamp-2 mt-0.5">{p.title}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
       </div>
     </div>

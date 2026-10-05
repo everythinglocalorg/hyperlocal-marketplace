@@ -202,6 +202,17 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [localReviews, setLocalReviews] = useState<Review[]>(reviews);
+
+  // Arriving from an "order complete" nudge (?review=1) → open the review form.
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("review") === "1") {
+        setShowReviewForm(true);
+        setTimeout(() => scrollToSection("reviews"), 350);
+      }
+    } catch { /* noop */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [bookingListing, setBookingListing] = useState<Listing | null>(null);
   const [bookingDurations, setBookingDurations] = useState<any[]>([]);
   const [buyListing, setBuyListing] = useState<Listing | null>(null);
