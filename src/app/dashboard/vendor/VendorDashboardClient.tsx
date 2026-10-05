@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LayoutDashboard, Truck, Receipt, Package, Gift, CalendarDays, Tent, HeartHandshake, BarChart3, TrendingUp, Users, MapPin, Building2, FolderOpen, Map as MapIcon, Lock, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Truck, Receipt, Gift, CalendarDays, Tent, HeartHandshake, BarChart3, TrendingUp, Users, MapPin, Building2, FolderOpen, Map as MapIcon, Lock, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import Logo, { BackHome } from "@/components/Logo";
 import { BRAND_ORIGIN } from "@/lib/domains";
@@ -181,7 +181,6 @@ const NAV: { id: Tab; label: string; Icon: LucideIcon; premiumOnly?: boolean; ad
   { id: "overview", label: "Overview", Icon: LayoutDashboard },
   { id: "foodtruck", label: "Food Truck", Icon: Truck, foodTruckOnly: true },
   { id: "orders", label: "Orders", Icon: Receipt, businessOnly: true },
-  { id: "listings", label: "Listings", Icon: Package },
   { id: "referrals", label: "Referrals", Icon: Gift },
   { id: "bookings", label: "Appointments", Icon: CalendarDays, premiumOnly: true, businessOnly: true },
   { id: "rentals", label: "Rentals", Icon: Tent, businessOnly: true },
@@ -1516,7 +1515,7 @@ function ListingsTab({
     const CAT: Record<string, string> = {
       event: "Events & Rentals", rental: "Events & Rentals",
       housing_rent: "Housing & Rentals", housing_sale: "Housing & Rentals",
-      thrift: "Thrift Sales", restaurant: "Restaurants & Food",
+      thrift: "Thrift Sales", restaurant: "Restaurants",
       service: "Services & Trades", animals: "Pet Services", product: "Products",
     };
     const cat = CAT[initialNewType] ?? "Products";
@@ -1750,7 +1749,7 @@ function ListingsTab({
     { value: "housing_rent", label: "Rental Property" },
     { value: "animals", label: "Animals / Livestock" },
   ];
-  const CATEGORIES = ["Products", "Thrift Sales", "Services & Trades", "Restaurants & Food", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education", "Housing & Rentals"];
+  const CATEGORIES = ["Products", "Thrift Sales", "Services & Trades", "Restaurants", "Food Products", "Events & Rentals", "Health & Beauty", "Home & Garden", "Clothing & Accessories", "Arts & Crafts", "Sports & Outdoors", "Auto & Transportation", "Pet Services", "Childcare & Education", "Housing & Rentals"];
 
   return (
     <div>
@@ -3585,7 +3584,7 @@ function ReferralsTab({ userId, referralCode, businessName, vendorSlug }: {
 
 // ── STORE SETTINGS TAB ────────────────────────────────────────
 const CATEGORIES_LIST = [
-  "Products","Services & Trades","Restaurants & Food","Events & Rentals",
+  "Products","Services & Trades","Restaurants","Food Products","Events & Rentals",
   "Health & Beauty","Home & Garden","Clothing & Accessories","Arts & Crafts",
   "Sports & Outdoors","Auto & Transportation","Pet Services","Childcare & Education",
   "Housing & Rentals",

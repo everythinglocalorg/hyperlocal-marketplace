@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { MessageCircle, Bell } from "lucide-react";
 
 // The 💬 Messages + 🔔 Notifications cluster for the top bar — the single place
 // these live now (pulled out of the dashboard sidebars). Self-contained: it
@@ -43,7 +44,7 @@ export default function InboxBell({ className = "", showLabels = false }: { clas
         aria-label="Messages"
         className="relative flex items-center gap-1.5 rounded-full px-2.5 py-1.5 hover:bg-gray-100 transition-colors"
       >
-        <span className="text-xl leading-none">💬</span>
+        <MessageCircle className="w-6 h-6 text-gray-700" strokeWidth={2} />
         {showLabels && <span className="hidden sm:inline text-sm font-semibold text-gray-700">Messages</span>}
         {msgUnread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
@@ -52,12 +53,12 @@ export default function InboxBell({ className = "", showLabels = false }: { clas
         )}
       </Link>
       <Link
-        href="/notifications"
+        href="/messages?tab=notifications"
         title="Notifications"
         aria-label="Notifications"
         className="relative flex items-center gap-1.5 rounded-full px-2.5 py-1.5 hover:bg-gray-100 transition-colors"
       >
-        <span className="text-xl leading-none">🔔</span>
+        <Bell className="w-6 h-6 text-gray-700" strokeWidth={2} />
         {showLabels && <span className="hidden sm:inline text-sm font-semibold text-gray-700">Notifications</span>}
         {notifUnread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">

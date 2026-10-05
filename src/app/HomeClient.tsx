@@ -21,7 +21,7 @@ import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import QuickSellFab from "@/components/QuickSellFab";
 import CategoryBubbles from "@/components/home/CategoryBubbles";
 import ProductTour, { type TourStep } from "@/components/ProductTour";
-import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon, LayoutGrid, Dog, Baby } from "lucide-react";
+import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, Apple, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon, LayoutGrid, Dog, Baby } from "lucide-react";
 
 // First-run guided tour, shown once right after onboarding (flag set on finish).
 const TOUR_STEPS: TourStep[] = [
@@ -81,7 +81,8 @@ function GemHeart({ listingId }: { listingId: string }) {
 const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
   "Services & Trades": "🔧",
-  "Restaurants & Food": "🍽️",
+  "Restaurants": "🍽️",
+  "Food Products": "🥫",
   "Events & Rentals": "🎉",
   "Health & Beauty": "💆",
   "Home & Garden": "🏡",
@@ -442,15 +443,16 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     { label: "Home Goods", Icon: Sofa, filter: { label: "Home Goods", category: "Home & Garden", keywords: ["home goods", "furniture", "home decor", "decor", "household", "kitchen", "appliance"] } },
     { label: "Services", Icon: Wrench, filter: { label: "Services", category: "Services & Trades" } },
     { label: "Food Trucks", Icon: Truck, nav: `/food-trucks/${activeCity}` },
-    { label: "Restaurants", Icon: UtensilsCrossed, filter: { label: "Restaurants", category: "Restaurants & Food" } },
+    { label: "Restaurants", Icon: UtensilsCrossed, filter: { label: "Restaurants", category: "Restaurants" } },
     { label: "Thrift Sales", Icon: Tag, filter: { label: "Thrift Sales", type: "thrift" } },
-    { label: "Animals", Icon: Dog, filter: { label: "Animals", type: "animals" } },
+    { label: "Livestock", Icon: Dog, filter: { label: "Livestock", type: "animals" } },
     { label: "Arts", Icon: Palette, filter: { label: "Arts", category: "Arts & Crafts" } },
     { label: "Auto", Icon: Car, filter: { label: "Auto", category: "Auto & Transportation" } },
     { label: "Beauty", Icon: Sparkles, filter: { label: "Beauty", category: "Health & Beauty" } },
     { label: "Childcare", Icon: Baby, filter: { label: "Childcare", category: "Childcare & Education" } },
     { label: "Clothing", Icon: Shirt, filter: { label: "Clothing", category: "Clothing & Accessories" } },
     { label: "Events", Icon: PartyPopper, filter: { label: "Events", category: "Events & Rentals" } },
+    { label: "Food Products", Icon: Apple, filter: { label: "Food Products", category: "Food Products" } },
     { label: "Housing", Icon: HomeIcon, filter: { label: "Housing", category: "Housing & Rentals" } },
     { label: "Pets", Icon: PawPrint, filter: { label: "Pets", category: "Pet Services" } },
     { label: "Products", Icon: Package, filter: { label: "Products", category: "Products", type: "product" } },
@@ -924,7 +926,8 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               <li><Link href="/search?mode=listings&type=rental" className="hover:text-green-600">Rentals</Link></li>
               <li><Link href="/search?mode=listings&type=thrift" className="hover:text-green-600">Thrift Sales</Link></li>
               <li><Link href="/search?mode=listings&type=animals" className="hover:text-green-600">Animals &amp; Livestock</Link></li>
-              <li><Link href="/search?mode=listings&category=Restaurants+%26+Food" className="hover:text-green-600">Restaurants</Link></li>
+              <li><Link href="/search?mode=listings&category=Restaurants" className="hover:text-green-600">Restaurants</Link></li>
+              <li><Link href="/search?mode=listings&category=Food+Products" className="hover:text-green-600">Food Products</Link></li>
             </ul>
           </div>
           <div>

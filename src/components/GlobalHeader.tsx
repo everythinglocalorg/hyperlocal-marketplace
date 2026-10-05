@@ -220,7 +220,10 @@ export default function GlobalHeader() {
                       </>
                     )}
                     {myVendor && (
-                      <Link href="/dashboard/vendor?tab=orders" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🧾 Orders</Link>
+                      <>
+                        <Link href="/dashboard/vendor?tab=listings" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">📦 Listings</Link>
+                        <Link href="/dashboard/vendor?tab=orders" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🧾 Orders</Link>
+                      </>
                     )}
                     <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
                     <div className="border-t border-gray-100 my-1" />
