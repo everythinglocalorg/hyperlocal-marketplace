@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useFavorites } from "@/lib/favorites";
 import Logo from "@/components/Logo";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CATEGORIES } from "@/types";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
@@ -100,7 +100,14 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
   initialListings: any[]; initialVendors: any[]; initialBlog: any[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [query, setQuery] = useState("");
+  // Inline search / "view all" results shown IN PLACE on the home page (no jump
+  // to /search). Driven by ?q= for keyword search (so back/forward works) and by
+  // the "View all" button for a whole bubble. `source` tells clear how to reset.
+  type InlineCard = { id: string; href: string; image: string | null; title: string; subtitle: string; vendorName?: string | null; price?: number | null; priceLabel?: string | null };
+  const [inline, setInline] = useState<{ title: string; cards: InlineCard[]; source: "q" | "all" } | null>(null);
+  const [inlineLoading, setInlineLoading] = useState(false);
   const [user, setUser] = useState<{ id: string; name: string | null; role: string | null } | null>(null);
   const [notifUnread, setNotifUnread] = useState(0);
   const [authChecked, setAuthChecked] = useState(false);
@@ -324,14 +331,69 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     loadCityData(activeCity, r);
   }
 
+  // Searching stays on the home page: push ?q= and let the effect below fetch +
+  // render results in place. Clearing (empty) resets to the normal home.
+  function goSearch(term: string) {
+    const q = term.trim();
+    if (!q) { clearInline(); return; }
+    if (gate(`/?q=${encodeURIComponent(q)}`)) return;
+    router.push(`/?q=${encodeURIComponent(q)}`);
+  }
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (activeCity) params.set("city", activeCity);
-    const url = `/search?${params.toString()}`;
-    if (gate(url)) return;
-    router.push(url);
+    goSearch(query);
+  }
+
+  function clearInline() {
+    setInline(null);
+    setQuery("");
+    if (searchParams.get("q")) router.push("/");
+  }
+
+  // Run the keyword search in place whenever ?q= changes (reuses the same
+  // keyword_search RPC the /search page uses).
+  useEffect(() => {
+    const q = (searchParams.get("q") ?? "").trim();
+    if (!q) { setInline((prev) => (prev?.source === "q" ? null : prev)); return; }
+    setQuery(q);
+    let cancelled = false;
+    setInlineLoading(true);
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase.rpc("keyword_search", {
+        p_query: q, p_city_slug: activeCity || null, p_type: "all", p_limit: 40, p_offset: 0, p_radius_miles: radius,
+      });
+      if (cancelled) return;
+      const cards: InlineCard[] = (data ?? []).map((r: any) => r.result_type === "vendor"
+        ? { id: r.id, href: `/vendors/${r.slug}`, image: r.image_url ?? null, title: r.title, subtitle: [r.city, r.state].filter(Boolean).join(", "), price: null }
+        : { id: r.id, href: `/listings/${r.id}`, image: r.image_url ?? null, title: r.title, subtitle: [r.city, r.state].filter(Boolean).join(", "), vendorName: r.business_name ?? null, price: null });
+      setInline({ title: `Results for “${q}”`, cards, source: "q" });
+      setInlineLoading(false);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, activeCity, radius]);
+
+  // "View all" for the active bubble — show the whole category in place.
+  async function runViewAll() {
+    setInlineLoading(true);
+    setInline({ title: `All ${activeCategory?.label ?? "listings"}`, cards: [], source: "all" });
+    const supabase = createClient();
+    let q = supabase
+      .from("listings")
+      .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state)")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(120);
+    if (activeCategory?.type) q = q.eq("type", activeCategory.type);
+    else if (activeCategory?.category) q = q.eq("category", activeCategory.category);
+    const { data } = await q;
+    const cards: InlineCard[] = (data ?? []).map((l: any) => {
+      const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+      return { id: l.id, href: `/listings/${l.id}`, image: l.images?.[0] ?? null, title: l.title, subtitle: v?.city ? `${v.city}, ${v.state}` : "", vendorName: v?.business_name ?? null, price: l.price, priceLabel: l.price_label };
+    });
+    setInline({ title: `All ${activeCategory?.label ?? "listings"}`, cards, source: "all" });
+    setInlineLoading(false);
   }
 
   // Category bubbles filter the Featured Gems grid IN PLACE (no jump to
@@ -468,15 +530,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
             <SearchSuggestions
               citySlug={activeCity}
               cityLabel={resolveCity(activeCity)?.label ?? cityName}
-              onPick={(term) => {
-                setQuery(term);
-                const params = new URLSearchParams();
-                params.set("q", term);
-                if (activeCity) params.set("city", activeCity);
-                const url = `/search?${params.toString()}`;
-                if (gate(url)) return;
-                router.push(url);
-              }}
+              onPick={(term) => { setQuery(term); goSearch(term); }}
               className="mb-3"
             />
 
@@ -517,8 +571,44 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
             </div>
           </div>
 
+          {/* Inline search / "view all" results — rendered in place of the home
+              feed so the user never jumps to the old /search page. */}
+          {inline && (
+            <div className="max-w-5xl mx-auto mt-2 md:mt-6 px-4 pb-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900">{inline.title}</h2>
+                <button onClick={clearInline} className="text-sm text-green-600 hover:underline shrink-0">✕ Clear</button>
+              </div>
+              {inlineLoading ? (
+                <div className="text-center py-12"><span className="inline-block w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin" /></div>
+              ) : inline.cards.length === 0 ? (
+                <p className="text-center py-12 text-sm text-gray-500">No matches{inline.source === "q" ? " — try another search." : " here yet."}</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {inline.cards.map((c) => (
+                    <Link key={c.id} href={c.href} className="group" onClick={() => { try { sessionStorage.setItem("el_home_scroll", String(window.scrollY)); } catch { /* noop */ } }}>
+                      <div className="w-full aspect-square rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                        {c.vendorName && <span className="absolute top-2 left-2 z-10 max-w-[70%] truncate bg-white/95 backdrop-blur-sm text-gray-900 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.14)]">{c.vendorName}</span>}
+                        {c.image
+                          ? <img src={c.image} alt={c.title} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          : <span className="text-3xl text-gray-300">📦</span>}
+                      </div>
+                      <div className="pt-2 px-0.5">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-1">{c.title}</p>
+                        {c.subtitle && <p className="text-[11px] text-gray-500 truncate mt-0.5">{c.subtitle}</p>}
+                        {c.price != null
+                          ? <p className="text-xs font-semibold text-gray-900 mt-0.5">${Number(c.price).toFixed(2)}</p>
+                          : c.priceLabel && <p className="text-xs text-gray-500 mt-0.5">{c.priceLabel}</p>}
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Featured Gems — boosted products first, blended with recent */}
-          {recentListings.length > 0 && (
+          {!inline && recentListings.length > 0 && (
             <div className="max-w-5xl mx-auto mt-2 md:mt-14 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
@@ -569,7 +659,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                 })}
               </div>
               <div className="mt-5 text-center">
-                <Link href={gemsViewAllHref()} onClick={(e) => { if (gate(gemsViewAllHref())) e.preventDefault(); }} className="inline-block border border-green-300 text-green-700 font-semibold px-6 py-2.5 rounded-full text-sm hover:bg-green-50 transition-colors">View all →</Link>
+                <button onClick={() => { if (gate("/?view=all")) return; runViewAll(); }} className="inline-block border border-green-300 text-green-700 font-semibold px-6 py-2.5 rounded-full text-sm hover:bg-green-50 transition-colors">View all →</button>
               </div>
               </>
               )}
@@ -577,7 +667,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           )}
 
           {/* New businesses */}
-          {newVendors.length > 0 && (
+          {!inline && newVendors.length > 0 && (
             <div className="max-w-5xl mx-auto mt-10 px-4 pb-14">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">

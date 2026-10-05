@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { createClient } from "@supabase/supabase-js";
 import HomeClient from "./HomeClient";
 
@@ -82,11 +83,14 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <HomeClient
-        initialListings={seedListings}
-        initialVendors={vendors ?? []}
-        initialBlog={blog ?? []}
-      />
+      {/* HomeClient reads ?q= via useSearchParams, which must sit under Suspense. */}
+      <Suspense fallback={<div className="min-h-screen bg-white" />}>
+        <HomeClient
+          initialListings={seedListings}
+          initialVendors={vendors ?? []}
+          initialBlog={blog ?? []}
+        />
+      </Suspense>
     </>
   );
 }
