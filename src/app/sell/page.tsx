@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/utils";
 import { CATEGORIES } from "@/types";
 import { makeSlug, normalizeState } from "@/lib/cities";
-import Logo from "@/components/Logo";
 
 // Self-serve "sell an item" flow for ANY logged-in user — no business account
 // needed. The first time someone lists, we quietly create a lightweight personal
@@ -140,21 +139,17 @@ export default function SellPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
-      <div className="bg-white border-b border-gray-100 px-4 py-4">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Logo size="sm" />
-          <span className="text-sm text-gray-500">Sell an item</span>
-        </div>
-      </div>
-
-      <div className="max-w-lg mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">List something for sale</h1>
-        <p className="text-gray-500 text-sm mb-6">
-          You're posting as a <strong>private seller</strong> — no business account needed. Local neighbors can message you and make offers.
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-lg mx-auto px-4 pt-7 pb-28">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 mb-3">
+          🏷️ For sale
+        </span>
+        <h1 className="text-[1.7rem] leading-tight font-black tracking-tight text-gray-900">List something for sale</h1>
+        <p className="text-gray-500 text-sm mt-1.5 mb-6">
+          You're posting as a <strong className="font-semibold text-gray-700">private seller</strong> — no business account needed. Local neighbors can message you and make offers.
         </p>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-green-900/5 p-6 sm:p-7 space-y-5">
           {!existingVendor && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Seller name</label>
@@ -248,7 +243,7 @@ export default function SellPage() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl py-3.5 text-base font-bold shadow-lg shadow-green-600/25 hover:brightness-110 active:scale-[.99] transition disabled:opacity-50"
           >
             {saving ? "Posting…" : "Post item for sale"}
           </button>

@@ -7,7 +7,6 @@ import { slugify } from "@/lib/utils";
 import { makeSlug, normalizeState } from "@/lib/cities";
 import { defaultCtaForListingType } from "@/lib/cta";
 import RentalSetup, { type RentalSettings } from "@/components/rental/RentalSetup";
-import Logo from "@/components/Logo";
 
 // Adaptive "create a listing" flow for ANY logged-in user (no business account
 // needed). ONE template, Type selector, only the fields each type needs — and the
@@ -240,32 +239,30 @@ export default function ListPage() {
     );
   }
 
-  const inputCls = "w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+  const inputCls = "w-full border border-gray-200 rounded-xl px-4 py-3 text-sm bg-white transition-shadow placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
-      <div className="bg-white border-b border-gray-100 px-4 py-4">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <Logo size="sm" />
-          <span className="text-sm text-gray-500">Create a listing</span>
-        </div>
-      </div>
-
-      <div className="max-w-lg mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Create a listing</h1>
-        <p className="text-gray-500 text-sm mb-5">
-          Posting as a <strong>private seller</strong> — no business account needed. Pick a type, fill the basics, and you’re live.
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-lg mx-auto px-4 pt-7 pb-28">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold px-3 py-1 mb-3">
+          ✨ New listing
+        </span>
+        <h1 className="text-[1.7rem] leading-tight font-black tracking-tight text-gray-900">Create a listing</h1>
+        <p className="text-gray-500 text-sm mt-1.5 mb-6">
+          Posting as a <strong className="font-semibold text-gray-700">private seller</strong> — no business account needed. Pick a type, fill the basics, and you’re live.
         </p>
 
         {/* Type selector */}
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 mb-4">
+        <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2 mb-5 -mx-4 px-4">
           {TYPES.map((t) => (
             <button
               key={t.value}
               type="button"
               onClick={() => pickType(t.value)}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-colors ${
-                type === t.value ? "bg-green-600 border-green-600 text-white" : "bg-white border-gray-200 text-gray-700 hover:border-green-300"
+              className={`shrink-0 px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+                type === t.value
+                  ? "bg-green-600 border-green-600 text-white shadow-md shadow-green-600/25 scale-105"
+                  : "bg-white border-gray-200 text-gray-600 hover:border-green-300 hover:text-green-700"
               }`}
             >
               {t.label}
@@ -273,7 +270,7 @@ export default function ListPage() {
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
+        <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 shadow-xl shadow-green-900/5 p-6 sm:p-7 space-y-5">
           {!existingVendor && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Your name</label>
@@ -493,7 +490,7 @@ export default function ListPage() {
 
           {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
-          <button type="submit" disabled={saving} className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50">
+          <button type="submit" disabled={saving} className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl py-3.5 text-base font-bold shadow-lg shadow-green-600/25 hover:brightness-110 active:scale-[.99] transition disabled:opacity-50">
             {saving ? "Posting…" : "Post listing"}
           </button>
           <p className="text-center text-xs text-gray-400">
