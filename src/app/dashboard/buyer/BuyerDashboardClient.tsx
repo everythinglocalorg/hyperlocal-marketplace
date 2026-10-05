@@ -719,8 +719,10 @@ export default function BuyerDashboardClient({ profile, bookings, offers, rental
                     pending: "⏳ Waiting on seller",
                     countered: "↔ Seller countered",
                     accepted: "🎉 Accepted",
+                    paid: "✅ Paid",
                     declined: "✕ Declined",
                   };
+                  badge.paid = "bg-green-600 text-white border-green-600";
                   return (
                     <div key={o.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
                       <div className="flex items-start justify-between gap-3">
@@ -763,6 +765,12 @@ export default function BuyerDashboardClient({ profile, bookings, offers, rental
                           <p className="text-sm font-semibold text-green-800 mb-2">You’re all set at {money(o.counter_amount ?? o.amount)} — pay {v?.business_name ?? "the seller"}:</p>
                           <PaymentOptions handles={v?.payment_handles} phone={v?.phone} amount={o.counter_amount ?? o.amount} note={o.listing_title} mode="pay" />
                           <Link href={`/listings/${o.listing_id}`} className="mt-2 block text-center text-xs text-green-700 font-medium hover:underline">or message the seller →</Link>
+                        </div>
+                      )}
+
+                      {o.status === "paid" && (
+                        <div className="mt-4 bg-green-50 border border-green-100 rounded-xl p-3 text-sm text-green-800 font-semibold">
+                          ✅ Paid {money(o.counter_amount ?? o.amount)} — the seller marked this sale complete.
                         </div>
                       )}
                     </div>

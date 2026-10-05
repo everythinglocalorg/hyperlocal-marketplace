@@ -20,6 +20,7 @@ const CHAN_COLOR: Record<string, string> = {
   "Products": "bg-blue-500",
   "Bookings": "bg-amber-500",
   "Proposals": "bg-purple-500",
+  "Direct sales": "bg-emerald-600",
 };
 
 export default function SalesReportTab({ vendorId }: { vendorId: string }) {
@@ -50,11 +51,13 @@ export default function SalesReportTab({ vendorId }: { vendorId: string }) {
     const { from, to } = bounds();
     const f = from.toISOString();
     const t = to.toISOString();
-    const [food, buys, rentals, deposits] = await Promise.all([
+    const [food, buys, rentals, deposits, offers] = await Promise.all([
       supabase.from("food_orders").select("total, created_at, items, status").eq("vendor_id", vendorId).neq("status", "cancelled").gte("created_at", f).lte("created_at", t).limit(5000),
       supabase.from("purchase_inquiries").select("created_at, inquiry_type, listing:listings(title, price)").eq("vendor_id", vendorId).eq("inquiry_type", "buy").gte("created_at", f).lte("created_at", t).limit(5000),
       supabase.from("rental_bookings").select("total_price, created_at, status, listing:listings(title)").eq("vendor_id", vendorId).neq("status", "cancelled").gte("created_at", f).lte("created_at", t).limit(5000),
       supabase.from("estimates").select("title, deposit_paid_at, areas, addons, customer_selections, deposit_type, deposit_value").eq("vendor_id", vendorId).not("deposit_paid_at", "is", null).gte("deposit_paid_at", f).lte("deposit_paid_at", t).limit(5000),
+      // Accepted/paid offers = direct peer-to-peer sales.
+      supabase.from("thrift_offers").select("amount, counter_amount, status, created_at, listing_title").eq("vendor_id", vendorId).in("status", ["accepted", "paid"]).gte("created_at", f).lte("created_at", t).limit(5000),
     ]);
 
     const s: Sale[] = [];
@@ -97,6 +100,11 @@ export default function SalesReportTab({ vendorId }: { vendorId: string }) {
       const dep = depositAmount(total, (e.deposit_type as DepositType) ?? "percent", Number(e.deposit_value) || 50);
       s.push({ date: e.deposit_paid_at, amount: dep, channel: "Proposals" });
       add(e.title ?? "Proposal", 1, dep);
+    }
+    for (const o of (offers.data ?? []) as { amount: number; counter_amount: number | null; created_at: string; listing_title?: string }[]) {
+      const amt = Number(o.counter_amount ?? o.amount) || 0;
+      s.push({ date: o.created_at, amount: amt, channel: "Direct sales" });
+      add(o.listing_title ?? "Direct sale", 1, amt);
     }
 
     setSales(s);

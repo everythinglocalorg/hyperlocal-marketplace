@@ -164,6 +164,7 @@ type ThriftOffer = {
   status: string;
   counter_amount: number | null;
   created_at: string;
+  paid_at: string | null;
 };
 
 type Customer = {
@@ -327,7 +328,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
     setLoadingOffers(true);
     const { data } = await supabase
       .from("thrift_offers")
-      .select("id, listing_id, listing_title, buyer_name, buyer_email, amount, message, status, counter_amount, created_at")
+      .select("id, listing_id, listing_title, buyer_name, buyer_email, amount, message, status, counter_amount, created_at, paid_at")
       .eq("vendor_id", vendor.id)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -336,8 +337,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   }, [supabase, vendor.id]);
 
   const updateOffer = useCallback(async (id: string, status: string, counterAmount?: number) => {
-    const patch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+    const nowIso = new Date().toISOString();
+    const patch: Record<string, unknown> = { status, updated_at: nowIso };
     if (status === "countered" && counterAmount != null) patch.counter_amount = counterAmount;
+    // Marking an accepted deal paid stamps the sale so it logs in Reports.
+    if (status === "paid") patch.paid_at = nowIso;
     await supabase.from("thrift_offers").update(patch).eq("id", id);
     // Let the buyer know we responded (best-effort).
     fetch("/api/offers/notify", {
@@ -345,7 +349,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ offerId: id }),
     }).catch(() => {});
-    setOffers((prev) => prev.map((o) => (o.id === id ? { ...o, status, counter_amount: status === "countered" ? (counterAmount ?? o.counter_amount) : o.counter_amount } : o)));
+    setOffers((prev) => prev.map((o) => (o.id === id ? {
+      ...o, status,
+      counter_amount: status === "countered" ? (counterAmount ?? o.counter_amount) : o.counter_amount,
+      paid_at: status === "paid" ? nowIso : o.paid_at,
+    } : o)));
   }, [supabase]);
 
   const loadCustomers = useCallback(async () => {
@@ -2847,6 +2855,7 @@ function OffersTab({ offers, loading, onUpdate }: {
     accepted: "bg-green-100 text-green-700",
     declined: "bg-red-100 text-red-700",
     countered: "bg-blue-100 text-blue-700",
+    paid: "bg-green-600 text-white",
   };
 
   function counter(o: ThriftOffer) {
@@ -2865,7 +2874,7 @@ function OffersTab({ offers, loading, onUpdate }: {
           <p className="text-gray-400 text-sm mt-0.5">{offers.length} total · accept, decline, or counter offers on your thrift items</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {["all", "pending", "accepted", "declined", "countered"].map((s) => (
+          {["all", "pending", "accepted", "paid", "declined", "countered"].map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
@@ -2916,6 +2925,20 @@ function OffersTab({ offers, loading, onUpdate }: {
                   <button onClick={() => onUpdate(o.id, "accepted")} className="flex-1 min-w-[100px] bg-green-600 text-white text-xs py-2 rounded-lg font-medium hover:bg-green-700 transition-colors">✓ Accept</button>
                   <button onClick={() => counter(o)} className="flex-1 min-w-[100px] bg-blue-600 text-white text-xs py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">↔ Counter</button>
                   <button onClick={() => onUpdate(o.id, "declined")} className="flex-1 min-w-[100px] border border-red-200 text-red-500 text-xs py-2 rounded-lg font-medium hover:bg-red-50 transition-colors">✕ Decline</button>
+                </div>
+              )}
+
+              {/* Accepted → confirm payment received, which logs the sale in Reports. */}
+              {o.status === "accepted" && !o.paid_at && (
+                <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+                  <span className="text-xs text-green-700 font-medium flex-1">Deal agreed at {formatPrice(o.counter_amount ?? o.amount)}</span>
+                  <button onClick={() => onUpdate(o.id, "paid")} className="bg-green-600 text-white text-xs px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition-colors">💵 Mark as paid</button>
+                </div>
+              )}
+              {o.paid_at && (
+                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
+                  <span className="text-xs font-semibold text-green-700">✅ Paid · {formatPrice(o.counter_amount ?? o.amount)}</span>
+                  <span className="text-xs text-gray-400">logged {new Date(o.paid_at).toLocaleDateString()}</span>
                 </div>
               )}
             </div>

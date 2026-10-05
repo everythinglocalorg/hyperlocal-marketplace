@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
       accepted: { title: "🎉 Offer accepted!", body: `${vendor?.business_name} accepted your ${money(offer.amount)} offer on ${item}.` },
       declined: { title: "Offer declined", body: `${vendor?.business_name} passed on your offer for ${item}.` },
       countered: { title: "↔ You got a counter-offer", body: `${vendor?.business_name} countered at ${money(offer.counter_amount ?? offer.amount)} for ${item}.` },
+      paid: { title: "✅ Payment confirmed", body: `${vendor?.business_name} marked your ${item} purchase as paid. Thanks for shopping local!` },
     };
     const c = copy[offer.status];
     if (!c) return NextResponse.json({ ok: true });
