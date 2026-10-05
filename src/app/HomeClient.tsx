@@ -71,11 +71,14 @@ function FootballIcon({ className, strokeWidth = 1.8 }: { className?: string; st
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
       strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {/* ball */}
-      <path d="M3 12C6 7 18 7 21 12 18 17 6 17 3 12Z" />
-      {/* laces */}
-      <path d="M9.5 12h5" />
-      <path d="M10.8 10.9v2.2M12 10.9v2.2M13.2 10.9v2.2" />
+      {/* ball — large pointed oval that fills the icon box */}
+      <path d="M1.5 12C5 4.5 19 4.5 22.5 12 19 19.5 5 19.5 1.5 12Z" />
+      {/* end stripes (rings near each tip) */}
+      <path d="M5.6 7.1c-1 1.4-1.5 3-1.5 4.9s.5 3.5 1.5 4.9" />
+      <path d="M18.4 7.1c1 1.4 1.5 3 1.5 4.9s-.5 3.5-1.5 4.9" />
+      {/* center lacing along the long axis */}
+      <path d="M8 12h8" />
+      <path d="M9.7 9.6v4.8M12 9.6v4.8M14.3 9.6v4.8" />
     </svg>
   );
 }
