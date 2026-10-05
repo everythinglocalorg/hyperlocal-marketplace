@@ -21,11 +21,11 @@ const TYPES: {
   value: TypeKey; label: string; cat: string; priceLabel: string;
   titleLabel: string; titlePlaceholder: string;
   condition?: boolean; pickup?: boolean; event?: boolean; housing?: boolean; available?: boolean;
-  rental?: boolean; service?: boolean; hidePrice?: boolean;
+  rental?: boolean; service?: boolean; hidePrice?: boolean; thrift?: boolean;
 }[] = [
   { value: "service", label: "Service", cat: "Services & Trades", priceLabel: "", titleLabel: "Service name", titlePlaceholder: "e.g. Lawn mowing, House cleaning", service: true, hidePrice: true },
   { value: "event", label: "Event", cat: "Events & Rentals", priceLabel: "Ticket price (blank = free)", titleLabel: "Event name", titlePlaceholder: "e.g. Summer Night Market", event: true },
-  { value: "thrift", label: "Thrift Sale", cat: "Thrift Sales", priceLabel: "Price", titleLabel: "What are you selling?", titlePlaceholder: "e.g. Vintage oak dresser", condition: true, pickup: true },
+  { value: "thrift", label: "Thrift Sale", cat: "Thrift Sales", priceLabel: "", titleLabel: "Sale / shop name", titlePlaceholder: "e.g. Maple St. Garage Sale, Corner Thrift", thrift: true, hidePrice: true },
   { value: "housing_sale", label: "House for Sale", cat: "Housing & Rentals", priceLabel: "Price", titleLabel: "Listing title", titlePlaceholder: "e.g. 3 bed ranch on Oak St", housing: true },
   { value: "rental", label: "Rental", cat: "Events & Rentals", priceLabel: "", titleLabel: "What are you renting out?", titlePlaceholder: "e.g. Kayak, Party tent", pickup: true, rental: true, hidePrice: true },
   { value: "housing_rent", label: "Housing (For Rent)", cat: "Housing & Rentals", priceLabel: "Monthly rent", titleLabel: "Listing title", titlePlaceholder: "e.g. 2 bed apartment downtown", housing: true, available: true },
@@ -57,6 +57,21 @@ export default function ListPage() {
   const [condition, setCondition] = useState<"used" | "new">("used");
   const [pickup, setPickup] = useState(true);
   const [event, setEvent] = useState({ date: "", start_time: "", end_time: "", location: "" });
+  // Thrift = a little store: where it is, which days/hours it's open, and whether
+  // it's an ongoing sale that can be toggled "open" (like food trucks).
+  const [thrift, setThrift] = useState({
+    location: "",
+    ongoing: false,
+    days: [
+      { day: "Monday", open: "", close: "", closed: false },
+      { day: "Tuesday", open: "", close: "", closed: false },
+      { day: "Wednesday", open: "", close: "", closed: false },
+      { day: "Thursday", open: "", close: "", closed: false },
+      { day: "Friday", open: "", close: "", closed: false },
+      { day: "Saturday", open: "", close: "", closed: false },
+      { day: "Sunday", open: "", close: "", closed: true },
+    ],
+  });
   const [housing, setHousing] = useState({
     address: "", bedrooms: "", bathrooms: "", sqft: "", lot_size: "",
     year_built: "", garage: false, pets_allowed: false, furnished: false,
@@ -150,6 +165,12 @@ export default function ListPage() {
       if (meta.event) tags.push(`__event:${JSON.stringify(event)}`);
       if (meta.housing) tags.push(`__housing:${JSON.stringify({ ...housing, available_date: meta.available ? housing.available_date : "" })}`);
       if (meta.service) tags.push(`__service:${JSON.stringify(service)}`);
+      if (meta.thrift) {
+        // Weekly schedule → __hours (same shape the board/modal read); the ongoing
+        // "open" flag → __thrift. Location rides in price_label (thrift convention).
+        tags.push(`__hours:${JSON.stringify(thrift.days)}`);
+        tags.push(`__thrift:${JSON.stringify({ ongoing: thrift.ongoing })}`);
+      }
 
       // Price: services use their rate; rentals price per-duration (null here).
       let priceNum: number | null = price.trim() ? Number(price.replace(/[^0-9.]/g, "")) : null;
@@ -159,6 +180,7 @@ export default function ListPage() {
         priceLabel = service.rate_type === "hourly" ? "per hour" : service.rate_type === "quote" ? "Free quote" : null;
       }
       if (meta.rental) priceNum = null;
+      if (meta.thrift) { priceNum = null; priceLabel = thrift.location.trim() || null; }
 
       // 4) Create the listing (with rental columns when applicable).
       const base: Record<string, any> = {
@@ -350,6 +372,42 @@ export default function ListPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
                 <input value={event.location} onChange={(e) => setEvent({ ...event, location: e.target.value })} placeholder="Where is it?" className={inputCls} />
+              </div>
+            </div>
+          )}
+
+          {/* Thrift store details — location + open days/hours + ongoing toggle */}
+          {meta.thrift && (
+            <div className="space-y-3 rounded-xl bg-gray-50 p-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                <input value={thrift.location} onChange={(e) => setThrift({ ...thrift, location: e.target.value })} placeholder="Address or where to find you" className={inputCls} />
+              </div>
+              <label className={`flex items-start gap-2 px-3 py-2.5 rounded-xl border cursor-pointer text-sm transition-colors ${thrift.ongoing ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"}`}>
+                <input type="checkbox" checked={thrift.ongoing} onChange={() => setThrift({ ...thrift, ongoing: !thrift.ongoing })} className="accent-green-600 mt-0.5" />
+                <span>🟢 Ongoing sale — I open on a regular schedule (you can toggle it &ldquo;open&rdquo; like a food truck)</span>
+              </label>
+              <div>
+                <p className="block text-xs font-medium text-gray-600 mb-1.5">Days &amp; hours open</p>
+                <div className="space-y-1.5">
+                  {thrift.days.map((d, i) => (
+                    <div key={d.day} className="flex items-center gap-2">
+                      <label className="flex items-center gap-1.5 w-24 shrink-0 text-sm text-gray-700">
+                        <input type="checkbox" checked={!d.closed} onChange={() => setThrift((t) => ({ ...t, days: t.days.map((x, xi) => xi === i ? { ...x, closed: !x.closed } : x) }))} className="accent-green-600" />
+                        {d.day.slice(0, 3)}
+                      </label>
+                      {d.closed ? (
+                        <span className="text-xs text-gray-400">Closed</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <input type="time" value={d.open} onChange={(e) => setThrift((t) => ({ ...t, days: t.days.map((x, xi) => xi === i ? { ...x, open: e.target.value } : x) }))} className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                          <span className="text-xs text-gray-400">to</span>
+                          <input type="time" value={d.close} onChange={(e) => setThrift((t) => ({ ...t, days: t.days.map((x, xi) => xi === i ? { ...x, close: e.target.value } : x) }))} className="flex-1 min-w-0 border border-gray-200 rounded-lg px-2 py-1.5 text-sm" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
