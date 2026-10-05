@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { LayoutDashboard, Truck, Receipt, Package, Gift, CalendarDays, Tent, HeartHandshake, BarChart3, TrendingUp, Users, MapPin, Building2, FolderOpen, Map as MapIcon, Lock, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import Logo, { BackHome } from "@/components/Logo";
 import { BRAND_ORIGIN } from "@/lib/domains";
@@ -176,22 +177,22 @@ type Customer = {
   last_booking_at: string | null;
 };
 
-const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminOnly?: boolean; foodTruckOnly?: boolean; businessOnly?: boolean }[] = [
-  { id: "overview", label: "Overview", icon: "🏠" },
-  { id: "foodtruck", label: "Food Truck", icon: "🚚", foodTruckOnly: true },
-  { id: "orders", label: "Orders", icon: "🧾", foodTruckOnly: true },
-  { id: "listings", label: "Listings", icon: "📦" },
-  { id: "referrals", label: "Referrals", icon: "🤝" },
-  { id: "bookings", label: "Appointments", icon: "📅", premiumOnly: true, businessOnly: true },
-  { id: "rentals", label: "Rentals", icon: "🏕️", businessOnly: true },
-  { id: "offers", label: "Offers", icon: "🤝" },
-  { id: "analytics", label: "Analytics", icon: "📊", premiumOnly: true, businessOnly: true },
-  { id: "reports", label: "Reports", icon: "📈", premiumOnly: true, businessOnly: true },
-  { id: "crm", label: "Estimates & Customers", icon: "👥", premiumOnly: true, businessOnly: true },
-  { id: "myplaces", label: "My Places", icon: "🌿", businessOnly: true },
-  { id: "businesses", label: "All Businesses", icon: "🏙️", adminOnly: true },
-  { id: "alllistings", label: "All Listings", icon: "🗂️", adminOnly: true },
-  { id: "allplaces", label: "All Places", icon: "🌿", adminOnly: true },
+const NAV: { id: Tab; label: string; Icon: LucideIcon; premiumOnly?: boolean; adminOnly?: boolean; foodTruckOnly?: boolean; businessOnly?: boolean }[] = [
+  { id: "overview", label: "Overview", Icon: LayoutDashboard },
+  { id: "foodtruck", label: "Food Truck", Icon: Truck, foodTruckOnly: true },
+  { id: "orders", label: "Orders", Icon: Receipt, businessOnly: true },
+  { id: "listings", label: "Listings", Icon: Package },
+  { id: "referrals", label: "Referrals", Icon: Gift },
+  { id: "bookings", label: "Appointments", Icon: CalendarDays, premiumOnly: true, businessOnly: true },
+  { id: "rentals", label: "Rentals", Icon: Tent, businessOnly: true },
+  { id: "offers", label: "Offers", Icon: HeartHandshake },
+  { id: "analytics", label: "Analytics", Icon: BarChart3, premiumOnly: true, businessOnly: true },
+  { id: "reports", label: "Reports", Icon: TrendingUp, premiumOnly: true, businessOnly: true },
+  { id: "crm", label: "Estimates & Customers", Icon: Users, premiumOnly: true, businessOnly: true },
+  { id: "myplaces", label: "My Places", Icon: MapPin, businessOnly: true },
+  { id: "businesses", label: "All Businesses", Icon: Building2, adminOnly: true },
+  { id: "alllistings", label: "All Listings", Icon: FolderOpen, adminOnly: true },
+  { id: "allplaces", label: "All Places", Icon: MapIcon, adminOnly: true },
 ];
 
 export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab, initialNew, vendorOptions }: Props) {
@@ -632,10 +633,10 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <span>{item.icon}</span>
+              <item.Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
               <span>{item.label}</span>
               {item.premiumOnly && !can(item.id as FeatureKey) && (
-                <span className="ml-auto text-xs text-gray-300">🔒</span>
+                <Lock className="ml-auto w-3.5 h-3.5 text-gray-300" strokeWidth={2} />
               )}
               {item.id === "bookings" && stats.pendingBookings > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
@@ -841,6 +842,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                   </button>
                 </div>
               </div>
+
+              {/* Orders & total sales — top of the overview */}
+              <OverviewOrdersSummary vendorId={vendor.id} supabase={supabase} />
 
               {/* Stats grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -1140,8 +1144,11 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             <FoodTruckTab vendorId={vendor.id} initial={vendor.food_truck} supabase={supabase} connectEnabled={connectEnabled} />
           )}
 
-          {tab === "orders" && isFoodTruckVendor && (
-            <FoodOrdersTab vendorId={vendor.id} supabase={supabase} />
+          {tab === "orders" && isBusiness && (
+            <>
+              {isFoodTruckVendor && <FoodOrdersTab vendorId={vendor.id} supabase={supabase} />}
+              <AllOrdersList vendorId={vendor.id} supabase={supabase} />
+            </>
           )}
 
           {tab === "store" && (
@@ -3570,6 +3577,112 @@ const CATEGORIES_LIST = [
   "Housing & Rentals",
 ];
 
+// Top-of-overview summary: how many orders/sold items + total sales across
+// every channel (food orders, product buys, sold thrift, rental bookings).
+function OverviewOrdersSummary({ vendorId, supabase }: { vendorId: string; supabase: any }) {
+  const [data, setData] = useState<{ count: number; total: number } | null>(null);
+  useEffect(() => {
+    (async () => {
+      const [food, buys, offers, rentals] = await Promise.all([
+        supabase.from("food_orders").select("total").eq("vendor_id", vendorId).neq("payment_status", "pending").neq("status", "cancelled"),
+        supabase.from("purchase_inquiries").select("amount_paid, listing:listings(price)").eq("vendor_id", vendorId).eq("inquiry_type", "buy"),
+        supabase.from("thrift_offers").select("amount, counter_amount").eq("vendor_id", vendorId).in("status", ["accepted", "paid"]),
+        supabase.from("rental_bookings").select("total_price").eq("vendor_id", vendorId).neq("status", "cancelled"),
+      ]);
+      let count = 0, total = 0;
+      for (const r of (food.data ?? []) as any[]) { count++; total += Number(r.total) || 0; }
+      for (const r of (buys.data ?? []) as any[]) { const l = Array.isArray(r.listing) ? r.listing[0] : r.listing; count++; total += Number(r.amount_paid ?? l?.price ?? 0); }
+      for (const r of (offers.data ?? []) as any[]) { count++; total += Number(r.counter_amount ?? r.amount ?? 0); }
+      for (const r of (rentals.data ?? []) as any[]) { count++; total += Number(r.total_price) || 0; }
+      setData({ count, total });
+    })();
+  }, [vendorId, supabase]);
+
+  return (
+    <div className="grid grid-cols-2 gap-4 mb-6">
+      <a href="/dashboard/vendor?tab=orders" className="bg-gradient-to-br from-green-600 to-emerald-600 text-white rounded-2xl p-5 shadow-sm hover:brightness-105 transition-all">
+        <Receipt className="w-6 h-6 opacity-80 mb-2" strokeWidth={2} />
+        <p className="text-3xl font-black leading-none">{data ? data.count : "—"}</p>
+        <p className="text-sm text-green-50 mt-1">Orders &amp; sold items</p>
+      </a>
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+        <TrendingUp className="w-6 h-6 text-green-600 mb-2" strokeWidth={2} />
+        <p className="text-3xl font-black text-gray-900 leading-none">{data ? formatPrice(data.total) : "—"}</p>
+        <p className="text-sm text-gray-500 mt-1">Total sales</p>
+      </div>
+    </div>
+  );
+}
+
+// Every non-food order + sold item in one list: product Buy Now orders, sold
+// thrift (accepted/paid offers), and rental bookings. Food-truck tickets keep
+// their own live board above this.
+function AllOrdersList({ vendorId, supabase }: { vendorId: string; supabase: any }) {
+  type Row = { id: string; date: string; customer: string; item: string; amount: number; paid: boolean; source: string };
+  const [rows, setRows] = useState<Row[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const [buys, offers, rentals] = await Promise.all([
+        supabase.from("purchase_inquiries").select("id, listing_title, buyer_name, amount_paid, paid_at, created_at, listing:listings(title, price)").eq("vendor_id", vendorId).eq("inquiry_type", "buy").order("created_at", { ascending: false }).limit(200),
+        supabase.from("thrift_offers").select("id, listing_title, buyer_name, amount, counter_amount, paid_at, created_at").eq("vendor_id", vendorId).in("status", ["accepted", "paid"]).order("created_at", { ascending: false }).limit(200),
+        supabase.from("rental_bookings").select("id, duration_label, total_price, payment_status, waiver_signer_name, created_at, listing:listings(title)").eq("vendor_id", vendorId).neq("status", "cancelled").order("created_at", { ascending: false }).limit(200),
+      ]);
+      const out: Row[] = [];
+      for (const b of (buys.data ?? []) as any[]) {
+        const l = Array.isArray(b.listing) ? b.listing[0] : b.listing;
+        out.push({ id: "b" + b.id, date: b.created_at, customer: b.buyer_name || "Customer", item: b.listing_title || l?.title || "Item", amount: Number(b.amount_paid ?? l?.price ?? 0), paid: !!b.paid_at, source: "Product" });
+      }
+      for (const o of (offers.data ?? []) as any[]) {
+        out.push({ id: "o" + o.id, date: o.created_at, customer: o.buyer_name || "Buyer", item: o.listing_title || "Item", amount: Number(o.counter_amount ?? o.amount ?? 0), paid: !!o.paid_at, source: "Sold" });
+      }
+      for (const r of (rentals.data ?? []) as any[]) {
+        const l = Array.isArray(r.listing) ? r.listing[0] : r.listing;
+        out.push({ id: "r" + r.id, date: r.created_at, customer: r.waiver_signer_name || "Booking", item: (l?.title || "Rental") + (r.duration_label ? ` · ${r.duration_label}` : ""), amount: Number(r.total_price ?? 0), paid: r.payment_status === "paid" || r.payment_status === "deposit_paid", source: "Rental" });
+      }
+      out.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setRows(out);
+      setLoading(false);
+    })();
+  }, [vendorId, supabase]);
+
+  const srcColor: Record<string, string> = { Product: "bg-blue-100 text-blue-700", Sold: "bg-emerald-100 text-emerald-700", Rental: "bg-amber-100 text-amber-700" };
+
+  return (
+    <div className="p-6 max-w-3xl">
+      <h2 className="text-xl font-bold text-gray-900 mb-1">🧾 Orders &amp; Sold Items</h2>
+      <p className="text-gray-400 text-sm mb-5">Product orders, sold thrift items, and rental bookings — all in one place.</p>
+      {loading ? (
+        <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-16 bg-white rounded-xl animate-pulse" />)}</div>
+      ) : rows.length === 0 ? (
+        <div className="bg-white rounded-2xl p-10 text-center border border-gray-100">
+          <p className="text-4xl mb-2">🧾</p>
+          <p className="text-gray-500 text-sm">No orders or sales yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => (
+            <div key={r.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-gray-900 text-sm truncate">{r.item}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${srcColor[r.source] ?? "bg-gray-100 text-gray-600"}`}>{r.source}</span>
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{r.customer} · {new Date(r.date).toLocaleDateString()}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-bold text-gray-900 text-sm">{formatPrice(r.amount)}</p>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${r.paid ? "bg-green-600 text-white" : "bg-amber-100 text-amber-700"}`}>{r.paid ? "💳 Paid" : "💵 Unpaid"}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any }) {
   const [orders, setOrders] = useState<FoodOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3665,7 +3778,9 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
             <p className="text-xs text-gray-400">{new Date(o.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}{o.customer_phone ? ` · ${o.customer_phone}` : ""}</p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            {o.payment_status === "paid" && <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-600 text-white">💳 Paid</span>}
+            {o.payment_status === "paid"
+              ? <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-green-600 text-white">💳 Paid</span>
+              : <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-amber-100 text-amber-700">💵 Pay at pickup</span>}
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${meta.badge}`}>{meta.label}</span>
           </div>
         </div>

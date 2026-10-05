@@ -49,6 +49,11 @@ export default function MessagesTabs({
     supabase.from("notifications").update({ is_read: true }).eq("user_id", me.id).eq("is_read", false).then(() => {});
   }
 
+  function deleteNotif(id: string) {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    supabase.from("notifications").delete().eq("id", id).then(() => {});
+  }
+
   const tabBtn = (id: "messages" | "notifications", label: string, badge?: number) => (
     <button
       type="button"
@@ -94,19 +99,28 @@ export default function MessagesTabs({
           ) : (
             <div className="space-y-2">
               {items.map((n) => (
-                <button
+                <div
                   key={n.id}
-                  onClick={() => openNotif(n)}
-                  className={`w-full text-left flex items-start gap-3 p-4 rounded-2xl border transition-colors ${n.is_read ? "bg-white border-gray-100 hover:bg-gray-50" : "bg-green-50 border-green-200 hover:bg-green-100"}`}
+                  className={`group relative flex items-start gap-3 p-4 rounded-2xl border transition-colors ${n.is_read ? "bg-white border-gray-100 hover:bg-gray-50" : "bg-green-50 border-green-200 hover:bg-green-100"}`}
                 >
-                  <span className="text-xl shrink-0">{ICONS[n.type] ?? ICONS.default}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm ${n.is_read ? "text-gray-700" : "text-gray-900 font-semibold"}`}>{n.title ?? "Notification"}</p>
-                    {n.body && <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</p>}
-                    <p className="text-xs text-gray-400 mt-1">{timeAgo(n.created_at)}</p>
-                  </div>
+                  <button onClick={() => openNotif(n)} className="flex items-start gap-3 flex-1 min-w-0 text-left">
+                    <span className="text-xl shrink-0">{ICONS[n.type] ?? ICONS.default}</span>
+                    <span className="flex-1 min-w-0 block">
+                      <span className={`block text-sm ${n.is_read ? "text-gray-700" : "text-gray-900 font-semibold"}`}>{n.title ?? "Notification"}</span>
+                      {n.body && <span className="block text-xs text-gray-500 mt-0.5 line-clamp-2">{n.body}</span>}
+                      <span className="block text-xs text-gray-400 mt-1">{timeAgo(n.created_at)}</span>
+                    </span>
+                  </button>
                   {!n.is_read && <span className="w-2 h-2 rounded-full bg-green-500 shrink-0 mt-1.5" />}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteNotif(n.id)}
+                    aria-label="Delete notification"
+                    className="shrink-0 w-7 h-7 -mr-1 -mt-1 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                  </button>
+                </div>
               ))}
             </div>
           )}

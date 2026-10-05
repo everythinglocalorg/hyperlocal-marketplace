@@ -166,6 +166,15 @@ export default function UnifiedInbox({ me, initialConvoId = null }: { me: Me; in
     await supabase.from("messages").update({ deleted_at: when, body: "" }).eq("id", m.id);
   }
 
+  async function deleteConversation(c: Convo, e?: React.MouseEvent) {
+    e?.stopPropagation();
+    if (!confirm("Delete this conversation? This removes it for everyone and can't be undone.")) return;
+    setConvos((prev) => prev.filter((x) => x.id !== c.id));
+    if (activeId === c.id) { setActiveId(null); setMessages([]); }
+    await supabase.from("messages").delete().eq("conversation_id", c.id);
+    await supabase.from("conversations").delete().eq("id", c.id);
+  }
+
   async function blockOther() {
     if (!active) return;
     const other = otherUserId(active);
@@ -262,24 +271,33 @@ export default function UnifiedInbox({ me, initialConvoId = null }: { me: Me; in
                 const unread = myUnread(c);
                 const isActive = c.id === activeId;
                 return (
-                  <button
+                  <div
                     key={c.id}
-                    onClick={() => openConvo(c)}
-                    className={`w-full text-left flex items-center gap-3 px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors ${isActive ? "bg-green-50" : ""}`}
+                    className={`group relative flex items-center border-b border-gray-50 hover:bg-gray-50 transition-colors ${isActive ? "bg-green-50" : ""}`}
                   >
-                    <Avatar name={otherName(c)} src={otherAvatar(c)} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-sm truncate ${unread > 0 ? "font-black text-gray-900" : "font-semibold text-gray-800"}`}>{otherName(c)}</p>
-                        <span className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded-full ${roleOf(c) === "vendor" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                          {roleOf(c) === "vendor" ? "Customer" : "Business"}
-                        </span>
+                    <button onClick={() => openConvo(c)} className="flex-1 min-w-0 text-left flex items-center gap-3 px-4 py-3">
+                      <Avatar name={otherName(c)} src={otherAvatar(c)} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm truncate ${unread > 0 ? "font-black text-gray-900" : "font-semibold text-gray-800"}`}>{otherName(c)}</p>
+                          <span className={`text-[10px] shrink-0 px-1.5 py-0.5 rounded-full ${roleOf(c) === "vendor" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                            {roleOf(c) === "vendor" ? "Customer" : "Business"}
+                          </span>
+                        </div>
+                        {c.listing_title && <p className="text-[11px] text-gray-400 truncate">{c.listing_title}</p>}
+                        <p className={`text-xs truncate ${unread > 0 ? "text-gray-700" : "text-gray-400"}`}>{c.last_message_preview ?? "…"}</p>
                       </div>
-                      {c.listing_title && <p className="text-[11px] text-gray-400 truncate">{c.listing_title}</p>}
-                      <p className={`text-xs truncate ${unread > 0 ? "text-gray-700" : "text-gray-400"}`}>{c.last_message_preview ?? "…"}</p>
-                    </div>
-                    {unread > 0 && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center shrink-0">{unread}</span>}
-                  </button>
+                      {unread > 0 && <span className="bg-red-500 text-white text-[10px] font-bold rounded-full min-w-5 h-5 px-1.5 flex items-center justify-center shrink-0">{unread}</span>}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => deleteConversation(c, e)}
+                      aria-label="Delete conversation"
+                      className="shrink-0 mr-2 w-7 h-7 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                    </button>
+                  </div>
                 );
               })
             )}
