@@ -530,7 +530,6 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                     onRadiusChange={handleRadiusChange}
                   />
                 </h2>
-                <Link href={gemsViewAllHref()} onClick={(e) => { if (gate(gemsViewAllHref())) e.preventDefault(); }} className="text-sm text-green-600 hover:underline shrink-0">View all →</Link>
               </div>
               {displayedListings.length === 0 ? (
                 <div className="text-center py-10 text-sm text-gray-500">
@@ -538,6 +537,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   <Link href={gemsViewAllHref()} className="text-green-600 font-semibold hover:underline">Browse all →</Link>
                 </div>
               ) : (
+              <>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                 {displayedListings.map((l) => {
                   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
@@ -568,6 +568,10 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   );
                 })}
               </div>
+              <div className="mt-5 text-center">
+                <Link href={gemsViewAllHref()} onClick={(e) => { if (gate(gemsViewAllHref())) e.preventDefault(); }} className="inline-block border border-green-300 text-green-700 font-semibold px-6 py-2.5 rounded-full text-sm hover:bg-green-50 transition-colors">View all →</Link>
+              </div>
+              </>
               )}
             </div>
           )}
