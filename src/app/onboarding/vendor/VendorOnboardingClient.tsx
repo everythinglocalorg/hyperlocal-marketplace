@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { LAUNCH_CITIES, CATEGORIES } from "@/types";
+import { CATEGORIES } from "@/types";
 import { slugify } from "@/lib/utils";
 import { geocodeQuery, getBrowserLocation, reverseGeocode } from "@/lib/geocode";
 import { normalizeState } from "@/lib/cities";
@@ -373,21 +373,6 @@ export default function VendorOnboardingClient() {
                         </button>
                       </div>
 
-                      {/* Quick picks */}
-                      <p className="text-xs text-gray-400 mb-2 font-medium uppercase tracking-wide">Launch cities</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {LAUNCH_CITIES.map((city) => (
-                          <button
-                            key={city.slug}
-                            type="button"
-                            onClick={() => setGeoLocation({ city: city.name, state: city.state, latitude: city.latitude, longitude: city.longitude, displayName: `${city.name}, ${city.state}` })}
-                            className="p-3 rounded-xl border-2 border-gray-200 text-left hover:border-green-400 hover:bg-green-50 transition-all"
-                          >
-                            <p className="font-semibold text-gray-900 text-sm">{city.name}</p>
-                            <p className="text-xs text-gray-500">{city.state}</p>
-                          </button>
-                        ))}
-                      </div>
                     </>
                   )}
 
