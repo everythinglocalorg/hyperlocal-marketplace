@@ -2,6 +2,7 @@
 
 import { useRef } from "react";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
+import SearchPredictive from "@/components/search/SearchPredictive";
 
 interface SearchBarProps {
   value: string;
@@ -34,18 +35,29 @@ export default function SearchBar({ value, onChange, onSearch, placeholder }: Se
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder ?? "Search..."}
-        className="w-full pl-9 pr-10 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50"
+        className="w-full pl-9 pr-20 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent bg-gray-50"
       />
       {value && (
         <button
           type="button"
           onClick={() => { onChange(""); inputRef.current?.focus(); }}
-          className="absolute right-3 text-gray-400 hover:text-gray-600"
+          aria-label="Clear search"
+          className="absolute right-11 text-gray-400 hover:text-gray-600"
         >
           ✕
         </button>
       )}
+      {/* Submit arrow — tap to run the search (Enter still works). */}
+      <button
+        type="button"
+        onClick={onSearch}
+        aria-label="Search"
+        className="absolute right-1.5 w-8 h-8 flex items-center justify-center rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.4}><path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M13 6l6 6-6 6" /></svg>
+      </button>
       <AtMentionDropdown query={value} />
+      <SearchPredictive query={value} onSearchAll={onSearch} rememberBase="/search" />
     </div>
   );
 }

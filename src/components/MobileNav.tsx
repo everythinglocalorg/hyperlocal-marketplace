@@ -18,7 +18,7 @@ export default function MobileNav() {
   if (HIDDEN_PREFIXES.some((p) => pathname === p || pathname.startsWith(p))) return null;
 
   const isHome = pathname === "/";
-  const isDiscover = pathname.startsWith("/search");
+  const isDiscover = pathname.startsWith("/discover");
   const isInbox = pathname.startsWith("/messages");
   const isSpace = pathname.startsWith("/dashboard");
 
@@ -33,7 +33,7 @@ export default function MobileNav() {
           <Home className="w-6 h-6" strokeWidth={2} />
           <span className="text-[10px] font-medium">Home</span>
         </Link>
-        <Link href="/search?mode=listings" className={`${base} ${isDiscover ? on : off}`}>
+        <Link href="/discover" className={`${base} ${isDiscover ? on : off}`}>
           <Map className="w-6 h-6" strokeWidth={2} />
           <span className="text-[10px] font-medium">Discover</span>
         </Link>

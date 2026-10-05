@@ -10,6 +10,7 @@ import BuyNowModal from "@/components/BuyNowModal";
 import MakeOfferModal from "@/components/MakeOfferModal";
 import MessageModal from "@/components/MessageModal";
 import PaymentOptions, { type PaymentHandles } from "@/components/PaymentOptions";
+import { consumeBackTo } from "@/lib/backNav";
 
 type Vendor = {
   id: string;
@@ -137,7 +138,7 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
           {/* Back + Save float on the photo */}
           <button
             type="button"
-            onClick={() => (window.history.length > 1 ? router.back() : router.push("/"))}
+            onClick={() => { const back = consumeBackTo(); if (back) { router.push(back); return; } if (window.history.length > 1) router.back(); else router.push("/discover"); }}
             aria-label="Back"
             className="absolute top-3 left-3 w-9 h-9 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow hover:bg-white"
           >

@@ -11,6 +11,7 @@ import { track } from "@/lib/analytics";
 import { resolveCity, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
+import SearchPredictive from "@/components/search/SearchPredictive";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import VendorLogo from "@/components/vendor/VendorLogo";
 import TypedRotator from "@/components/TypedRotator";
@@ -507,6 +508,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   className="w-full px-4 py-3 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-100"
                 />
                 <AtMentionDropdown query={query} />
+                <SearchPredictive query={query} onSearchAll={() => goSearch(query)} />
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <div className="shrink-0 sm:border-l sm:border-gray-100 sm:pl-2">

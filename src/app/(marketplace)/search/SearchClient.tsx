@@ -20,6 +20,7 @@ import BuyNowModal from "@/components/BuyNowModal";
 import MessageModal from "@/components/MessageModal";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import { useFavorites } from "@/lib/favorites";
+import { rememberBackTo } from "@/lib/backNav";
 
 // Full listing row (plus its vendor) needed by the detail popup and its CTAs.
 const LISTING_SELECT = "id, title, description, type, price, price_label, condition, quantity, images, category, tags, is_featured, cta_type, cta_url, waiver_url, waiver_filename, sold_at, vendor:vendors(id, slug, business_name, city, state, latitude, longitude, rating, phone, menu_pdf_url)";
@@ -302,14 +303,20 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
 
   // Clicking a listing now opens its full product page (keeps the buyer "in"
   // the product, Depop-style) instead of a quick-view popup.
+  function rememberSearch() {
+    try { rememberBackTo(window.location.pathname + window.location.search); } catch { /* noop */ }
+  }
+
   function openDetail(l: any) {
     const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
     if (!vendor) return;
+    rememberSearch();
     trackListingClick(l.id);
     router.push(`/listings/${l.id}`);
   }
 
   function openDetailById(listingId: string) {
+    rememberSearch();
     trackListingClick(listingId);
     router.push(`/listings/${listingId}`);
   }
@@ -1102,19 +1109,19 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {isKeyword
                     ? kwVendors.map((r, i) => (
-                        <KeywordVendorCard key={r.id} r={r} onClick={() => track("search_result_click", {
+                        <KeywordVendorCard key={r.id} r={r} onClick={() => { rememberSearch(); track("search_result_click", {
                           query: query.trim(),
                           result_type: "vendor",
                           result_id: r.id,
                           slug: r.slug ?? null,
                           position: i + 1,
                           total_results: kwVendors.length,
-                        })} />
+                        }); }} />
                       ))
                     : vendors.map((v, i) => (
                         <div
                           key={v.id}
-                          onClickCapture={() => track("search_result_click", {
+                          onClickCapture={() => { rememberSearch(); track("search_result_click", {
                             query: "",
                             mode: resolvedCoords ? "geo" : "browse",
                             result_type: "vendor",
@@ -1122,7 +1129,7 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
                             slug: v.slug,
                             position: i + 1,
                             total_results: vendors.length,
-                          })}
+                          }); }}
                         >
                           <VendorCard vendor={v} />
                         </div>
