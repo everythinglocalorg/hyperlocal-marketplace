@@ -11,6 +11,7 @@ import ProfileDetailsEditor, { normalizeDetails } from "@/components/ProfileDeta
 import VendorLogo from "@/components/vendor/VendorLogo";
 import QrCode from "@/components/QrCode";
 import WishlistGrid from "@/components/WishlistGrid";
+import PaymentOptions from "@/components/PaymentOptions";
 import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
@@ -115,7 +116,7 @@ type BuyerOffer = {
   status: string;
   created_at: string;
   updated_at: string;
-  vendor: { business_name: string; slug: string; logo_url: string | null; phone: string | null } | { business_name: string; slug: string; logo_url: string | null; phone: string | null }[] | null;
+  vendor: { business_name: string; slug: string; logo_url: string | null; phone: string | null; payment_handles: any } | { business_name: string; slug: string; logo_url: string | null; phone: string | null; payment_handles: any }[] | null;
 };
 
 interface Props {
@@ -759,12 +760,9 @@ export default function BuyerDashboardClient({ profile, bookings, offers, rental
                       {/* Deal agreed → arrange payment with the seller */}
                       {o.status === "accepted" && (
                         <div className="mt-4 bg-green-50 border border-green-100 rounded-xl p-3">
-                          <p className="text-sm font-semibold text-green-800">You’re all set at {money(o.counter_amount ?? o.amount)}.</p>
-                          <p className="text-xs text-green-700 mt-0.5">Arrange payment with {v?.business_name ?? "the seller"} — Venmo, Apple Cash, or cash at pickup.</p>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            <Link href={`/listings/${o.listing_id}`} className="bg-green-600 text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-green-700 transition-colors">Message seller</Link>
-                            {v?.phone && <a href={`sms:${v.phone}`} className="bg-white border border-green-300 text-green-700 text-xs font-semibold px-4 py-2 rounded-full hover:bg-green-100 transition-colors">Text {v.phone}</a>}
-                          </div>
+                          <p className="text-sm font-semibold text-green-800 mb-2">You’re all set at {money(o.counter_amount ?? o.amount)} — pay {v?.business_name ?? "the seller"}:</p>
+                          <PaymentOptions handles={v?.payment_handles} phone={v?.phone} amount={o.counter_amount ?? o.amount} note={o.listing_title} mode="pay" />
+                          <Link href={`/listings/${o.listing_id}`} className="mt-2 block text-center text-xs text-green-700 font-medium hover:underline">or message the seller →</Link>
                         </div>
                       )}
                     </div>

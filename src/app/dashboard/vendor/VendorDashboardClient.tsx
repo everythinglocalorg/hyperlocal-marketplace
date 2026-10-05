@@ -16,6 +16,7 @@ import CrmBoard from "@/components/vendor/CrmBoard";
 import ProposalBuilder from "@/components/vendor/ProposalBuilder";
 import EstimatorTools from "@/components/vendor/EstimatorTools";
 import JobMetrics from "@/components/vendor/JobMetrics";
+import PaymentHandlesEditor from "@/components/vendor/PaymentHandlesEditor";
 import SalesReportTab from "@/components/vendor/SalesReportTab";
 import CustomDomainPanel from "@/components/CustomDomainPanel";
 import ProductCategoriesManager, { ListingCategory } from "@/components/vendor/ProductCategoriesManager";
@@ -1136,6 +1137,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
           {tab === "store" && (
             <div className="space-y-6">
               <StoreSettingsTab vendor={vendor} supabase={supabase} />
+              <PaymentHandlesEditor vendor={vendor} />
               {/* Free-launch: custom domains are open to every vendor. When paid
                   tiers go live, re-gate to Pro+ by passing isPremium={isPlus}. */}
               <CustomDomainPanel

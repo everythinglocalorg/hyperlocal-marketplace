@@ -6,7 +6,7 @@ import ProductPageClient from "./ProductPageClient";
 type Props = { params: Promise<{ id: string }> };
 
 const LISTING_FIELDS =
-  "id, title, description, type, price, price_label, condition, quantity, images, category, tags, cta_type, cta_url, sold_at, created_at, vendor:vendors(id, slug, business_name, city, state, logo_url, latitude, longitude, rating, review_count, is_business, phone, menu_pdf_url)";
+  "id, title, description, type, price, price_label, condition, quantity, images, category, tags, cta_type, cta_url, sold_at, created_at, vendor:vendors(id, slug, business_name, city, state, logo_url, latitude, longitude, rating, review_count, is_business, phone, menu_pdf_url, payment_handles)";
 
 async function loadListing(id: string) {
   const supabase = await createClient();

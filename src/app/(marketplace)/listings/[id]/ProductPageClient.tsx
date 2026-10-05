@@ -9,6 +9,7 @@ import { fetchCityCenter, distanceMiles, LS_CITY_KEY } from "@/lib/cities";
 import BuyNowModal from "@/components/BuyNowModal";
 import MakeOfferModal from "@/components/MakeOfferModal";
 import MessageModal from "@/components/MessageModal";
+import PaymentOptions, { type PaymentHandles } from "@/components/PaymentOptions";
 
 type Vendor = {
   id: string;
@@ -24,6 +25,7 @@ type Vendor = {
   is_business: boolean | null;
   phone: string | null;
   menu_pdf_url: string | null;
+  payment_handles: PaymentHandles | null;
 };
 
 type Listing = {
@@ -227,7 +229,7 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
           <svg viewBox="0 0 24 24" className="w-4 h-4 text-green-700" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
         </Link>
 
-        <p className="mt-3 text-center text-xs text-gray-400">Pay by Venmo, Apple Cash, or cash at pickup — arranged with the seller.</p>
+        <PaymentOptions handles={vendor.payment_handles} phone={vendor.phone} mode="info" className="mt-3" />
 
         {/* More local finds */}
         {more.length > 0 && (

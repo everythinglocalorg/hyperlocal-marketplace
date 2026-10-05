@@ -33,7 +33,7 @@ export default async function BuyerDashboardPage() {
   // Offers this buyer has made (negotiation loop with sellers)
   const { data: offers } = await supabase
     .from("thrift_offers")
-    .select("id, listing_id, listing_title, vendor_id, amount, counter_amount, message, status, created_at, updated_at, vendor:vendors(business_name, slug, logo_url, phone)")
+    .select("id, listing_id, listing_title, vendor_id, amount, counter_amount, message, status, created_at, updated_at, vendor:vendors(business_name, slug, logo_url, phone, payment_handles)")
     .eq("buyer_id", user.id)
     .order("updated_at", { ascending: false });
 

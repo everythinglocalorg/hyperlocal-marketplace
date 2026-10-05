@@ -4,16 +4,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { slugify } from "@/lib/utils";
-import { CATEGORIES } from "@/types";
 import { makeSlug, normalizeState } from "@/lib/cities";
 import { defaultCtaForListingType } from "@/lib/cta";
+import RentalSetup, { type RentalSettings } from "@/components/rental/RentalSetup";
 import Logo from "@/components/Logo";
 
 // Adaptive "create a listing" flow for ANY logged-in user (no business account
-// needed — a lightweight personal seller profile is created on first post). ONE
-// template, with a Type selector that shows only the fields each type needs.
-// Product ("Sell Something") and Food (Food Truck / Restaurant) have their own
-// flows and are intentionally NOT here.
+// needed). ONE template, Type selector, only the fields each type needs — and the
+// same rich rate/booking setups the vendor dashboard uses (rentals get duration
+// rates + hours/deposit, housing gets full details, services set their rates).
+// Product ("Sell Something") and Food have their own flows and aren't here.
 
 type TypeKey = "service" | "event" | "thrift" | "housing_sale" | "rental" | "housing_rent";
 
@@ -21,16 +21,23 @@ const TYPES: {
   value: TypeKey; label: string; cat: string; priceLabel: string;
   titleLabel: string; titlePlaceholder: string;
   condition?: boolean; pickup?: boolean; event?: boolean; housing?: boolean; available?: boolean;
+  rental?: boolean; service?: boolean; hidePrice?: boolean;
 }[] = [
-  { value: "service", label: "Service", cat: "Services & Trades", priceLabel: "Starting price (optional)", titleLabel: "Service name", titlePlaceholder: "e.g. Lawn mowing, House cleaning" },
+  { value: "service", label: "Service", cat: "Services & Trades", priceLabel: "", titleLabel: "Service name", titlePlaceholder: "e.g. Lawn mowing, House cleaning", service: true, hidePrice: true },
   { value: "event", label: "Event", cat: "Events & Rentals", priceLabel: "Ticket price (blank = free)", titleLabel: "Event name", titlePlaceholder: "e.g. Summer Night Market", event: true },
   { value: "thrift", label: "Thrift Sale", cat: "Thrift Sales", priceLabel: "Price", titleLabel: "What are you selling?", titlePlaceholder: "e.g. Vintage oak dresser", condition: true, pickup: true },
   { value: "housing_sale", label: "House for Sale", cat: "Housing & Rentals", priceLabel: "Price", titleLabel: "Listing title", titlePlaceholder: "e.g. 3 bed ranch on Oak St", housing: true },
-  { value: "rental", label: "Rental", cat: "Events & Rentals", priceLabel: "Rental price", titleLabel: "What are you renting out?", titlePlaceholder: "e.g. Kayak, Party tent", pickup: true },
+  { value: "rental", label: "Rental", cat: "Events & Rentals", priceLabel: "", titleLabel: "What are you renting out?", titlePlaceholder: "e.g. Kayak, Party tent", pickup: true, rental: true, hidePrice: true },
   { value: "housing_rent", label: "Housing (For Rent)", cat: "Housing & Rentals", priceLabel: "Monthly rent", titleLabel: "Listing title", titlePlaceholder: "e.g. 2 bed apartment downtown", housing: true, available: true },
 ];
 
 function metaFor(t: TypeKey) { return TYPES.find((x) => x.value === t) ?? TYPES[0]; }
+
+const EMPTY_RENTAL: RentalSettings = {
+  rental_mode: "hourly", rental_buffer_hours: "0", rental_quantity: "1",
+  waiver_body: "", fareharbor_shortname: "", fareharbor_flow: "",
+  rental_deposit_type: "none", rental_deposit_value: "50",
+};
 
 export default function ListPage() {
   const router = useRouter();
@@ -45,13 +52,22 @@ export default function ListPage() {
   const [sellerName, setSellerName] = useState("");
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
-  const [category, setCategory] = useState<string>("Services & Trades");
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [condition, setCondition] = useState<"used" | "new">("used");
   const [pickup, setPickup] = useState(true);
   const [event, setEvent] = useState({ date: "", start_time: "", end_time: "", location: "" });
-  const [housing, setHousing] = useState({ address: "", bedrooms: "", bathrooms: "", sqft: "", available_date: "" });
+  const [housing, setHousing] = useState({
+    address: "", bedrooms: "", bathrooms: "", sqft: "", lot_size: "",
+    year_built: "", garage: false, pets_allowed: false, furnished: false,
+    available_date: "", lease_term: "12 months",
+  });
+  const [service, setService] = useState<{ rate_type: "hourly" | "flat" | "quote"; rate: string; cost_rate: string }>({ rate_type: "hourly", rate: "", cost_rate: "" });
+  // Rental rates + booking (reuses the dashboard's RentalSetup component).
+  const [rentalDurations, setRentalDurations] = useState<{ label: string; hours: number; price: number }[]>([]);
+  const [rentalSettings, setRentalSettings] = useState<RentalSettings>(EMPTY_RENTAL);
+  const [rentalWaiverUrl, setRentalWaiverUrl] = useState<string | null>(null);
+  const [rentalWaiverFilename, setRentalWaiverFilename] = useState<string | null>(null);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +82,6 @@ export default function ListPage() {
         if (t && TYPES.some((x) => x.value === t)) initial = t;
       } catch { /* noop */ }
       setType(initial);
-      setCategory(metaFor(initial).cat);
       if (initial === "thrift") setCondition("used");
 
       const { data: { user } } = await supabase.auth.getUser();
@@ -83,9 +98,7 @@ export default function ListPage() {
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Switching type realigns the default category (unless they picked one already).
   function pickType(t: TypeKey) {
-    setCategory((cur) => (TYPES.some((x) => x.cat === cur) ? metaFor(t).cat : cur));
     setType(t);
     if (t === "thrift") setCondition("used");
   }
@@ -132,34 +145,63 @@ export default function ListPage() {
         if (!upErr) imageUrls.push(supabase.storage.from("listing-images").getPublicUrl(path).data.publicUrl);
       }
 
-      // 3) Per-type extras stored in tags[] (same format the rest of the app reads).
+      // 3) Per-type extras in tags[] (same format the rest of the app reads).
       const tags: string[] = [];
       if (meta.event) tags.push(`__event:${JSON.stringify(event)}`);
-      if (meta.housing) {
-        tags.push(`__housing:${JSON.stringify({
-          address: housing.address, bedrooms: housing.bedrooms, bathrooms: housing.bathrooms,
-          sqft: housing.sqft, lot_size: "", year_built: "", garage: false, pets_allowed: false,
-          furnished: false, available_date: meta.available ? housing.available_date : "",
-          lease_term: "12 months",
-        })}`);
-      }
+      if (meta.housing) tags.push(`__housing:${JSON.stringify({ ...housing, available_date: meta.available ? housing.available_date : "" })}`);
+      if (meta.service) tags.push(`__service:${JSON.stringify(service)}`);
 
-      const priceNum = price.trim() ? Number(price.replace(/[^0-9.]/g, "")) : null;
-      const { error: lErr } = await supabase.from("listings").insert({
+      // Price: services use their rate; rentals price per-duration (null here).
+      let priceNum: number | null = price.trim() ? Number(price.replace(/[^0-9.]/g, "")) : null;
+      let priceLabel: string | null = null;
+      if (meta.service) {
+        priceNum = service.rate_type === "quote" ? null : (service.rate ? Number(service.rate.replace(/[^0-9.]/g, "")) : null);
+        priceLabel = service.rate_type === "hourly" ? "per hour" : service.rate_type === "quote" ? "Free quote" : null;
+      }
+      if (meta.rental) priceNum = null;
+
+      // 4) Create the listing (with rental columns when applicable).
+      const base: Record<string, any> = {
         vendor_id: vendorId,
         title: title.trim(),
         description: description.trim() || null,
         type,
-        category,
+        category: meta.cat,
         cta_type: defaultCtaForListingType(type),
         price: priceNum,
+        price_label: priceLabel,
         ...(meta.condition ? { condition } : {}),
         ...(meta.pickup ? { porch_pickup: pickup } : {}),
         images: imageUrls,
         tags,
         is_active: true,
-      });
+        ...(meta.rental ? {
+          waiver_url: rentalWaiverUrl,
+          waiver_filename: rentalWaiverFilename,
+          waiver_body: rentalSettings.waiver_body || null,
+          rental_mode: rentalSettings.rental_mode,
+          rental_buffer_hours: Number(rentalSettings.rental_buffer_hours) || 0,
+          rental_quantity: Math.max(1, Number(rentalSettings.rental_quantity) || 1),
+          rental_deposit_type: rentalSettings.rental_deposit_type || "none",
+          rental_deposit_value: Number(rentalSettings.rental_deposit_value) || 0,
+        } : {}),
+      };
+
+      let { data: created, error: lErr } = await supabase.from("listings").insert(base).select("id").single();
+      if (lErr && lErr.code === "42703") {
+        // Optional rental columns not migrated — retry without them.
+        const { waiver_url, waiver_filename, waiver_body, rental_mode, rental_buffer_hours, rental_quantity, rental_deposit_type, rental_deposit_value, ...safe } = base;
+        const res = await supabase.from("listings").insert(safe).select("id").single();
+        created = res.data; lErr = res.error;
+      }
       if (lErr) throw lErr;
+
+      // 5) Rental duration rates.
+      if (meta.rental && created?.id && rentalDurations.length > 0) {
+        try {
+          await supabase.from("rental_durations").insert(rentalDurations.map((d) => ({ listing_id: created!.id, ...d })));
+        } catch { /* table not migrated — rates still saved on the listing */ }
+      }
 
       router.push(vendorSlug ? `/vendors/${vendorSlug}` : "/dashboard/vendor");
     } catch (err: any) {
@@ -223,23 +265,72 @@ export default function ListPage() {
             <input value={title} onChange={(e) => setTitle(e.target.value)} required placeholder={meta.titlePlaceholder} className={inputCls} />
           </div>
 
-          <div className={meta.condition ? "grid grid-cols-2 gap-3" : ""}>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{meta.priceLabel}</label>
-              <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="$0" className={inputCls} />
-            </div>
-            {meta.condition && (
+          {/* Price / condition (hidden for rentals & services, which set rates below) */}
+          {!meta.hidePrice && (
+            <div className={meta.condition ? "grid grid-cols-2 gap-3" : ""}>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
-                <select value={condition} onChange={(e) => setCondition(e.target.value as "used" | "new")} className={inputCls}>
-                  <option value="used">Used</option>
-                  <option value="new">New</option>
-                </select>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{meta.priceLabel}</label>
+                <input value={price} onChange={(e) => setPrice(e.target.value)} inputMode="decimal" placeholder="$0" className={inputCls} />
               </div>
-            )}
-          </div>
+              {meta.condition && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Condition</label>
+                  <select value={condition} onChange={(e) => setCondition(e.target.value as "used" | "new")} className={inputCls}>
+                    <option value="used">Used</option>
+                    <option value="new">New</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Event-only fields */}
+          {/* Service rates */}
+          {meta.service && (
+            <div className="space-y-3 rounded-xl bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-800">How you charge</p>
+              <div className="flex gap-2">
+                {([["hourly", "Hourly"], ["flat", "Flat rate"], ["quote", "Free quote"]] as const).map(([val, lbl]) => (
+                  <button key={val} type="button" onClick={() => setService({ ...service, rate_type: val })}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${service.rate_type === val ? "bg-green-600 border-green-600 text-white" : "bg-white border-gray-200 text-gray-700 hover:border-green-300"}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
+              {service.rate_type !== "quote" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{service.rate_type === "hourly" ? "Rate ($/hr)" : "Price"}</label>
+                    <input value={service.rate} onChange={(e) => setService({ ...service, rate: e.target.value })} inputMode="decimal" placeholder="$0" className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Your cost ({service.rate_type === "hourly" ? "$/hr" : "$"}) <span className="text-gray-400 font-normal">· private</span></label>
+                    <input value={service.cost_rate} onChange={(e) => setService({ ...service, cost_rate: e.target.value })} inputMode="decimal" placeholder="$0" className={inputCls} />
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-gray-400">Your cost stays private — it just powers your estimates and profit tracking.</p>
+            </div>
+          )}
+
+          {/* Rental rates + booking (reused dashboard setup) */}
+          {meta.rental && (
+            <div className="rounded-xl bg-gray-50 p-3">
+              <p className="text-sm font-semibold text-gray-800 mb-2">Rates &amp; booking</p>
+              <RentalSetup
+                listingId={null}
+                supabase={supabase}
+                vendorId={existingVendor?.id ?? ""}
+                waiverUrl={rentalWaiverUrl}
+                waiverFilename={rentalWaiverFilename}
+                initialSettings={rentalSettings}
+                onWaiverUploaded={(url, fn) => { setRentalWaiverUrl(url); setRentalWaiverFilename(fn); }}
+                onDurationsChange={setRentalDurations}
+                onSettingsChange={setRentalSettings}
+              />
+            </div>
+          )}
+
+          {/* Event details */}
           {meta.event && (
             <div className="space-y-3 rounded-xl bg-gray-50 p-3">
               <div className="grid grid-cols-3 gap-2">
@@ -263,7 +354,7 @@ export default function ListPage() {
             </div>
           )}
 
-          {/* Housing-only fields */}
+          {/* Housing details */}
           {meta.housing && (
             <div className="space-y-3 rounded-xl bg-gray-50 p-3">
               <div>
@@ -284,21 +375,40 @@ export default function ListPage() {
                   <input value={housing.sqft} onChange={(e) => setHousing({ ...housing, sqft: e.target.value })} inputMode="numeric" placeholder="0" className={inputCls} />
                 </div>
               </div>
-              {meta.available && (
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Available from</label>
-                  <input type="date" value={housing.available_date} onChange={(e) => setHousing({ ...housing, available_date: e.target.value })} className={inputCls} />
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Lot size</label>
+                  <input value={housing.lot_size} onChange={(e) => setHousing({ ...housing, lot_size: e.target.value })} placeholder="e.g. 0.25 ac" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Year built</label>
+                  <input value={housing.year_built} onChange={(e) => setHousing({ ...housing, year_built: e.target.value })} inputMode="numeric" placeholder="e.g. 1998" className={inputCls} />
+                </div>
+              </div>
+              {meta.available && (
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Available from</label>
+                    <input type="date" value={housing.available_date} onChange={(e) => setHousing({ ...housing, available_date: e.target.value })} className={inputCls} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Lease term</label>
+                    <select value={housing.lease_term} onChange={(e) => setHousing({ ...housing, lease_term: e.target.value })} className={inputCls}>
+                      {["Month to month", "6 months", "12 months", "18 months"].map((l) => <option key={l} value={l}>{l}</option>)}
+                    </select>
+                  </div>
                 </div>
               )}
+              <div className="flex flex-wrap gap-2">
+                {([["garage", "Garage"], ["pets_allowed", "Pets OK"], ["furnished", "Furnished"]] as const).map(([key, lbl]) => (
+                  <button key={key} type="button" onClick={() => setHousing({ ...housing, [key]: !(housing as any)[key] })}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${(housing as any)[key] ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"}`}>
+                    {lbl}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className={inputCls}>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
 
           <div>
             <p className="block text-sm font-medium text-gray-700 mb-1">Photos</p>
