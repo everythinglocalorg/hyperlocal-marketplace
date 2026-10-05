@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { consumeBackTo } from "@/lib/backNav";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import { track } from "@/lib/analytics";
@@ -128,6 +130,15 @@ interface Props {
 
 export default function VendorProfileClient({ vendor, listings, listingCategories = [], reviews, currentUserId, currentUserReferralCode, inboundRefCode, localTop8Rank, isFoundingMember }: Props) {
   const supabase = createClient();
+  const router = useRouter();
+  // Back arrow returns to where the visitor came from (e.g. their search
+  // results) instead of a bare /search discover page.
+  function goBack() {
+    const back = consumeBackTo();
+    if (back) { router.push(back); return; }
+    if (typeof window !== "undefined" && window.history.length > 1) router.back();
+    else router.push("/discover");
+  }
 
   // Store typography (fonts + text size) chosen in Store Settings → vendors.theme.
   // Only applied when the vendor actually set a theme, so untouched stores keep
@@ -805,7 +816,9 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
       <header className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center gap-3">
           {/* Back + Logo */}
-          <Link href="/search" className="text-gray-400 hover:text-gray-700 transition-colors text-xl shrink-0 leading-none">←</Link>
+          <button type="button" onClick={goBack} aria-label="Back" className="text-gray-400 hover:text-gray-700 transition-colors shrink-0 leading-none -ml-1 p-1">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+          </button>
           <div className="w-10 h-10 rounded-xl border border-gray-200 bg-white overflow-hidden shrink-0 flex items-center justify-center">
             {vendor.logo_url
               ? <img src={vendor.logo_url} alt={vendor.business_name} className="w-full h-full object-contain" />

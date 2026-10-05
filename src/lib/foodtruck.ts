@@ -51,6 +51,13 @@ export function isFoodTruck(category?: string | null): boolean {
   return category === FOOD_TRUCK_CATEGORY;
 }
 
+// True once a vendor has actually set up Food Truck Mode (non-empty food_truck
+// jsonb), regardless of their category — so a truck under e.g. "Restaurants"
+// still gets the Orders + Food Truck tabs instead of a blank page.
+export function hasFoodTruckSetup(raw: unknown): boolean {
+  return !!raw && typeof raw === "object" && Object.keys(raw as object).length > 0;
+}
+
 export function emptyFoodTruck(): FoodTruck {
   return { status: "closed", spot: { name: "", until: "", lat: null, lng: null }, live_at: null, schedule: [], ordering: { mode: "internal", url: "" }, order_messages: { started: "", ready: "" }, prepay: false };
 }
@@ -128,9 +135,9 @@ export type FoodOrder = {
 export const ORDER_STATUS_META: Record<OrderStatus, {
   label: string; badge: string; next?: OrderStatus; nextLabel?: string;
 }> = {
-  new:        { label: "New",        badge: "bg-blue-100 text-blue-700",   next: "preparing", nextLabel: "Start" },
-  preparing:  { label: "Preparing",  badge: "bg-amber-100 text-amber-700", next: "ready",     nextLabel: "🔔 Order up!" },
-  ready:      { label: "Ready",      badge: "bg-green-100 text-green-700", next: "completed", nextLabel: "Picked up ✓" },
+  new:        { label: "New",        badge: "bg-blue-100 text-blue-700",   next: "preparing", nextLabel: "✓ Order received" },
+  preparing:  { label: "In progress", badge: "bg-amber-100 text-amber-700", next: "ready",     nextLabel: "🔔 Order up!" },
+  ready:      { label: "Ready",      badge: "bg-green-100 text-green-700", next: "completed", nextLabel: "Order complete ✓" },
   completed:  { label: "Completed",  badge: "bg-gray-100 text-gray-500" },
   cancelled:  { label: "Cancelled",  badge: "bg-red-100 text-red-500" },
 };

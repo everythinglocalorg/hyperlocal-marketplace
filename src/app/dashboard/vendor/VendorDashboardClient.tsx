@@ -25,7 +25,7 @@ import { LocalProPriceInline } from "@/components/LocalProPrice";
 import { hasFeature, FeatureKey, featuresForTier, isPlusTier } from "@/lib/features";
 import { LISTING_CTA_OPTIONS, ListingCtaType, isListingCtaType, defaultCtaForListingType } from "@/lib/cta";
 import { STORE_FONTS, HEADING_FONT_KEYS, BODY_FONT_KEYS, TEXT_SCALE_LABEL, normalizeTheme, buildGoogleFontsHref } from "@/lib/fonts";
-import { isFoodTruck, normalizeFoodTruck, DAYS, ORDER_STATUS_META, ACTIVE_ORDER_STATUSES, type FoodTruck, type TruckStatus, type TruckStop, type FoodOrder, type OrderStatus } from "@/lib/foodtruck";
+import { isFoodTruck, hasFoodTruckSetup, normalizeFoodTruck, DAYS, ORDER_STATUS_META, ACTIVE_ORDER_STATUSES, type FoodTruck, type TruckStatus, type TruckStop, type FoodOrder, type OrderStatus } from "@/lib/foodtruck";
 import QrCode from "@/components/QrCode";
 
 type Tab = "overview" | "listings" | "analytics" | "reports" | "bookings" | "rentals" | "offers" | "crm" | "referrals" | "store" | "notifications" | "messages" | "pagecontent" | "businesses" | "alllistings" | "allplaces" | "myplaces" | "foodtruck" | "orders";
@@ -200,7 +200,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   // Upgrade links carry the selected business so checkout upgrades THIS vendor
   // (owners can have several), not just their first.
   const upgradeHref = `/dashboard/vendor/upgrade?vendor=${vendor.id}`;
-  const isFoodTruckVendor = isFoodTruck(vendor.category);
+  const isFoodTruckVendor = isFoodTruck(vendor.category) || hasFoodTruckSetup((vendor as { food_truck?: unknown }).food_truck);
   // Individual/private sellers (is_business=false) get a slimmed dashboard —
   // business-only tabs are hidden until they upgrade to a business storefront.
   const isBusiness = (vendor as { is_business?: boolean }).is_business !== false;
@@ -1134,7 +1134,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
             />
           )}
 
-          {tab === "foodtruck" && isFoodTruckVendor && (
+          {/* Any business can open Food Truck Mode to go live (even before their
+              category is "Food Trucks"); "Share My Food Truck" lands here. */}
+          {tab === "foodtruck" && isBusiness && (
             <FoodTruckTab vendorId={vendor.id} initial={vendor.food_truck} supabase={supabase} connectEnabled={connectEnabled} />
           )}
 

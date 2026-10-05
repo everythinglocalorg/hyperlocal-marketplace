@@ -27,9 +27,9 @@ export default function SellMenu({ open, onClose }: { open: boolean; onClose: ()
     { label: "Post An Event", sub: "Share a local happening", href: "/list?type=event", Icon: PartyPopper },
     { label: "Post a Job", sub: "Hiring help in your town", href: `/jobs/${city}`, Icon: Briefcase },
     { label: "Share My Food Truck", sub: "Go live and share your spot", href: "/dashboard/vendor?tab=foodtruck", Icon: Truck },
-    { label: "Add My Restaurant", sub: "Post your menu & dishes", href: "/dashboard/vendor?tab=listings&new=restaurant", Icon: UtensilsCrossed },
+    { label: "Add My Restaurant", sub: "Set up your business storefront", href: "/onboarding/vendor", Icon: UtensilsCrossed },
     { label: "Share a Thrift Sale", sub: "Post a one-of-a-kind find", href: "/list?type=thrift", Icon: ShoppingBag },
-    { label: "Housing / Rentals", sub: "List a home or rental property", href: "/list?type=housing_rent", Icon: Home },
+    { label: "Housing / Rentals", sub: "List a home or rental property", href: "/list?type=housing_sale", Icon: Home },
     { label: "Launch Your Business on Everything Local", sub: "Free storefront, unlimited listings", href: "/onboarding/vendor", Icon: Store, highlight: true },
   ];
 
