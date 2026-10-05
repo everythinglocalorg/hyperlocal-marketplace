@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 import ShareQrModal, { QrGlyph, type ShareSlide } from "@/components/ShareQrModal";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { BRAND_ORIGIN } from "@/lib/domains";
 import { useFavorites } from "@/lib/favorites";
-import { MessageCircle, Bell, Heart, Menu } from "lucide-react";
+import { MessageCircle, Heart, Menu } from "lucide-react";
 
 // Routes that render their own full-page chrome (own nav/sidebar) and should NOT
 // show the global browse header.
@@ -26,6 +26,8 @@ const HIDDEN_PREFIXES = [
 
 export default function GlobalHeader() {
   const pathname = usePathname() || "/";
+  const router = useRouter();
+  const [headerQ, setHeaderQ] = useState("");
   // On the dashboard we still show this same bar (so it feels like one place) —
   // but only on desktop; mobile keeps the dashboard's own bar. Inside the
   // dashboard we drop the "Dashboard →" button since you're already there.
@@ -145,11 +147,22 @@ export default function GlobalHeader() {
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
         {pathname === "/" ? (
           <>
-            {/* Mobile home: the search bar takes the logo's place (logo stays on desktop). */}
-            <Link href="/search" data-tour="home" className="md:hidden flex-1 flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-full px-4 py-2 min-w-0 mr-1" aria-label="Search Everything Local">
+            {/* Mobile home: a real search input (logo stays on desktop). Typing +
+                Enter stays on the home page and shows results inline (?q=). */}
+            <form
+              data-tour="search"
+              onSubmit={(e) => { e.preventDefault(); const q = headerQ.trim(); router.push(q ? `/?q=${encodeURIComponent(q)}` : "/"); }}
+              className="md:hidden flex-1 flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-full px-4 py-2 min-w-0 mr-1"
+            >
               <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" /></svg>
-              <span className="text-sm text-green-600 truncate">Search Everything Local</span>
-            </Link>
+              <input
+                value={headerQ}
+                onChange={(e) => setHeaderQ(e.target.value)}
+                placeholder="Search Everything Local"
+                aria-label="Search Everything Local"
+                className="flex-1 min-w-0 bg-transparent text-sm text-gray-700 placeholder:text-green-600 focus:outline-none"
+              />
+            </form>
             <Link href="/" className="hidden md:flex items-center min-w-0 shrink" aria-label="Everything Local home">
               <Logo size="sm" />
             </Link>
@@ -171,19 +184,12 @@ export default function GlobalHeader() {
               )}
               {/* Icons show for everyone — guests get routed to log in when a page
                   needs an account. (Replaces the old green "Log in" button.) */}
-              <Link href="/messages" data-tour="messages" title="Messages" className="relative text-gray-700 hover:text-gray-900 transition-colors">
+              {/* One inbox icon — messages + notifications/offers live together now. */}
+              <Link href="/messages" data-tour="messages" title="Messages & notifications" className="relative text-gray-700 hover:text-gray-900 transition-colors">
                 <MessageCircle className="w-6 h-6" strokeWidth={2} />
-                {msgUnread > 0 && (
+                {msgUnread + notifUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                    {msgUnread > 9 ? "9+" : msgUnread}
-                  </span>
-                )}
-              </Link>
-              <Link href="/notifications" data-tour="notifications" title="Notifications" className="relative text-gray-700 hover:text-gray-900 transition-colors">
-                <Bell className="w-6 h-6" strokeWidth={2} />
-                {notifUnread > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
-                    {notifUnread > 9 ? "9+" : notifUnread}
+                    {msgUnread + notifUnread > 9 ? "9+" : msgUnread + notifUnread}
                   </span>
                 )}
               </Link>
@@ -213,19 +219,7 @@ export default function GlobalHeader() {
                         <div className="border-t border-gray-100 my-1" />
                       </>
                     )}
-                    {user && !isDashboard && (
-                      <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">📊 Dashboard</Link>
-                    )}
-                    <Link href="/wishlist" onClick={() => setMenuOpen(false)} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      <span>💚 Wish List</span>
-                      {wishlistCount > 0 && <span className="text-xs bg-green-100 text-green-700 rounded-full px-2 py-0.5 font-semibold">{wishlistCount}</span>}
-                    </Link>
-                    <div className="border-t border-gray-100 my-1" />
-                    <Link href="/search?mode=listings" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🛍️ Shop Local</Link>
                     <Link href={`/community/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🏘️ Local Pages</Link>
-                    <Link href={`/jobs/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">💼 Local Jobs/Gigs</Link>
-                    <Link href={`/food-trucks/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🚚 Local Food Trucks</Link>
-                    <Link href={`/explore/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Things To Do Near Me</Link>
                     <div className="border-t border-gray-100 my-1" />
                     {user ? (
                       <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">🚪 Log Out</button>

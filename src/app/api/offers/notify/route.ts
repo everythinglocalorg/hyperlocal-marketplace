@@ -49,6 +49,13 @@ export async function POST(req: NextRequest) {
   const callerIsVendor = !!user && !!vendor?.user_id && user.id === vendor.user_id;
   const callerIsBuyer = !!user && !!offer.buyer_id && user.id === offer.buyer_id;
 
+  // Push AND drop a row in the notifications table so it shows in the inbox's
+  // "Notifications / Offers" tab. Both are best-effort.
+  async function notify(userId: string, payload: { title: string; body: string; url: string; tag: string }) {
+    await sendPushToUser(userId, payload).catch(() => {});
+    await admin.from("notifications").insert({ user_id: userId, type: "offer", title: payload.title, body: payload.body, link: payload.url, is_read: false }).then(() => {}, () => {});
+  }
+
   // Buyer responded to a counter — tell the vendor. (Guarded to accepted/declined
   // so a fresh pending offer still falls through to the "new offer" path below.)
   if (callerIsBuyer && (offer.status === "accepted" || offer.status === "declined")) {
@@ -58,7 +65,7 @@ export async function POST(req: NextRequest) {
     const c = offer.status === "accepted"
       ? { title: "🎉 Buyer accepted!", body: `${offer.buyer_name} accepted at ${final} for ${item}. Arrange pickup & payment.` }
       : { title: "Offer passed", body: `${offer.buyer_name} declined your counter on ${item}.` };
-    await sendPushToUser(vendor.user_id, { ...c, url: "/dashboard/vendor?tab=offers", tag: `offer-${offer.id}` });
+    await notify(vendor.user_id, { ...c, url: "/dashboard/vendor?tab=offers", tag: `offer-${offer.id}` });
     return NextResponse.json({ ok: true });
   }
 
@@ -75,7 +82,7 @@ export async function POST(req: NextRequest) {
     const c = copy[offer.status];
     if (!c) return NextResponse.json({ ok: true });
 
-    await sendPushToUser(offer.buyer_id, { ...c, url: "/dashboard/buyer", tag: `offer-${offer.id}` });
+    await notify(offer.buyer_id, { ...c, url: "/dashboard/buyer?tab=offers", tag: `offer-${offer.id}` });
     return NextResponse.json({ ok: true });
   }
 
@@ -86,7 +93,7 @@ export async function POST(req: NextRequest) {
   }
   if (!vendor?.user_id) return NextResponse.json({ ok: true });
 
-  await sendPushToUser(vendor.user_id, {
+  await notify(vendor.user_id, {
     title: `💲 New offer: ${money(offer.amount)}`,
     body: `${offer.buyer_name} made an offer on ${offer.listing_title ?? "your item"}.`,
     url: "/dashboard/vendor?tab=offers",
