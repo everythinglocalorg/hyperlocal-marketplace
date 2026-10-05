@@ -18,8 +18,9 @@ import WelcomeGateModal from "@/components/WelcomeGateModal";
 import SearchSuggestions from "@/components/SearchSuggestions";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import QuickSellFab from "@/components/QuickSellFab";
+import CategoryBubbles from "@/components/home/CategoryBubbles";
 import ProductTour, { type TourStep } from "@/components/ProductTour";
-import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon, LayoutGrid } from "lucide-react";
+import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon, LayoutGrid, Dog, Baby } from "lucide-react";
 
 // First-run guided tour, shown once right after onboarding (flag set on finish).
 const TOUR_STEPS: TourStep[] = [
@@ -333,39 +334,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     router.push(url);
   }
 
-  function searchCategory(category: string) {
-    track("category_pill_click", { category, source: "homepage" });
-    const LABEL_MAP: Record<string, string> = {
-      "Restaurants": "Restaurants & Food",
-      "Events": "Events & Rentals",
-      "Clothing": "Clothing & Accessories",
-      "Auto": "Auto & Transportation",
-      "Sports": "Sports & Outdoors",
-      "Pets": "Pet Services",
-      "Childcare": "Childcare & Education",
-      "Housing": "Housing & Rentals",
-    };
-    // Rentals and Thrift Sales are listing types, not vendor categories — search by type
-    const TYPE_MAP: Record<string, string> = {
-      "Rentals": "rental",
-      "Thrift Sales": "thrift",
-      "Animals": "animals",
-    };
-    const params = new URLSearchParams();
-    if (activeCity) params.set("city", activeCity);
-    if (TYPE_MAP[category]) {
-      params.set("type", TYPE_MAP[category]);
-      params.set("mode", "listings");
-    } else {
-      params.set("category", LABEL_MAP[category] ?? category);
-      params.set("mode", "listings");
-    }
-    const url = `/search?${params.toString()}`;
-    if (gate(url)) return;
-    router.push(url);
-  }
-
-  // Mobile category bubbles filter the Featured Gems grid IN PLACE (no jump to
+  // Category bubbles filter the Featured Gems grid IN PLACE (no jump to
   // the discovery page). A filter matches a listing by its type, its category,
   // or a keyword in the title/description. `null` = All (show everything).
   type CatFilter = { label: string; type?: string; category?: string; keywords?: string[] };
@@ -402,75 +371,45 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     return `/search?${p.toString()}`;
   }
 
+  // Canonical category set — one list drives BOTH the mobile bubble row and the
+  // desktop row (same icons + behavior). Order: a few pinned leaders, then the
+  // rest alphabetically. Food Trucks is a separate vendor board (nav, not filter).
+  const CAT_NAV: { label: string; Icon: typeof Package; filter?: CatFilter | null; nav?: string }[] = [
+    { label: "All", Icon: LayoutGrid, filter: null },
+    { label: "Home Goods", Icon: Sofa, filter: { label: "Home Goods", category: "Home & Garden", keywords: ["home goods", "furniture", "home decor", "decor", "household", "kitchen", "appliance"] } },
+    { label: "Services", Icon: Wrench, filter: { label: "Services", category: "Services & Trades" } },
+    { label: "Food Trucks", Icon: Truck, nav: `/food-trucks/${activeCity}` },
+    { label: "Restaurants", Icon: UtensilsCrossed, filter: { label: "Restaurants", category: "Restaurants & Food" } },
+    { label: "Thrift Sales", Icon: Tag, filter: { label: "Thrift Sales", type: "thrift" } },
+    { label: "Animals", Icon: Dog, filter: { label: "Animals", type: "animals" } },
+    { label: "Arts", Icon: Palette, filter: { label: "Arts", category: "Arts & Crafts" } },
+    { label: "Auto", Icon: Car, filter: { label: "Auto", category: "Auto & Transportation" } },
+    { label: "Beauty", Icon: Sparkles, filter: { label: "Beauty", category: "Health & Beauty" } },
+    { label: "Childcare", Icon: Baby, filter: { label: "Childcare", category: "Childcare & Education" } },
+    { label: "Clothing", Icon: Shirt, filter: { label: "Clothing", category: "Clothing & Accessories" } },
+    { label: "Events", Icon: PartyPopper, filter: { label: "Events", category: "Events & Rentals" } },
+    { label: "Housing", Icon: HomeIcon, filter: { label: "Housing", category: "Housing & Rentals" } },
+    { label: "Pets", Icon: PawPrint, filter: { label: "Pets", category: "Pet Services" } },
+    { label: "Products", Icon: Package, filter: { label: "Products", category: "Products", type: "product" } },
+    { label: "Sports", Icon: Dumbbell, filter: { label: "Sports", category: "Sports & Outdoors" } },
+    { label: "Yard", Icon: Sprout, filter: { label: "Yard", category: "Home & Garden", keywords: ["yard", "garden", "lawn", "outdoor", "patio", "plants", "landscaping", "mower"] } },
+  ];
+
   const cityName = resolveCity(activeCity)?.label?.split(",")[0] ?? "your town";
 
   return (
     <div className="flex flex-col min-h-screen bg-white">
       {showTour && <ProductTour steps={TOUR_STEPS} onDone={() => setShowTour(false)} />}
       <main className="flex-1">
-        {/* Mobile category bubbles — swipeable circular row (Home Goods + Food
-            Trucks lead). Desktop keeps the pill row below. */}
-        <div className="md:hidden flex gap-3.5 overflow-x-auto scrollbar-hide px-3 py-3 border-b border-gray-100">
-          {[
-            { label: "All", Icon: LayoutGrid, filter: null as CatFilter | null },
-            { label: "Home Goods", Icon: Sofa, filter: { label: "Home Goods", category: "Home & Garden", keywords: ["home goods", "furniture", "home decor", "decor", "household", "kitchen", "appliance"] } },
-            // Food Trucks is a separate vendor board, not product listings — keep it a link.
-            { label: "Food Trucks", Icon: Truck, nav: `/food-trucks/${activeCity}` },
-            { label: "Thrift", Icon: Tag, filter: { label: "Thrift", type: "thrift" } },
-            { label: "Garden", Icon: Sprout, filter: { label: "Home & Garden", category: "Home & Garden" } },
-            { label: "Clothing", Icon: Shirt, filter: { label: "Clothing", category: "Clothing & Accessories" } },
-            { label: "Products", Icon: Package, filter: { label: "Products", category: "Products", type: "product" } },
-            { label: "Services", Icon: Wrench, filter: { label: "Services", category: "Services & Trades" } },
-            { label: "Food", Icon: UtensilsCrossed, filter: { label: "Food", category: "Restaurants & Food" } },
-            { label: "Pets", Icon: PawPrint, filter: { label: "Pets", category: "Pet Services" } },
-            { label: "Autos", Icon: Car, filter: { label: "Autos", category: "Auto & Transportation" } },
-            { label: "Beauty", Icon: Sparkles, filter: { label: "Beauty", category: "Health & Beauty" } },
-            { label: "Events", Icon: PartyPopper, filter: { label: "Events", category: "Events & Rentals" } },
-            { label: "Sports", Icon: Dumbbell, filter: { label: "Sports", category: "Sports & Outdoors" } },
-            { label: "Arts", Icon: Palette, filter: { label: "Arts", category: "Arts & Crafts" } },
-            { label: "Housing", Icon: HomeIcon, filter: { label: "Housing", category: "Housing & Rentals" } },
-          ].map((item: any) => {
-            const isActive = item.nav ? false : (item.filter?.label ?? null) === (activeCategory?.label ?? null);
-            const onClick = item.nav
-              ? () => { if (gate(item.nav)) return; router.push(item.nav); }
-              : () => pickCategory(item.filter);
-            const Icon = item.Icon;
-            return (
-              <button key={item.label} onClick={onClick} className="shrink-0 w-[60px] flex flex-col items-center gap-1.5">
-                <span className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${isActive ? "bg-green-600 border border-green-600 text-white" : "bg-green-50 border border-green-100 text-green-700"}`}><Icon className="w-6 h-6" strokeWidth={1.8} /></span>
-                <span className={`text-[10px] leading-tight text-center ${isActive ? "text-green-700 font-semibold" : "text-gray-600"}`}>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Category bar — pill row (desktop only; mobile uses the bubbles above). */}
-        <div className="hidden md:block bg-white border-b border-gray-100">
-          <div className="max-w-6xl mx-auto px-4 py-2 flex gap-1 overflow-x-auto flex-nowrap scrollbar-hide sm:flex-wrap sm:justify-center sm:overflow-visible">
-            {[
-              ["Services & Trades","🔧"],
-              ["Restaurants","🍽️"],
-              ["Housing","🏠"],
-              ["Thrift Sales","🏷️"],
-              ["Animals","🐴"],
-              ["Products","📦"],
-              ["Health & Beauty","💆"],
-              ["Home & Garden","🏡"],
-              ["Auto","🚗"],
-              ["Events","🎉"],
-              ["Clothing","👗"],
-              ["Pets","🐾"],
-              ["Sports","⚽"],
-              ["Arts & Crafts","🎨"],
-              ["Childcare","📚"],
-            ].map(([label, icon]) => (
-              <button key={label} onClick={() => searchCategory(label)}
-                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium text-gray-600 hover:bg-green-50 hover:text-green-700 border border-gray-200 hover:border-green-300 transition-colors whitespace-nowrap">
-                <span>{icon}</span>{label}
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Category bubbles — one list on BOTH mobile and desktop. Signed-in
+            users can drag to reorder (saved per-device). */}
+        <CategoryBubbles
+          items={CAT_NAV}
+          activeLabel={activeCategory?.label ?? null}
+          canReorder={!!user}
+          onPick={(f) => pickCategory(f as CatFilter | null)}
+          onNav={(href) => { if (gate(href)) return; router.push(href); }}
+        />
 
         {/* Hero — desktop only; on mobile the search is in the top bar and the
             page opens straight into Featured Gems (below). */}
