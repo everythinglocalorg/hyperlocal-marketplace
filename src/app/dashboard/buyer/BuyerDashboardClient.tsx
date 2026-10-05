@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { LayoutDashboard, Heart, Star, CalendarDays, HeartHandshake, Coins, Gift } from "lucide-react";
 import Link from "next/link";
 import Logo, { BackHome } from "@/components/Logo";
 import { BRAND_ORIGIN } from "@/lib/domains";
@@ -292,13 +293,13 @@ export default function BuyerDashboardClient({ profile, bookings, offers, rental
   const totalReferralBucks = referrals.filter((r) => r.bucks_awarded).length * 50;
 
   const NAV = [
-    { id: "overview", label: "Overview", icon: "🏠" },
-    { id: "saved", label: "Wish List", icon: "💚" },
-    { id: "profile", label: "Local Profile", icon: "⭐" },
-    { id: "bookings", label: "Bookings", icon: "📅" },
-    { id: "offers", label: "My Offers", icon: "🤝" },
-    { id: "bucks", label: "Local Bucks", icon: "🪙" },
-    { id: "referrals", label: "Referrals", icon: "🤝" },
+    { id: "overview", label: "Overview", Icon: LayoutDashboard },
+    { id: "saved", label: "Wish List", Icon: Heart },
+    { id: "profile", label: "Local Profile", Icon: Star },
+    { id: "bookings", label: "Bookings", Icon: CalendarDays },
+    { id: "offers", label: "My Offers", Icon: HeartHandshake },
+    { id: "bucks", label: "Local Bucks", Icon: Coins },
+    { id: "referrals", label: "Referrals", Icon: Gift },
   ] as const;
 
   return (
@@ -395,7 +396,7 @@ export default function BuyerDashboardClient({ profile, bookings, offers, rental
                   : "text-gray-600 hover:bg-gray-50"
               }`}
             >
-              <span>{item.icon}</span>
+              <item.Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={2} />
               {item.label}
               {item.id === "bookings" && pendingBookings > 0 && (
                 <span className="ml-auto bg-yellow-400 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
