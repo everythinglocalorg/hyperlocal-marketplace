@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useFavorites } from "@/lib/favorites";
 import Logo from "@/components/Logo";
@@ -19,6 +19,7 @@ import SearchSuggestions from "@/components/SearchSuggestions";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import QuickSellFab from "@/components/QuickSellFab";
 import ProductTour, { type TourStep } from "@/components/ProductTour";
+import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon } from "lucide-react";
 
 // First-run guided tour, shown once right after onboarding (flag set on finish).
 const TOUR_STEPS: TourStep[] = [
@@ -110,6 +111,21 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [radius, setRadius] = useState(50);
   const [showTour, setShowTour] = useState(false);
+  const scrollRestored = useRef(false);
+
+  // After returning from a listing, drop the feed back where they left off.
+  useEffect(() => {
+    if (scrollRestored.current || recentListings.length === 0) return;
+    let saved: string | null = null;
+    try { saved = sessionStorage.getItem("el_home_scroll"); } catch { /* noop */ }
+    if (saved) {
+      scrollRestored.current = true;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, parseInt(saved as string, 10));
+        try { sessionStorage.removeItem("el_home_scroll"); } catch { /* noop */ }
+      });
+    }
+  }, [recentListings]);
 
   // First-run tour: onboarding sets el_tour_pending; show it once, then mark done.
   useEffect(() => {
@@ -345,9 +361,35 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     <div className="flex flex-col min-h-screen bg-white">
       {showTour && <ProductTour steps={TOUR_STEPS} onDone={() => setShowTour(false)} />}
       <main className="flex-1">
-        {/* Category bar — single horizontal-scroll row on mobile (top picks lead,
-            swipe for the rest); wraps and centers on sm+ to show everything. */}
-        <div className="bg-white border-b border-gray-100">
+        {/* Mobile category bubbles — swipeable circular row (Home Goods + Food
+            Trucks lead). Desktop keeps the pill row below. */}
+        <div className="md:hidden flex gap-3.5 overflow-x-auto scrollbar-hide px-3 py-3 border-b border-gray-100">
+          {[
+            { label: "Home Goods", Icon: Sofa, onClick: () => { const p = new URLSearchParams(); p.set("q", "home goods"); p.set("mode", "listings"); if (activeCity) p.set("city", activeCity); const u = `/search?${p.toString()}`; if (gate(u)) return; router.push(u); } },
+            { label: "Food Trucks", Icon: Truck, onClick: () => { const u = `/food-trucks/${activeCity}`; if (gate(u)) return; router.push(u); } },
+            { label: "Thrift", Icon: Tag, onClick: () => searchCategory("Thrift Sales") },
+            { label: "Garden", Icon: Sprout, onClick: () => searchCategory("Home & Garden") },
+            { label: "Clothing", Icon: Shirt, onClick: () => searchCategory("Clothing") },
+            { label: "Products", Icon: Package, onClick: () => searchCategory("Products") },
+            { label: "Services", Icon: Wrench, onClick: () => searchCategory("Services & Trades") },
+            { label: "Food", Icon: UtensilsCrossed, onClick: () => searchCategory("Restaurants") },
+            { label: "Pets", Icon: PawPrint, onClick: () => searchCategory("Pets") },
+            { label: "Autos", Icon: Car, onClick: () => searchCategory("Auto") },
+            { label: "Beauty", Icon: Sparkles, onClick: () => searchCategory("Health & Beauty") },
+            { label: "Events", Icon: PartyPopper, onClick: () => searchCategory("Events") },
+            { label: "Sports", Icon: Dumbbell, onClick: () => searchCategory("Sports") },
+            { label: "Arts", Icon: Palette, onClick: () => searchCategory("Arts & Crafts") },
+            { label: "Housing", Icon: HomeIcon, onClick: () => searchCategory("Housing") },
+          ].map(({ label, Icon, onClick }) => (
+            <button key={label} onClick={onClick} className="shrink-0 w-[60px] flex flex-col items-center gap-1.5">
+              <span className="w-14 h-14 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-green-700"><Icon className="w-6 h-6" strokeWidth={1.8} /></span>
+              <span className="text-[10px] text-gray-600 leading-tight text-center">{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Category bar — pill row (desktop only; mobile uses the bubbles above). */}
+        <div className="hidden md:block bg-white border-b border-gray-100">
           <div className="max-w-6xl mx-auto px-4 py-2 flex gap-1 overflow-x-auto flex-nowrap scrollbar-hide sm:flex-wrap sm:justify-center sm:overflow-visible">
             {[
               ["Services & Trades","🔧"],
@@ -374,13 +416,14 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           </div>
         </div>
 
-        {/* Hero */}
-        <section className="relative overflow-hidden bg-gradient-to-br from-green-50 via-white to-emerald-50 pt-8 sm:pt-10 pb-12 px-4">
+        {/* Hero — desktop only; on mobile the search is in the top bar and the
+            page opens straight into Featured Gems (below). */}
+        <section className="relative overflow-hidden px-4 pb-12 pt-2 md:pt-10 md:bg-gradient-to-br md:from-green-50 md:via-white md:to-emerald-50">
           {/* soft glow accents */}
-          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-green-200/40 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
+          <div className="hidden md:block pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-green-200/40 blur-3xl" />
+          <div className="hidden md:block pointer-events-none absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-emerald-200/40 blur-3xl" />
 
-          <div className="relative max-w-3xl mx-auto text-center">
+          <div className="hidden md:block relative max-w-3xl mx-auto text-center">
             {/* Hero tagline — plain text, not a button/link (per request) */}
             <div className="inline-flex items-center gap-2 mb-4">
               <span className="text-sm leading-none">🏘️</span>
@@ -481,7 +524,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
 
           {/* Featured Gems — boosted products first, blended with recent */}
           {recentListings.length > 0 && (
-            <div className="max-w-5xl mx-auto mt-14 px-4">
+            <div className="max-w-5xl mx-auto mt-2 md:mt-14 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">
                   {activeCity ? `Featured Gems in ${resolveCity(activeCity)?.label ?? activeCity}` : "Featured Gems"}
@@ -494,7 +537,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   const slug = vendor?.slug;
                   if (!slug) return null;
                   return (
-                    <Link key={l.id} href={`/vendors/${slug}`} className="group">
+                    <Link key={l.id} href={`/vendors/${slug}`} className="group" onClick={() => { try { sessionStorage.setItem("el_home_scroll", String(window.scrollY)); } catch { /* noop */ } }}>
                       <div className="w-full aspect-square rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden relative">
                         {l.boosted && <span className="absolute bottom-2 left-2 z-10 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★ Featured</span>}
                         {vendor?.business_name && (

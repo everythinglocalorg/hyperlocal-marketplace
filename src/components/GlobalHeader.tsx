@@ -140,17 +140,34 @@ export default function GlobalHeader() {
       )}
     <header className={`border-b border-gray-100 bg-white sticky top-0 z-50 ${isDashboard ? "hidden lg:block" : ""}`}>
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
-        <Link href="/" data-tour="home" className="flex items-center min-w-0 shrink" aria-label="Everything Local home">
-          <Logo size="sm" />
-        </Link>
+        {pathname === "/" ? (
+          <>
+            {/* Mobile home: the search bar takes the logo's place (logo stays on desktop). */}
+            <Link href="/search" data-tour="home" className="md:hidden flex-1 flex items-center gap-2 bg-gray-100 border border-gray-200 rounded-full px-4 py-2 min-w-0 mr-1" aria-label="Search Everything Local">
+              <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" /></svg>
+              <span className="text-sm text-green-600 truncate">Search Everything Local</span>
+            </Link>
+            <Link href="/" className="hidden md:flex items-center min-w-0 shrink" aria-label="Everything Local home">
+              <Logo size="sm" />
+            </Link>
+          </>
+        ) : (
+          <Link href="/" data-tour="home" className="flex items-center min-w-0 shrink" aria-label="Everything Local home">
+            <Logo size="sm" />
+          </Link>
+        )}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {!authChecked ? (
             <div className="w-24 h-8 bg-gray-100 rounded-full animate-pulse" />
-          ) : user ? (
+          ) : (
             <>
-              <span className="text-sm text-gray-600 hidden sm:block max-w-[220px] truncate">
-                Hello, <strong>{user.name}</strong>
-              </span>
+              {user && (
+                <span className="text-sm text-gray-600 hidden sm:block max-w-[220px] truncate">
+                  Hello, <strong>{user.name}</strong>
+                </span>
+              )}
+              {/* Icons show for everyone — guests get routed to log in when a page
+                  needs an account. (Replaces the old green "Log in" button.) */}
               <Link href="/messages" data-tour="messages" title="Messages" className="relative text-xl leading-none">
                 💬
                 {msgUnread > 0 && (
@@ -175,9 +192,7 @@ export default function GlobalHeader() {
                   </span>
                 )}
               </Link>
-              {/* ☰ menu — same on mobile AND desktop: Dashboard, nav, and Log Out
-                  all in one discoverable place (replaces the old desktop pills +
-                  green Dashboard button). */}
+              {/* ☰ menu — Dashboard, nav, and Log Out/Log In in one place. */}
               <div className="relative" ref={menuRef}>
                 <button onClick={() => setMenuOpen((v) => !v)} data-tour="menu" aria-label="Menu" aria-expanded={menuOpen} className="p-1 -mr-1 text-gray-700 hover:text-gray-900 transition-colors">
                   <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" /></svg>
@@ -195,7 +210,7 @@ export default function GlobalHeader() {
                         <div className="border-t border-gray-100 my-1" />
                       </>
                     )}
-                    {!isDashboard && (
+                    {user && !isDashboard && (
                       <Link href={user.role === "vendor" ? "/dashboard/vendor" : "/dashboard/buyer"} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">📊 Dashboard</Link>
                     )}
                     <Link href="/wishlist" onClick={() => setMenuOpen(false)} className="flex items-center justify-between px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
@@ -209,16 +224,14 @@ export default function GlobalHeader() {
                     <Link href={`/food-trucks/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🚚 Local Food Trucks</Link>
                     <Link href={`/explore/${activeCity}`} onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors">🌿 Things To Do Near Me</Link>
                     <div className="border-t border-gray-100 my-1" />
-                    <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">🚪 Log Out</button>
+                    {user ? (
+                      <button onClick={handleSignOut} className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-red-500 hover:bg-red-50 transition-colors">🚪 Log Out</button>
+                    ) : (
+                      <Link href="/login" onClick={() => setMenuOpen(false)} className="block px-4 py-2.5 text-sm font-semibold text-green-700 hover:bg-green-50 transition-colors">🔑 Log in</Link>
+                    )}
                   </div>
                 )}
               </div>
-            </>
-          ) : (
-            <>
-              {/* Signup lives in the home-screen welcome gate now, so the header
-                  just offers a fast Log in. */}
-              <Link href="/login" className="text-sm bg-green-600 text-white px-4 py-2 rounded-full hover:bg-green-700 transition-colors">Log in</Link>
             </>
           )}
         </div>

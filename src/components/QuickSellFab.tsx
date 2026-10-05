@@ -24,7 +24,7 @@ export default function QuickSellFab({
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
-        className={`fixed z-40 ${positionClass} flex items-center justify-center w-14 h-14 rounded-full bg-green-600 text-white shadow-lg shadow-green-600/30 ring-4 ring-white/70 hover:bg-green-700 active:scale-95 transition-all`}
+        className={`fixed z-40 ${positionClass} hidden md:flex items-center justify-center w-14 h-14 rounded-full bg-green-600 text-white shadow-lg shadow-green-600/30 ring-4 ring-white/70 hover:bg-green-700 active:scale-95 transition-all`}
       >
         <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round">
           <path d="M12 5v14M5 12h14" />
