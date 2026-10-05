@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type ComponentType } from "react";
 import Link from "next/link";
 import { useFavorites } from "@/lib/favorites";
 import Logo from "@/components/Logo";
@@ -21,7 +21,64 @@ import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import QuickSellFab from "@/components/QuickSellFab";
 import CategoryBubbles from "@/components/home/CategoryBubbles";
 import ProductTour, { type TourStep } from "@/components/ProductTour";
-import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, Apple, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon, LayoutGrid, Dog, Baby } from "lucide-react";
+import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, PawPrint, Car, Sparkles, PartyPopper, Palette, Home as HomeIcon, LayoutGrid, Baby } from "lucide-react";
+
+// Custom lucide-style icon for Food Products: a honeycomb cell with honey
+// dripping off the bottom. Takes the same props as the lucide icons so it drops
+// straight into the category bubbles.
+function HoneycombIcon({ className, strokeWidth = 1.8 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* three tiled honeycomb cells */}
+      <path d="M8.5 3.4 11.3 5 11.3 8.2 8.5 9.8 5.7 8.2 5.7 5Z" />
+      <path d="M15.5 3.4 18.3 5 18.3 8.2 15.5 9.8 12.7 8.2 12.7 5Z" />
+      <path d="M12 8.6 14.8 10.2 14.8 13.4 12 15 9.2 13.4 9.2 10.2Z" />
+      {/* drippy honey off the bottom cell */}
+      <path d="M12 15c-1 1.9-1.6 2.8-1.6 3.9a1.6 1.6 0 0 0 3.2 0c0-1.1-.6-2-1.6-3.9" fill="currentColor" stroke="none" />
+      <path d="M9.2 13.4c-.6 1.3-1 1.9-1 2.7a1 1 0 0 0 2 0c0-.8-.4-1.4-1-2.7" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+// Custom chicken/hen icon for the Livestock bubble (lucide has no chicken).
+function ChickenIcon({ className, strokeWidth = 1.8 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* comb */}
+      <path d="M13.5 4.5c.2-.9 1.1-.9 1.4-.1.2-.9 1.2-.9 1.4 0" />
+      {/* head + body silhouette */}
+      <path d="M4.5 13.2C4.5 9.6 7.3 7.1 10.8 7.2 11.3 5.4 13 4.2 15 4.4 16.8 4.6 18 6 18 7.6 18 8 17.9 8.3 17.7 8.6L19.4 9.1C20.1 9.4 20.1 10.3 19.4 10.6L17.6 11.2C17.8 14.8 15 17.8 11.3 17.9 7.4 18 4.5 16.8 4.5 13.2Z" />
+      {/* beak */}
+      <path d="M18 6.4 20 6.9 18.2 7.7" />
+      {/* eye */}
+      <circle cx="15.6" cy="6.7" r="0.65" fill="currentColor" stroke="none" />
+      {/* tail feathers */}
+      <path d="M4.5 13.2C3.1 12.6 2.6 11 3.2 9.5" />
+      <path d="M4.9 11.1C3.8 10.5 3.4 9.3 3.7 8.1" />
+      {/* wing */}
+      <path d="M8.8 12.3c1.4 0 2.6.8 3.3 2" />
+      {/* legs */}
+      <path d="M9.4 17.9v2.6M9.4 20.5l-1.2 1M9.4 20.5l1.2 1" />
+      <path d="M12.6 17.9v2.6M12.6 20.5l-1.2 1M12.6 20.5l1.2 1" />
+    </svg>
+  );
+}
+
+// Custom American-football icon for the Sports bubble.
+function FootballIcon({ className, strokeWidth = 1.8 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {/* ball */}
+      <path d="M3 12C6 7 18 7 21 12 18 17 6 17 3 12Z" />
+      {/* laces */}
+      <path d="M9.5 12h5" />
+      <path d="M10.8 10.9v2.2M12 10.9v2.2M13.2 10.9v2.2" />
+    </svg>
+  );
+}
 
 // First-run guided tour, shown once right after onboarding (flag set on finish).
 const TOUR_STEPS: TourStep[] = [
@@ -82,7 +139,7 @@ const CATEGORY_ICONS: Record<string, string> = {
   "Products": "📦",
   "Services & Trades": "🔧",
   "Restaurants": "🍽️",
-  "Food Products": "🥫",
+  "Food Products": "🍯",
   "Events & Rentals": "🎉",
   "Health & Beauty": "💆",
   "Home & Garden": "🏡",
@@ -438,25 +495,25 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
   // Canonical category set — one list drives BOTH the mobile bubble row and the
   // desktop row (same icons + behavior). Order: a few pinned leaders, then the
   // rest alphabetically. Food Trucks is a separate vendor board (nav, not filter).
-  const CAT_NAV: { label: string; Icon: typeof Package; filter?: CatFilter | null; nav?: string }[] = [
+  const CAT_NAV: { label: string; Icon: ComponentType<{ className?: string; strokeWidth?: number }>; filter?: CatFilter | null; nav?: string }[] = [
     { label: "All", Icon: LayoutGrid, filter: null },
     { label: "Home Goods", Icon: Sofa, filter: { label: "Home Goods", category: "Home & Garden", keywords: ["home goods", "furniture", "home decor", "decor", "household", "kitchen", "appliance"] } },
     { label: "Services", Icon: Wrench, filter: { label: "Services", category: "Services & Trades" } },
     { label: "Food Trucks", Icon: Truck, nav: `/food-trucks/${activeCity}` },
     { label: "Restaurants", Icon: UtensilsCrossed, filter: { label: "Restaurants", category: "Restaurants" } },
     { label: "Thrift Sales", Icon: Tag, filter: { label: "Thrift Sales", type: "thrift" } },
-    { label: "Livestock", Icon: Dog, filter: { label: "Livestock", type: "animals" } },
+    { label: "Livestock", Icon: ChickenIcon, filter: { label: "Livestock", type: "animals" } },
     { label: "Arts", Icon: Palette, filter: { label: "Arts", category: "Arts & Crafts" } },
     { label: "Auto", Icon: Car, filter: { label: "Auto", category: "Auto & Transportation" } },
     { label: "Beauty", Icon: Sparkles, filter: { label: "Beauty", category: "Health & Beauty" } },
     { label: "Childcare", Icon: Baby, filter: { label: "Childcare", category: "Childcare & Education" } },
     { label: "Clothing", Icon: Shirt, filter: { label: "Clothing", category: "Clothing & Accessories" } },
     { label: "Events", Icon: PartyPopper, filter: { label: "Events", category: "Events & Rentals" } },
-    { label: "Food Products", Icon: Apple, filter: { label: "Food Products", category: "Food Products" } },
+    { label: "Food Products", Icon: HoneycombIcon, filter: { label: "Food Products", category: "Food Products" } },
     { label: "Housing", Icon: HomeIcon, filter: { label: "Housing", category: "Housing & Rentals" } },
     { label: "Pets", Icon: PawPrint, filter: { label: "Pets", category: "Pet Services" } },
     { label: "Products", Icon: Package, filter: { label: "Products", category: "Products", type: "product" } },
-    { label: "Sports", Icon: Dumbbell, filter: { label: "Sports", category: "Sports & Outdoors" } },
+    { label: "Sports", Icon: FootballIcon, filter: { label: "Sports", category: "Sports & Outdoors" } },
     { label: "Yard", Icon: Sprout, filter: { label: "Yard", category: "Home & Garden", keywords: ["yard", "garden", "lawn", "outdoor", "patio", "plants", "landscaping", "mower"] } },
   ];
 
