@@ -402,7 +402,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
       {showTour && <ProductTour steps={TOUR_STEPS} onDone={() => setShowTour(false)} />}
       <main className="flex-1">
         {/* Category bubbles — one list on BOTH mobile and desktop. Signed-in
-            users can drag to reorder (saved per-device). */}
+            users press & hold a category to pin it to the front (saved per-device). */}
         <CategoryBubbles
           items={CAT_NAV}
           activeLabel={activeCategory?.label ?? null}
