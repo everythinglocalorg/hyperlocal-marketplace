@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Package, PartyPopper, Briefcase, Truck, UtensilsCrossed, ShoppingBag, Home, Store, Wrench, ArrowRight, X } from "lucide-react";
+import { Package, PartyPopper, Briefcase, Truck, UtensilsCrossed, ShoppingBag, Home, Store, Wrench, PawPrint, ArrowRight, X } from "lucide-react";
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 
 // Shared "what do you want to post?" sheet, opened from the Sell "+" (mobile
@@ -22,13 +22,14 @@ export default function SellMenu({ open, onClose }: { open: boolean; onClose: ()
   if (!open) return null;
 
   const rows: { label: string; sub: string; href: string; Icon: typeof Package; highlight?: boolean }[] = [
-    { label: "Sell Something", sub: "List an item — no business account needed", href: "/sell", Icon: Package },
+    { label: "Sell Something", sub: "List an item — no business account needed", href: "/list?type=product", Icon: Package },
     { label: "Offer a Service", sub: "Trades, cleaning, lessons & more", href: "/list?type=service", Icon: Wrench },
     { label: "Post An Event", sub: "Share a local happening", href: "/list?type=event", Icon: PartyPopper },
     { label: "Post a Job", sub: "Hiring help in your town", href: `/jobs/${city}`, Icon: Briefcase },
     { label: "Share My Food Truck", sub: "Go live and share your spot", href: "/dashboard/vendor?tab=foodtruck", Icon: Truck },
     { label: "Add My Restaurant", sub: "Set up your business storefront", href: "/onboarding/vendor", Icon: UtensilsCrossed },
     { label: "Share a Thrift Sale", sub: "Post a one-of-a-kind find", href: "/list?type=thrift", Icon: ShoppingBag },
+    { label: "Sell / Rehome an Animal", sub: "Pets, livestock & more", href: "/list?type=animals", Icon: PawPrint },
     { label: "Housing / Rentals", sub: "List a home or rental property", href: "/list?type=housing_sale", Icon: Home },
     { label: "Launch Your Business on Everything Local", sub: "Free storefront, unlimited listings", href: "/onboarding/vendor", Icon: Store, highlight: true },
   ];

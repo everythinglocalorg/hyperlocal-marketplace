@@ -14,17 +14,20 @@ import RentalSetup, { type RentalSettings } from "@/components/rental/RentalSetu
 // rates + hours/deposit, housing gets full details, services set their rates).
 // Product ("Sell Something") and Food have their own flows and aren't here.
 
-type TypeKey = "service" | "event" | "thrift" | "housing_sale" | "rental" | "housing_rent";
+type TypeKey = "product" | "service" | "event" | "thrift" | "animals" | "housing_sale" | "rental" | "housing_rent";
 
 const TYPES: {
   value: TypeKey; label: string; cat: string; priceLabel: string;
   titleLabel: string; titlePlaceholder: string;
   condition?: boolean; pickup?: boolean; event?: boolean; housing?: boolean; available?: boolean;
   rental?: boolean; service?: boolean; hidePrice?: boolean; thrift?: boolean;
+  animal?: boolean; quantity?: boolean;
 }[] = [
+  { value: "product", label: "Item for Sale", cat: "Products", priceLabel: "Price", titleLabel: "What are you selling?", titlePlaceholder: "e.g. Mountain bike, Dining table, iPhone 13", condition: true, pickup: true, quantity: true },
   { value: "service", label: "Service", cat: "Services & Trades", priceLabel: "", titleLabel: "Service name", titlePlaceholder: "e.g. Lawn mowing, House cleaning", service: true, hidePrice: true },
   { value: "event", label: "Event", cat: "Events & Rentals", priceLabel: "Ticket price (blank = free)", titleLabel: "Event name", titlePlaceholder: "e.g. Summer Night Market", event: true },
   { value: "thrift", label: "Thrift Sale", cat: "Thrift Sales", priceLabel: "", titleLabel: "Sale / shop name", titlePlaceholder: "e.g. Maple St. Garage Sale, Corner Thrift", thrift: true, hidePrice: true },
+  { value: "animals", label: "Animals / Livestock", cat: "Pet Services", priceLabel: "Price (blank = inquire)", titleLabel: "Listing title", titlePlaceholder: "e.g. Border Collie puppies, Laying hens", animal: true },
   { value: "housing_sale", label: "House for Sale", cat: "Housing & Rentals", priceLabel: "Price", titleLabel: "Listing title", titlePlaceholder: "e.g. 3 bed ranch on Oak St", housing: true },
   { value: "rental", label: "Rental", cat: "Events & Rentals", priceLabel: "", titleLabel: "What are you renting out?", titlePlaceholder: "e.g. Kayak, Party tent", pickup: true, rental: true, hidePrice: true },
   { value: "housing_rent", label: "Housing (For Rent)", cat: "Housing & Rentals", priceLabel: "Monthly rent", titleLabel: "Listing title", titlePlaceholder: "e.g. 2 bed apartment downtown", housing: true, available: true },
@@ -47,7 +50,7 @@ export default function ListPage() {
   const [existingVendor, setExistingVendor] = useState<{ id: string; slug: string; business_name: string } | null>(null);
   const [profile, setProfile] = useState<{ full_name: string | null; city: string | null; state: string | null } | null>(null);
 
-  const [type, setType] = useState<TypeKey>("service");
+  const [type, setType] = useState<TypeKey>("product");
   const [sellerName, setSellerName] = useState("");
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
@@ -77,6 +80,14 @@ export default function ListPage() {
     available_date: "", lease_term: "12 months",
   });
   const [service, setService] = useState<{ rate_type: "hourly" | "flat" | "quote"; rate: string; cost_rate: string }>({ rate_type: "hourly", rate: "", cost_rate: "" });
+  const [quantity, setQuantity] = useState("");
+  // Animals / livestock — same detail shape the dashboard + listing modal read.
+  const [animal, setAnimal] = useState({
+    species: "", breed: "", age: "", sex: "", quantity: "", location: "",
+    vet_checked: false, vaccinated: false, fixed: false, registered: false,
+    microchipped: false, health_guarantee: false,
+    good_with_kids: false, good_with_pets: false, notes: "",
+  });
   // Rental rates + booking (reuses the dashboard's RentalSetup component).
   const [rentalDurations, setRentalDurations] = useState<{ label: string; hours: number; price: number }[]>([]);
   const [rentalSettings, setRentalSettings] = useState<RentalSettings>(EMPTY_RENTAL);
@@ -90,7 +101,7 @@ export default function ListPage() {
 
   useEffect(() => {
     (async () => {
-      let initial: TypeKey = "service";
+      let initial: TypeKey = "product";
       try {
         const t = new URLSearchParams(window.location.search).get("type") as TypeKey | null;
         if (t && TYPES.some((x) => x.value === t)) initial = t;
@@ -164,6 +175,7 @@ export default function ListPage() {
       if (meta.event) tags.push(`__event:${JSON.stringify(event)}`);
       if (meta.housing) tags.push(`__housing:${JSON.stringify({ ...housing, available_date: meta.available ? housing.available_date : "" })}`);
       if (meta.service) tags.push(`__service:${JSON.stringify(service)}`);
+      if (meta.animal) tags.push(`__animal:${JSON.stringify(animal)}`);
       if (meta.thrift) {
         // Weekly schedule → __hours (same shape the board/modal read); the ongoing
         // "open" flag → __thrift. Location rides in price_label (thrift convention).
@@ -192,6 +204,7 @@ export default function ListPage() {
         price: priceNum,
         price_label: priceLabel,
         ...(meta.condition ? { condition } : {}),
+        ...(meta.quantity ? { quantity: quantity.trim() ? Number(quantity) : null } : {}),
         ...(meta.pickup ? { porch_pickup: pickup } : {}),
         images: imageUrls,
         tags,
@@ -303,6 +316,14 @@ export default function ListPage() {
             </div>
           )}
 
+          {/* Quantity in stock (products) */}
+          {meta.quantity && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity in stock <span className="font-normal text-gray-400">(optional)</span></label>
+              <input value={quantity} onChange={(e) => setQuantity(e.target.value)} inputMode="numeric" placeholder="Leave blank for a one-off item" className={inputCls} />
+            </div>
+          )}
+
           {/* Service rates */}
           {meta.service && (
             <div className="space-y-3 rounded-xl bg-gray-50 p-3">
@@ -409,6 +430,69 @@ export default function ListPage() {
             </div>
           )}
 
+          {/* Animal / livestock details */}
+          {meta.animal && (
+            <div className="space-y-3 rounded-xl bg-gray-50 p-3">
+              <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">🐾 Animal details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Type of animal</label>
+                  <select value={animal.species} onChange={(e) => setAnimal((a) => ({ ...a, species: e.target.value }))} className={inputCls}>
+                    <option value="">Select…</option>
+                    {["Dog","Cat","Horse","Chicken","Duck","Turkey","Goat","Sheep","Cattle","Pig","Rabbit","Bird","Reptile","Fish","Other"].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Breed <span className="font-normal text-gray-400">(optional)</span></label>
+                  <input value={animal.breed} onChange={(e) => setAnimal((a) => ({ ...a, breed: e.target.value }))} placeholder="e.g. Border Collie, Angus" className={inputCls} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Age</label>
+                  <input value={animal.age} onChange={(e) => setAnimal((a) => ({ ...a, age: e.target.value }))} placeholder="8 wks, 2 yr" className={inputCls} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Sex</label>
+                  <select value={animal.sex} onChange={(e) => setAnimal((a) => ({ ...a, sex: e.target.value }))} className={inputCls}>
+                    <option value="">Select…</option>
+                    {["Male","Female","Mixed group","Unknown"].map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
+                  <input value={animal.quantity} onChange={(e) => setAnimal((a) => ({ ...a, quantity: e.target.value }))} placeholder="1, litter of 6" className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">Location <span className="font-normal text-gray-400">(where the animal can be seen)</span></label>
+                <input value={animal.location} onChange={(e) => setAnimal((a) => ({ ...a, location: e.target.value }))} placeholder="e.g. Faribault, MN" className={inputCls} />
+              </div>
+              <div>
+                <p className="block text-xs font-medium text-gray-600 mb-1.5">Health &amp; care</p>
+                <div className="flex flex-wrap gap-2">
+                  {([["vet_checked","🩺 Seen a vet"],["vaccinated","💉 Vaccinated"],["fixed","✂️ Spayed / Neutered"],["microchipped","🔖 Microchipped"],["registered","📋 Papers"],["health_guarantee","✅ Health guarantee"]] as const).map(([key, lbl]) => (
+                    <button key={key} type="button" onClick={() => setAnimal((a) => ({ ...a, [key]: !(a as any)[key] }))}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${(animal as any)[key] ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="block text-xs font-medium text-gray-600 mb-1.5">Temperament <span className="font-normal text-gray-400">(optional)</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {([["good_with_kids","👶 Good with kids"],["good_with_pets","🐕 Good with other animals"]] as const).map(([key, lbl]) => (
+                    <button key={key} type="button" onClick={() => setAnimal((a) => ({ ...a, [key]: !(a as any)[key] }))}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${(animal as any)[key] ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"}`}>
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Housing details */}
           {meta.housing && (
             <div className="space-y-3 rounded-xl bg-gray-50 p-3">
@@ -493,10 +577,6 @@ export default function ListPage() {
           <button type="submit" disabled={saving} className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl py-3.5 text-base font-bold shadow-lg shadow-green-600/25 hover:brightness-110 active:scale-[.99] transition disabled:opacity-50">
             {saving ? "Posting…" : "Post listing"}
           </button>
-          <p className="text-center text-xs text-gray-400">
-            Selling a single item instead?{" "}
-            <a href="/sell" className="text-green-600 font-medium hover:underline">Sell something →</a>
-          </p>
         </form>
       </div>
     </div>
