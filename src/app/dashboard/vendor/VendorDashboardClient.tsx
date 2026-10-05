@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { LayoutDashboard, Truck, Receipt, Gift, CalendarDays, Tent, HeartHandshake, BarChart3, TrendingUp, Users, MapPin, Building2, FolderOpen, Map as MapIcon, Lock, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, Truck, Receipt, Gift, CalendarDays, Tent, HeartHandshake, BarChart3, TrendingUp, Users, MapPin, Building2, FolderOpen, Map as MapIcon, Lock, Store, Eye, MousePointerClick, Tag, Package, Pencil, Pause, Play, Copy, Rocket, Trash2, Plus, Bell, MessageCircle, CheckCircle2, CreditCard, ShoppingCart, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import Logo, { BackHome } from "@/components/Logo";
 import { BRAND_ORIGIN } from "@/lib/domains";
@@ -830,14 +830,14 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                 </div>
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
                   <ReferralCopyButton referralCode={profile?.referral_code ?? ""} />
-                  <Link href="/dashboard/experiences" className="text-sm border-2 border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-semibold hover:border-gray-400 transition-colors whitespace-nowrap">
-                    🗺️ Experiences
+                  <Link href="/dashboard/experiences" className="inline-flex items-center gap-1.5 text-sm border-2 border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-semibold hover:border-gray-400 transition-colors whitespace-nowrap">
+                    <MapIcon className="w-4 h-4" strokeWidth={2} /> Experiences
                   </Link>
                   <button
                     onClick={() => { goToTab("listings"); setShowNewListing(true); }}
-                    className="bg-green-600 text-white px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors whitespace-nowrap"
+                    className="inline-flex items-center gap-1.5 bg-green-600 text-white px-4 sm:px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors whitespace-nowrap"
                   >
-                    + Add Listing
+                    <Plus className="w-4 h-4" strokeWidth={2.4} /> Add Listing
                   </button>
                 </div>
               </div>
@@ -848,16 +848,16 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               {/* Stats grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {[
-                  { label: "Store Visits", value: (vendor.profile_views ?? 0).toLocaleString(), icon: "🏬", color: "blue" },
-                  { label: "Total Views", value: stats.totalViews.toLocaleString(), icon: "👁️", color: "blue" },
-                  { label: "Total Clicks", value: stats.totalClicks.toLocaleString(), icon: "🖱️", color: "purple" },
-                  { label: "Active Listings", value: `${stats.activeListings}/${stats.totalListings}`, icon: "📦", color: "green" },
-                  { label: "Pending Bookings", value: stats.pendingBookings.toString(), icon: "📅", color: "amber" },
-                  { label: "Times Tagged", value: stats.timesTagged.toLocaleString(), icon: "🏷️", color: "green" },
+                  { label: "Store Visits", value: (vendor.profile_views ?? 0).toLocaleString(), Icon: Store },
+                  { label: "Total Views", value: stats.totalViews.toLocaleString(), Icon: Eye },
+                  { label: "Total Clicks", value: stats.totalClicks.toLocaleString(), Icon: MousePointerClick },
+                  { label: "Active Listings", value: `${stats.activeListings}/${stats.totalListings}`, Icon: Package },
+                  { label: "Pending Bookings", value: stats.pendingBookings.toString(), Icon: CalendarDays },
+                  { label: "Times Tagged", value: stats.timesTagged.toLocaleString(), Icon: Tag },
                 ].map((s) => (
                   <div key={s.label} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-2xl">{s.icon}</span>
+                      <s.Icon className="w-6 h-6 text-gray-400" strokeWidth={2} />
                     </div>
                     <p className="text-2xl font-bold text-gray-900">{s.value}</p>
                     <p className="text-sm text-gray-500 mt-0.5">{s.label}</p>
@@ -963,7 +963,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
                         <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                           {l.images?.[0]
                             ? <img src={l.images[0]} alt="" className="w-full h-full object-cover" />
-                            : <div className="w-full h-full flex items-center justify-center text-lg">📦</div>}
+                            : <div className="w-full h-full flex items-center justify-center text-gray-300"><Package className="w-5 h-5" strokeWidth={2} /></div>}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{l.title}</p>
@@ -2401,7 +2401,7 @@ function ListingsTab({
                 <div className="shrink-0 w-12 h-12 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
                   {l.images?.[0]
                     ? <img src={l.images[0]} alt="" className="w-full h-full object-cover" />
-                    : <span className="text-gray-300 text-lg">🛍️</span>}
+                    : <Package className="w-5 h-5 text-gray-300" strokeWidth={2} />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
@@ -2432,14 +2432,15 @@ function ListingsTab({
                 <span>🖱 {l.click_count}</span>
               </div>
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-50">
-                <button onClick={() => onEdit(l)} className="flex-1 min-w-[90px] text-sm bg-gray-900 text-white py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors">✏️ Edit</button>
-                <button onClick={() => onToggle(l.id, l.is_active)} className={`flex-1 min-w-[100px] text-sm border py-2 rounded-xl font-semibold transition-colors ${l.is_active ? "border-gray-300 text-gray-700 hover:bg-gray-50" : "border-green-300 text-green-700 hover:bg-green-50"}`}>{l.is_active ? "⏸ Pause" : "▶ Activate"}</button>
+                <a href={`/listings/${l.id}`} target="_blank" rel="noopener noreferrer" className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 text-sm border border-gray-200 text-gray-700 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors"><Eye className="w-4 h-4" strokeWidth={2} /> View</a>
+                <button onClick={() => onEdit(l)} className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 text-sm bg-gray-900 text-white py-2 rounded-xl font-semibold hover:bg-gray-700 transition-colors"><Pencil className="w-4 h-4" strokeWidth={2} /> Edit</button>
+                <button onClick={() => onToggle(l.id, l.is_active)} className={`flex-1 min-w-[100px] inline-flex items-center justify-center gap-1.5 text-sm border py-2 rounded-xl font-semibold transition-colors ${l.is_active ? "border-gray-300 text-gray-700 hover:bg-gray-50" : "border-green-300 text-green-700 hover:bg-green-50"}`}>{l.is_active ? <><Pause className="w-4 h-4" strokeWidth={2} /> Pause</> : <><Play className="w-4 h-4" strokeWidth={2} /> Activate</>}</button>
                 {l.type === "thrift" && (
-                  <button onClick={() => markSold(l.id, !l.sold_at)} className={`flex-1 min-w-[110px] text-sm border py-2 rounded-xl font-semibold transition-colors ${l.sold_at ? "border-green-300 text-green-700 hover:bg-green-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>{l.sold_at ? "↩ Mark Available" : "✓ Mark Sold"}</button>
+                  <button onClick={() => markSold(l.id, !l.sold_at)} className={`flex-1 min-w-[110px] inline-flex items-center justify-center gap-1.5 text-sm border py-2 rounded-xl font-semibold transition-colors ${l.sold_at ? "border-green-300 text-green-700 hover:bg-green-50" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}><CheckCircle2 className="w-4 h-4" strokeWidth={2} /> {l.sold_at ? "Mark Available" : "Mark Sold"}</button>
                 )}
-                <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="flex-1 min-w-[90px] text-sm border border-gray-200 text-gray-600 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50">{duplicatingId === l.id ? "…" : "⧉ Copy"}</button>
-                <button onClick={() => setBoostListingId(l.id)} className="flex-1 min-w-[90px] text-sm border border-amber-300 text-amber-700 py-2 rounded-xl font-semibold hover:bg-amber-50 transition-colors">🚀 Boost</button>
-                <button onClick={() => onDelete(l.id)} className="flex-1 min-w-[90px] text-sm border border-red-200 text-red-500 py-2 rounded-xl font-semibold hover:bg-red-50 transition-colors">🗑 Delete</button>
+                <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 text-sm border border-gray-200 text-gray-600 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50">{duplicatingId === l.id ? "…" : <><Copy className="w-4 h-4" strokeWidth={2} /> Copy</>}</button>
+                <button onClick={() => setBoostListingId(l.id)} className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 text-sm border border-amber-300 text-amber-700 py-2 rounded-xl font-semibold hover:bg-amber-50 transition-colors"><Rocket className="w-4 h-4" strokeWidth={2} /> Boost</button>
+                <button onClick={() => onDelete(l.id)} className="flex-1 min-w-[90px] inline-flex items-center justify-center gap-1.5 text-sm border border-red-200 text-red-500 py-2 rounded-xl font-semibold hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" strokeWidth={2} /> Delete</button>
               </div>
             </div>
           ))}
@@ -2484,7 +2485,7 @@ function ListingsTab({
                       <div className="shrink-0 w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
                         {l.images?.[0]
                           ? <img src={l.images[0]} alt="" className="w-full h-full object-cover" />
-                          : <span className="text-gray-300">🛍️</span>}
+                          : <Package className="w-4 h-4 text-gray-300" strokeWidth={2} />}
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">{l.title}</p>
@@ -2525,6 +2526,7 @@ function ListingsTab({
                   </td>
                   <td className="px-6 py-3">
                     <div className="flex items-center gap-2 justify-end">
+                      <a href={`/listings/${l.id}`} target="_blank" rel="noopener noreferrer" className="text-xs text-gray-600 hover:underline">View</a>
                       <button onClick={() => onEdit(l)} className="text-xs text-blue-500 hover:underline">Edit</button>
                       <button onClick={() => onToggle(l.id, l.is_active)} className="text-xs text-gray-600 hover:underline">{l.is_active ? "Pause" : "Activate"}</button>
                       <button onClick={() => duplicateListing(l)} disabled={duplicatingId === l.id} className="text-xs text-gray-500 hover:underline disabled:opacity-50">{duplicatingId === l.id ? "…" : "Copy"}</button>
@@ -3664,7 +3666,7 @@ function AllOrdersList({ vendorId, supabase }: { vendorId: string; supabase: any
 
   return (
     <div className="p-6 max-w-3xl">
-      <h2 className="text-xl font-bold text-gray-900 mb-1">🧾 Orders &amp; Sold Items</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2"><Receipt className="w-5 h-5 text-gray-500" strokeWidth={2} /> Orders &amp; Sold Items</h2>
       <p className="text-gray-400 text-sm mb-5">Product orders, sold thrift items, and rental bookings — all in one place.</p>
       {loading ? (
         <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-16 bg-white rounded-xl animate-pulse" />)}</div>
@@ -3821,7 +3823,7 @@ function FoodOrdersTab({ vendorId, supabase }: { vendorId: string; supabase: any
   return (
     <div className="p-6 max-w-3xl">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-xl font-bold text-gray-900">🧾 Orders</h2>
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><Receipt className="w-5 h-5 text-gray-500" strokeWidth={2} /> Orders</h2>
         <div className="flex items-center gap-2">
           <button type="button" onClick={() => setShowOverview((v) => !v)}
             className={`text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${showOverview ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400"}`}>
