@@ -21,9 +21,11 @@ function detectPlatform(): Platform {
 export default function WelcomeReferralModal({
   referralLink,
   onClose,
+  ctaLabel = "Start exploring →",
 }: {
   referralLink: string;
   onClose: () => void;
+  ctaLabel?: string;
 }) {
   const [platform, setPlatform] = useState<Platform>("desktop");
   const [copied, setCopied] = useState(false);
@@ -153,7 +155,7 @@ export default function WelcomeReferralModal({
             onClick={onClose}
             className="w-full bg-gray-900 text-white font-bold py-3 rounded-xl hover:bg-gray-800 transition-colors"
           >
-            Start exploring →
+            {ctaLabel}
           </button>
         </div>
         </div>

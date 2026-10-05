@@ -197,7 +197,9 @@ export default function VendorOnboardingClient() {
       return;
     }
 
-    router.push("/dashboard/vendor?welcome=1");
+    // A business that just went live should create its first listing — not land
+    // in My Space or "go explore". Deep-link straight into the new-listing composer.
+    router.push("/dashboard/vendor?new=product");
   }
 
   return (
@@ -205,7 +207,8 @@ export default function VendorOnboardingClient() {
       {referralCode && (
         <WelcomeReferralModal
           referralLink={`${BRAND_ORIGIN}/signup?ref=${referralCode}`}
-          onClose={() => router.push("/dashboard/vendor?welcome=1")}
+          ctaLabel="Create a listing →"
+          onClose={() => router.push("/dashboard/vendor?new=product")}
         />
       )}
       {/* Header */}
