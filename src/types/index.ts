@@ -128,7 +128,8 @@ export const CATEGORIES = [
   'Products',
   'Thrift Sales',
   'Services & Trades',
-  'Restaurants & Food',
+  'Restaurants',
+  'Food Products',
   // Food trucks get their own category so they can be pulled onto the
   // /food-trucks/[city] board — they're businesses, not places.
   'Food Trucks',

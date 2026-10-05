@@ -74,7 +74,8 @@ const CATEGORY_COVERS: Record<string, string> = {
   "Products": UNSPLASH("1441986300917-64674bd600d8"),
   "Thrift Sales": UNSPLASH("1489274495757-95c7c837b101"),
   "Services & Trades": UNSPLASH("1504307651254-35680f356dfd"),
-  "Restaurants & Food": UNSPLASH("1517248135467-4c7edcad34c4"),
+  "Restaurants": UNSPLASH("1517248135467-4c7edcad34c4"),
+  "Food Products": UNSPLASH("1542838132-92c53300491e"),
   "Events & Rentals": UNSPLASH("1519671482749-fd09be7ccebf"),
   "Health & Beauty": UNSPLASH("1560066984-138dadb4c035"),
   "Home & Garden": UNSPLASH("1416879595882-3373a0480b5b"),
@@ -158,7 +159,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
 
   // "menu" only appears when the vendor has a saved menu PDF. Restaurants get
   // the menu up top (right after About), since it's the main thing diners want.
-  const isRestaurant = vendor.category === "Restaurants & Food";
+  const isRestaurant = vendor.category === "Restaurants";
   const navSections: Section[] = vendor.menu_pdf_url
     ? (isRestaurant ? ["about", "menu", "services", "reviews"] : ["about", "services", "menu", "reviews"])
     : ["about", "services", "reviews"];
