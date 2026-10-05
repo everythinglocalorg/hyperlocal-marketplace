@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useFavorites } from "@/lib/favorites";
 import Logo from "@/components/Logo";
@@ -19,7 +19,7 @@ import SearchSuggestions from "@/components/SearchSuggestions";
 import LeafletMap, { type MapMarker } from "@/components/LeafletMap";
 import QuickSellFab from "@/components/QuickSellFab";
 import ProductTour, { type TourStep } from "@/components/ProductTour";
-import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon } from "lucide-react";
+import { Sofa, Truck, Tag, Sprout, Shirt, Package, Wrench, UtensilsCrossed, PawPrint, Car, Sparkles, PartyPopper, Dumbbell, Palette, Home as HomeIcon, LayoutGrid } from "lucide-react";
 
 // First-run guided tour, shown once right after onboarding (flag set on finish).
 const TOUR_STEPS: TourStep[] = [
@@ -206,14 +206,14 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
 
   // Load recent listings + new vendors within `radius` miles of a city's center.
   // Vendors without coordinates fall back to an exact city/state match.
-  async function loadCityData(slug: string) {
+  async function loadCityData(slug: string, radiusArg: number = radius) {
     const supabase = createClient();
     const cityObj = resolveCity(slug);
     const center = cityObj ? await fetchCityCenter(cityObj) : null;
 
     const inRange = (v: any) => {
       if (center && v?.latitude != null && v?.longitude != null) {
-        return distanceMiles(center.latitude, center.longitude, v.latitude, v.longitude) <= radius;
+        return distanceMiles(center.latitude, center.longitude, v.latitude, v.longitude) <= radiusArg;
       }
       if (cityObj) {
         return v?.city?.toLowerCase() === cityObj.city.toLowerCase() && normalizeState(v?.state ?? "") === cityObj.state;
@@ -224,10 +224,10 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     // Recent listings — filter by the vendor's distance from the city center
     const { data: listings } = await supabase
       .from("listings")
-      .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state, latitude, longitude)")
+      .select("id, title, description, price, price_label, images, type, category, vendor:vendors(business_name, slug, city, state, latitude, longitude, category)")
       .eq("is_active", true)
       .order("created_at", { ascending: false })
-      .limit(60);
+      .limit(200);
     const filteredListings = (listings ?? []).filter((l: any) => {
       const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
       return v?.slug && inRange(v);
@@ -247,7 +247,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     if (boostedListingIds.length) {
       const { data: bl } = await supabase
         .from("listings")
-        .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state, latitude, longitude)")
+        .select("id, title, description, price, price_label, images, type, category, vendor:vendors(business_name, slug, city, state, latitude, longitude, category)")
         .in("id", boostedListingIds)
         .eq("is_active", true);
       boostedListings = (bl ?? [])
@@ -262,7 +262,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
         : null;
       return { ...l, __dist: dist };
     };
-    setRecentListings([...boostedListings, ...restListings].map(withDist).slice(0, 8));
+    setRecentListings([...boostedListings, ...restListings].map(withDist).slice(0, 60));
 
     // Boosted businesses lead the New Businesses row.
     let boostedVendors: any[] = [];
@@ -284,7 +284,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
       const { data } = await supabase.rpc("search_vendors_nearby", {
         p_latitude: center.latitude,
         p_longitude: center.longitude,
-        p_radius_miles: radius,
+        p_radius_miles: radiusArg,
         p_limit: 6,
         p_offset: 0,
       });
@@ -311,6 +311,16 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
       supabase.from("profiles").update({ default_city: slug }).eq("id", user.id);
     }
     loadCityData(slug);
+  }
+
+  // Radius changed from the town selector — re-filter the grid with the new range.
+  function handleRadiusChange(r: number) {
+    setRadius(r);
+    if (user) {
+      const supabase = createClient();
+      supabase.from("profiles").update({ default_radius: r }).eq("id", user.id);
+    }
+    loadCityData(activeCity, r);
   }
 
   function handleSearch(e: React.FormEvent) {
@@ -355,6 +365,43 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     router.push(url);
   }
 
+  // Mobile category bubbles filter the Featured Gems grid IN PLACE (no jump to
+  // the discovery page). A filter matches a listing by its type, its category,
+  // or a keyword in the title/description. `null` = All (show everything).
+  type CatFilter = { label: string; type?: string; category?: string; keywords?: string[] };
+  const [activeCategory, setActiveCategory] = useState<CatFilter | null>(null);
+
+  function matchFilter(l: any, f: CatFilter | null): boolean {
+    if (!f) return true;
+    if (f.type && l.type === f.type) return true;
+    const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+    if (f.category && (l.category === f.category || v?.category === f.category)) return true;
+    if (f.keywords) {
+      const hay = `${l.title ?? ""} ${l.description ?? ""} ${l.category ?? ""}`.toLowerCase();
+      if (f.keywords.some((k) => hay.includes(k))) return true;
+    }
+    return false;
+  }
+
+  const displayedListings = useMemo(
+    () => (activeCategory ? recentListings.filter((l) => matchFilter(l, activeCategory)).slice(0, 24) : recentListings.slice(0, 8)),
+    [recentListings, activeCategory]
+  );
+
+  function pickCategory(f: CatFilter | null) {
+    track("category_pill_click", { category: f?.label ?? "All", source: "homepage" });
+    setActiveCategory(f);
+  }
+
+  // "View all →" carries the active filter through to the full discovery page.
+  function gemsViewAllHref() {
+    const p = new URLSearchParams();
+    if (activeCity) p.set("city", activeCity);
+    if (activeCategory?.type) { p.set("type", activeCategory.type); p.set("mode", "listings"); }
+    else if (activeCategory?.category) { p.set("category", activeCategory.category); p.set("mode", "listings"); }
+    return `/search?${p.toString()}`;
+  }
+
   const cityName = resolveCity(activeCity)?.label?.split(",")[0] ?? "your town";
 
   return (
@@ -365,27 +412,36 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
             Trucks lead). Desktop keeps the pill row below. */}
         <div className="md:hidden flex gap-3.5 overflow-x-auto scrollbar-hide px-3 py-3 border-b border-gray-100">
           {[
-            { label: "Home Goods", Icon: Sofa, onClick: () => { const p = new URLSearchParams(); p.set("q", "home goods"); p.set("mode", "listings"); if (activeCity) p.set("city", activeCity); const u = `/search?${p.toString()}`; if (gate(u)) return; router.push(u); } },
-            { label: "Food Trucks", Icon: Truck, onClick: () => { const u = `/food-trucks/${activeCity}`; if (gate(u)) return; router.push(u); } },
-            { label: "Thrift", Icon: Tag, onClick: () => searchCategory("Thrift Sales") },
-            { label: "Garden", Icon: Sprout, onClick: () => searchCategory("Home & Garden") },
-            { label: "Clothing", Icon: Shirt, onClick: () => searchCategory("Clothing") },
-            { label: "Products", Icon: Package, onClick: () => searchCategory("Products") },
-            { label: "Services", Icon: Wrench, onClick: () => searchCategory("Services & Trades") },
-            { label: "Food", Icon: UtensilsCrossed, onClick: () => searchCategory("Restaurants") },
-            { label: "Pets", Icon: PawPrint, onClick: () => searchCategory("Pets") },
-            { label: "Autos", Icon: Car, onClick: () => searchCategory("Auto") },
-            { label: "Beauty", Icon: Sparkles, onClick: () => searchCategory("Health & Beauty") },
-            { label: "Events", Icon: PartyPopper, onClick: () => searchCategory("Events") },
-            { label: "Sports", Icon: Dumbbell, onClick: () => searchCategory("Sports") },
-            { label: "Arts", Icon: Palette, onClick: () => searchCategory("Arts & Crafts") },
-            { label: "Housing", Icon: HomeIcon, onClick: () => searchCategory("Housing") },
-          ].map(({ label, Icon, onClick }) => (
-            <button key={label} onClick={onClick} className="shrink-0 w-[60px] flex flex-col items-center gap-1.5">
-              <span className="w-14 h-14 rounded-full bg-green-50 border border-green-100 flex items-center justify-center text-green-700"><Icon className="w-6 h-6" strokeWidth={1.8} /></span>
-              <span className="text-[10px] text-gray-600 leading-tight text-center">{label}</span>
-            </button>
-          ))}
+            { label: "All", Icon: LayoutGrid, filter: null as CatFilter | null },
+            { label: "Home Goods", Icon: Sofa, filter: { label: "Home Goods", category: "Home & Garden", keywords: ["home goods", "furniture", "home decor", "decor", "household", "kitchen", "appliance"] } },
+            // Food Trucks is a separate vendor board, not product listings — keep it a link.
+            { label: "Food Trucks", Icon: Truck, nav: `/food-trucks/${activeCity}` },
+            { label: "Thrift", Icon: Tag, filter: { label: "Thrift", type: "thrift" } },
+            { label: "Garden", Icon: Sprout, filter: { label: "Home & Garden", category: "Home & Garden" } },
+            { label: "Clothing", Icon: Shirt, filter: { label: "Clothing", category: "Clothing & Accessories" } },
+            { label: "Products", Icon: Package, filter: { label: "Products", category: "Products", type: "product" } },
+            { label: "Services", Icon: Wrench, filter: { label: "Services", category: "Services & Trades" } },
+            { label: "Food", Icon: UtensilsCrossed, filter: { label: "Food", category: "Restaurants & Food" } },
+            { label: "Pets", Icon: PawPrint, filter: { label: "Pets", category: "Pet Services" } },
+            { label: "Autos", Icon: Car, filter: { label: "Autos", category: "Auto & Transportation" } },
+            { label: "Beauty", Icon: Sparkles, filter: { label: "Beauty", category: "Health & Beauty" } },
+            { label: "Events", Icon: PartyPopper, filter: { label: "Events", category: "Events & Rentals" } },
+            { label: "Sports", Icon: Dumbbell, filter: { label: "Sports", category: "Sports & Outdoors" } },
+            { label: "Arts", Icon: Palette, filter: { label: "Arts", category: "Arts & Crafts" } },
+            { label: "Housing", Icon: HomeIcon, filter: { label: "Housing", category: "Housing & Rentals" } },
+          ].map((item: any) => {
+            const isActive = item.nav ? false : (item.filter?.label ?? null) === (activeCategory?.label ?? null);
+            const onClick = item.nav
+              ? () => { if (gate(item.nav)) return; router.push(item.nav); }
+              : () => pickCategory(item.filter);
+            const Icon = item.Icon;
+            return (
+              <button key={item.label} onClick={onClick} className="shrink-0 w-[60px] flex flex-col items-center gap-1.5">
+                <span className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${isActive ? "bg-green-600 border border-green-600 text-white" : "bg-green-50 border border-green-100 text-green-700"}`}><Icon className="w-6 h-6" strokeWidth={1.8} /></span>
+                <span className={`text-[10px] leading-tight text-center ${isActive ? "text-green-700 font-semibold" : "text-gray-600"}`}>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Category bar — pill row (desktop only; mobile uses the bubbles above). */}
@@ -526,13 +582,25 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
           {recentListings.length > 0 && (
             <div className="max-w-5xl mx-auto mt-2 md:mt-14 px-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900">
-                  {activeCity ? `Featured Gems in ${resolveCity(activeCity)?.label ?? activeCity}` : "Featured Gems"}
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                  <span>{activeCategory ? activeCategory.label : "Featured Gems"} in</span>
+                  <CitySelector
+                    value={activeCity}
+                    onChange={(slug, cityObj) => handleCityChange(slug, cityObj)}
+                    radius={radius}
+                    onRadiusChange={handleRadiusChange}
+                  />
                 </h2>
-                <Link href={`/search${activeCity ? `?city=${activeCity}` : ""}`} onClick={(e) => { if (gate(`/search${activeCity ? `?city=${activeCity}` : ""}`)) e.preventDefault(); }} className="text-sm text-green-600 hover:underline">View all →</Link>
+                <Link href={gemsViewAllHref()} onClick={(e) => { if (gate(gemsViewAllHref())) e.preventDefault(); }} className="text-sm text-green-600 hover:underline shrink-0">View all →</Link>
               </div>
+              {displayedListings.length === 0 ? (
+                <div className="text-center py-10 text-sm text-gray-500">
+                  No {activeCategory?.label.toLowerCase()} in {resolveCity(activeCity)?.label?.split(",")[0] ?? "your town"} yet.{" "}
+                  <Link href={gemsViewAllHref()} className="text-green-600 font-semibold hover:underline">Browse all →</Link>
+                </div>
+              ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                {recentListings.map((l) => {
+                {displayedListings.map((l) => {
                   const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
                   const slug = vendor?.slug;
                   if (!slug) return null;
@@ -561,6 +629,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   );
                 })}
               </div>
+              )}
             </div>
           )}
 
