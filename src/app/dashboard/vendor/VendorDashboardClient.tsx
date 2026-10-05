@@ -1858,33 +1858,19 @@ function ListingsTab({
               )}
             </div>
             <div className="sm:col-span-2">
-              <label className="block text-xs font-medium text-gray-500 mb-2">
-                Categories <span className="text-gray-400 font-normal">(select all that apply)</span>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Category <span className="text-gray-400 font-normal">(helps neighbors find it in local search)</span>
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {CATEGORIES.map((c) => {
-                  const checked = selectedCategories.includes(c);
-                  return (
-                    <label key={c} className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer text-sm transition-colors ${
-                      checked ? "bg-green-50 border-green-400 text-green-800" : "border-gray-200 text-gray-600 hover:border-green-300"
-                    }`}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setSelectedCategories((prev) =>
-                            checked ? prev.filter((x) => x !== c) : [...prev, c]
-                          );
-                        }}
-                        className="accent-green-600"
-                      />
-                      {c}
-                    </label>
-                  );
-                })}
-              </div>
+              <select
+                value={selectedCategories[0] ?? ""}
+                onChange={(e) => setSelectedCategories(e.target.value ? [e.target.value] : [])}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Select a category…</option>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
               {selectedCategories.length === 0 && (
-                <p className="text-xs text-red-500 mt-1">Select at least one category.</p>
+                <p className="text-xs text-red-500 mt-1">Pick a category.</p>
               )}
             </div>
             {form.type !== "thrift" && (
