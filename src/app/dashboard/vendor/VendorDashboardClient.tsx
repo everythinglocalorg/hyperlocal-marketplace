@@ -64,6 +64,7 @@ interface Props {
   connectEnabled: boolean;
   connectAccountId: string | null;
   initialTab?: string;
+  initialNew?: string | null;
   vendorOptions?: { id: string; business_name: string }[];
 }
 
@@ -191,7 +192,7 @@ const NAV: { id: Tab; label: string; icon: string; premiumOnly?: boolean; adminO
   { id: "allplaces", label: "All Places", icon: "🌿", adminOnly: true },
 ];
 
-export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab, vendorOptions }: Props) {
+export default function VendorDashboardClient({ vendor, profile, isPremium, features, activeListingCap, isAdmin, connectEnabled, connectAccountId, initialTab, initialNew, vendorOptions }: Props) {
   // Local Pro+ exclusive tier (admins always count as top tier).
   const isPlus = isAdmin || isPlusTier(vendor.tier);
   // Upgrade links carry the selected business so checkout upgrades THIS vendor
@@ -1007,6 +1008,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
               onRefresh={loadListings}
               editingListing={editingListing}
               onEdit={setEditingListing}
+              initialNewType={initialNew ?? null}
             />
           )}
 
@@ -1343,7 +1345,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 // ── LISTINGS TAB ──────────────────────────────────────────────
 function ListingsTab({
   listings, loading, vendorId, cap, menuPdfUrl, onGoToStore, showNew, onShowNew,
-  onToggle, onDelete, onRefresh, editingListing, onEdit,
+  onToggle, onDelete, onRefresh, editingListing, onEdit, initialNewType,
 }: {
   listings: Listing[]; loading: boolean; vendorId: string; cap: number | null;
   menuPdfUrl: string | null; onGoToStore: () => void;
@@ -1351,6 +1353,7 @@ function ListingsTab({
   onToggle: (id: string, active: boolean) => void;
   onDelete: (id: string) => void; onRefresh: () => void;
   editingListing: Listing | null; onEdit: (l: Listing | null) => void;
+  initialNewType?: string | null;
 }) {
   const supabase = createClient();
   const activeCount = listings.filter((l) => l.is_active).length;
@@ -1484,6 +1487,26 @@ function ListingsTab({
       onShowNew(true);
     }
   }, [editingListing, onShowNew]);
+
+  // Deep-link from the Sell menu (?new=event|housing_rent|…) — open the New
+  // Listing form pre-set to that type so the user lands right in the right form.
+  const didInitNew = useRef(false);
+  useEffect(() => {
+    if (didInitNew.current || !initialNewType) return;
+    didInitNew.current = true;
+    const CAT: Record<string, string> = {
+      event: "Events & Rentals", rental: "Events & Rentals",
+      housing_rent: "Housing & Rentals", housing_sale: "Housing & Rentals",
+      thrift: "Thrift Sales", restaurant: "Restaurants & Food",
+      service: "Services & Trades", animals: "Pet Services", product: "Products",
+    };
+    const cat = CAT[initialNewType] ?? "Products";
+    onEdit(null);
+    setForm((f) => ({ ...f, type: initialNewType, category: cat }));
+    setSelectedCategories([cat]);
+    setCtaType(defaultCtaForListingType(initialNewType));
+    onShowNew(true);
+  }, [initialNewType, onEdit, onShowNew]);
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);

@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import VendorDashboardClient from "./VendorDashboardClient";
 import { allFeaturesOn, isPaidTier, listingCap } from "@/lib/features";
 
-export default async function VendorDashboardPage({ searchParams }: { searchParams: Promise<{ tab?: string; vendor?: string }> }) {
-  const { tab: initialTab, vendor: vendorParam } = await searchParams;
+export default async function VendorDashboardPage({ searchParams }: { searchParams: Promise<{ tab?: string; vendor?: string; new?: string }> }) {
+  const { tab: initialTab, vendor: vendorParam, new: initialNew } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -53,7 +53,8 @@ export default async function VendorDashboardPage({ searchParams }: { searchPara
       isAdmin={isAdmin}
       connectEnabled={vendor.stripe_connect_enabled ?? false}
       connectAccountId={vendor.stripe_connect_account_id ?? null}
-      initialTab={initialTab}
+      initialTab={initialNew ? "listings" : initialTab}
+      initialNew={initialNew ?? null}
       vendorOptions={vendorOptions}
     />
   );
