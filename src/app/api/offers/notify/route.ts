@@ -47,6 +47,20 @@ export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const callerIsVendor = !!user && !!vendor?.user_id && user.id === vendor.user_id;
+  const callerIsBuyer = !!user && !!offer.buyer_id && user.id === offer.buyer_id;
+
+  // Buyer responded to a counter — tell the vendor. (Guarded to accepted/declined
+  // so a fresh pending offer still falls through to the "new offer" path below.)
+  if (callerIsBuyer && (offer.status === "accepted" || offer.status === "declined")) {
+    if (!vendor?.user_id) return NextResponse.json({ ok: true });
+    const item = offer.listing_title ?? "your item";
+    const final = money(offer.counter_amount ?? offer.amount);
+    const c = offer.status === "accepted"
+      ? { title: "🎉 Buyer accepted!", body: `${offer.buyer_name} accepted at ${final} for ${item}. Arrange pickup & payment.` }
+      : { title: "Offer passed", body: `${offer.buyer_name} declined your counter on ${item}.` };
+    await sendPushToUser(vendor.user_id, { ...c, url: "/dashboard/vendor?tab=offers", tag: `offer-${offer.id}` });
+    return NextResponse.json({ ok: true });
+  }
 
   if (callerIsVendor) {
     // Vendor responded — tell the buyer (only if they have an account).

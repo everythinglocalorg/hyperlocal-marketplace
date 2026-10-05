@@ -30,6 +30,13 @@ export default async function BuyerDashboardPage() {
     .eq("customer_id", user.id)
     .order("created_at", { ascending: false });
 
+  // Offers this buyer has made (negotiation loop with sellers)
+  const { data: offers } = await supabase
+    .from("thrift_offers")
+    .select("id, listing_id, listing_title, vendor_id, amount, counter_amount, message, status, created_at, updated_at, vendor:vendors(business_name, slug, logo_url, phone)")
+    .eq("buyer_id", user.id)
+    .order("updated_at", { ascending: false });
+
   // Fetch Local Bucks transaction history
   const { data: bucksHistory } = await supabase
     .from("local_bucks_transactions")
@@ -130,6 +137,7 @@ export default async function BuyerDashboardPage() {
     <BuyerDashboardClient
       profile={profile}
       bookings={bookings ?? []}
+      offers={offers ?? []}
       rentalBookings={rentalBookings ?? []}
       bucksHistory={bucksHistory ?? []}
       referrals={referrals ?? []}

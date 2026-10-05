@@ -104,9 +104,24 @@ type NewVendor = {
 
 type VendorAccount = { id: string; business_name: string; slug: string } | null;
 
+type BuyerOffer = {
+  id: string;
+  listing_id: string;
+  listing_title: string | null;
+  vendor_id: string;
+  amount: number;
+  counter_amount: number | null;
+  message: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  vendor: { business_name: string; slug: string; logo_url: string | null; phone: string | null } | { business_name: string; slug: string; logo_url: string | null; phone: string | null }[] | null;
+};
+
 interface Props {
   profile: Profile;
   bookings: Booking[];
+  offers: BuyerOffer[];
   rentalBookings: RentalBooking[];
   bucksHistory: BucksTransaction[];
   referrals: Referral[];
@@ -148,13 +163,13 @@ const STATUS_ICONS: Record<string, string> = {
   cancelled: "✕",
 };
 
-export default function BuyerDashboardClient({ profile, bookings, rentalBookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks, profileDetails, ownedBusinessCount }: Props) {
-  const [tab, setTab] = useState<"overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile" | "saved">(() => {
+export default function BuyerDashboardClient({ profile, bookings, offers, rentalBookings, bucksHistory, referrals, referredBy, recentListings, newVendors, savedCity, savedState, vendorAccount, engagedVendors, businessPicks, profileDetails, ownedBusinessCount }: Props) {
+  const TABS = ["overview", "bookings", "offers", "bucks", "referrals", "messages", "profile", "saved"] as const;
+  type TabId = typeof TABS[number];
+  const [tab, setTab] = useState<TabId>(() => {
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tab");
-      if (t && ["overview", "bookings", "bucks", "referrals", "messages", "profile", "saved"].includes(t)) {
-        return t as "overview" | "bookings" | "bucks" | "referrals" | "messages" | "profile" | "saved";
-      }
+      if (t && (TABS as readonly string[]).includes(t)) return t as TabId;
     }
     return "overview";
   });
@@ -172,6 +187,26 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
   });
   const [copied, setCopied] = useState<"profile" | "signup" | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Buyer-side offer negotiation — accept the seller's counter or walk away.
+  const [offerList, setOfferList] = useState<BuyerOffer[]>(offers);
+  const [offerBusy, setOfferBusy] = useState<string | null>(null);
+  async function respondToOffer(o: BuyerOffer, action: "accept" | "decline") {
+    setOfferBusy(o.id);
+    const supabase = createClient();
+    // Accepting a counter locks in the counter price as the agreed amount.
+    const patch: Record<string, unknown> =
+      action === "accept"
+        ? { status: "accepted", updated_at: new Date().toISOString(), ...(o.counter_amount != null ? { amount: o.counter_amount } : {}) }
+        : { status: "declined", updated_at: new Date().toISOString() };
+    const { error } = await supabase.from("thrift_offers").update(patch).eq("id", o.id);
+    if (!error) {
+      // Let the seller know the buyer responded.
+      fetch("/api/offers/notify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ offerId: o.id }) }).catch(() => {});
+      setOfferList((prev) => prev.map((x) => (x.id === o.id ? { ...x, ...patch } as BuyerOffer : x)));
+    }
+    setOfferBusy(null);
+  }
   // "Getting started" card — dismissible, remembered per browser.
   const [showGettingStarted, setShowGettingStarted] = useState(false);
   useEffect(() => {
@@ -260,6 +295,7 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
     { id: "saved", label: "Wish List", icon: "💚" },
     { id: "profile", label: "Local Profile", icon: "⭐" },
     { id: "bookings", label: "Bookings", icon: "📅" },
+    { id: "offers", label: "My Offers", icon: "🤝" },
     { id: "bucks", label: "Local Bucks", icon: "🪙" },
     { id: "referrals", label: "Referrals", icon: "🤝" },
   ] as const;
@@ -651,6 +687,91 @@ export default function BuyerDashboardClient({ profile, bookings, rentalBookings
             <h1 className="text-2xl font-bold text-gray-900 mb-1">💚 Wish List</h1>
             <p className="text-gray-500 text-sm mb-6">Items you’ve saved to revisit or buy. Tap the heart on any product to add it here.</p>
             <WishlistGrid />
+          </div>
+        )}
+
+        {/* ── MY OFFERS ── */}
+        {tab === "offers" && (
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">🤝 My Offers</h1>
+            <p className="text-gray-500 text-sm mb-6">Offers you’ve made to local sellers. When a seller counters, accept it here to lock in the price, then arrange payment.</p>
+
+            {offerList.length === 0 ? (
+              <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center">
+                <div className="text-4xl mb-3">🏷️</div>
+                <p className="font-semibold text-gray-900">No offers yet</p>
+                <p className="text-sm text-gray-500 mt-1 mb-5">Find something you love and tap “Make offer” to start a deal with a local seller.</p>
+                <Link href="/search?mode=listings" className="inline-block bg-green-600 text-white font-semibold px-6 py-2.5 rounded-full hover:bg-green-700 transition-colors text-sm">Browse local finds →</Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {offerList.map((o) => {
+                  const v = Array.isArray(o.vendor) ? o.vendor[0] : o.vendor;
+                  const money = (n: number | null | undefined) => (n == null ? "—" : `$${Number(n).toFixed(2)}`);
+                  const badge: Record<string, string> = {
+                    pending: "bg-yellow-50 text-yellow-700 border-yellow-100",
+                    countered: "bg-blue-50 text-blue-700 border-blue-100",
+                    accepted: "bg-green-50 text-green-700 border-green-100",
+                    declined: "bg-red-50 text-red-700 border-red-100",
+                  };
+                  const label: Record<string, string> = {
+                    pending: "⏳ Waiting on seller",
+                    countered: "↔ Seller countered",
+                    accepted: "🎉 Accepted",
+                    declined: "✕ Declined",
+                  };
+                  return (
+                    <div key={o.id} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <Link href={`/listings/${o.listing_id}`} className="font-semibold text-gray-900 hover:underline line-clamp-1">{o.listing_title ?? "Listing"}</Link>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {v?.slug ? <Link href={`/vendors/${v.slug}`} className="hover:underline">{v.business_name}</Link> : v?.business_name}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 text-xs font-medium px-2.5 py-1 rounded-full border ${badge[o.status] ?? "bg-gray-50 text-gray-600 border-gray-100"}`}>{label[o.status] ?? o.status}</span>
+                      </div>
+
+                      <div className="mt-3 flex items-center gap-4 text-sm">
+                        <span className="text-gray-500">Your offer <strong className="text-gray-900">{money(o.amount)}</strong></span>
+                        {o.status === "countered" && o.counter_amount != null && (
+                          <span className="text-blue-700">Seller wants <strong>{money(o.counter_amount)}</strong></span>
+                        )}
+                      </div>
+
+                      {/* Seller countered → buyer accepts the counter or declines */}
+                      {o.status === "countered" && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <button onClick={() => respondToOffer(o, "accept")} disabled={offerBusy === o.id}
+                            className="flex-1 min-w-[140px] bg-green-600 text-white text-sm font-semibold py-2.5 rounded-full hover:bg-green-700 disabled:opacity-40 transition-colors">
+                            {offerBusy === o.id ? "Saving…" : `Accept ${money(o.counter_amount)}`}
+                          </button>
+                          <button onClick={() => respondToOffer(o, "decline")} disabled={offerBusy === o.id}
+                            className="px-5 bg-white border border-gray-300 text-gray-700 text-sm font-semibold py-2.5 rounded-full hover:bg-gray-50 disabled:opacity-40 transition-colors">
+                            Decline
+                          </button>
+                          <Link href={`/listings/${o.listing_id}`} className="px-5 bg-white border border-gray-300 text-gray-700 text-sm font-semibold py-2.5 rounded-full hover:bg-gray-50 transition-colors text-center">
+                            Message
+                          </Link>
+                        </div>
+                      )}
+
+                      {/* Deal agreed → arrange payment with the seller */}
+                      {o.status === "accepted" && (
+                        <div className="mt-4 bg-green-50 border border-green-100 rounded-xl p-3">
+                          <p className="text-sm font-semibold text-green-800">You’re all set at {money(o.counter_amount ?? o.amount)}.</p>
+                          <p className="text-xs text-green-700 mt-0.5">Arrange payment with {v?.business_name ?? "the seller"} — Venmo, Apple Cash, or cash at pickup.</p>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <Link href={`/listings/${o.listing_id}`} className="bg-green-600 text-white text-xs font-semibold px-4 py-2 rounded-full hover:bg-green-700 transition-colors">Message seller</Link>
+                            {v?.phone && <a href={`sms:${v.phone}`} className="bg-white border border-green-300 text-green-700 text-xs font-semibold px-4 py-2 rounded-full hover:bg-green-100 transition-colors">Text {v.phone}</a>}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 

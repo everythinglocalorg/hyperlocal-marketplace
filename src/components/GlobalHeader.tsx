@@ -20,6 +20,8 @@ const HIDDEN_PREFIXES = [
   "/notifications", "/about", "/pricing", "/contact", "/terms", "/privacy",
   // Storefront pages render their own unified header with a site menu (hamburger)
   "/vendors/",
+  // Product pages are an immersive full-page view with their own back button
+  "/listings/",
 ];
 
 export default function GlobalHeader() {

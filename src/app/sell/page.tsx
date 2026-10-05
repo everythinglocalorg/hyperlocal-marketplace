@@ -17,7 +17,6 @@ export default function SellPage() {
   const supabase = createClient();
 
   const [checking, setChecking] = useState(true);
-  const [isThrift, setIsThrift] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [existingVendor, setExistingVendor] = useState<{ id: string; slug: string; business_name: string; is_business: boolean } | null>(null);
   const [profile, setProfile] = useState<{ full_name: string | null; city: string | null; state: string | null } | null>(null);
@@ -37,9 +36,8 @@ export default function SellPage() {
 
   useEffect(() => {
     (async () => {
-      try { setIsThrift(new URLSearchParams(window.location.search).get("type") === "thrift"); } catch { /* noop */ }
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push(`/login?next=${encodeURIComponent("/sell" + (typeof window !== "undefined" ? window.location.search : ""))}`); return; }
+      if (!user) { router.push("/login?next=/sell"); return; }
       setUserId(user.id);
       const [{ data: prof }, { data: vendors }] = await Promise.all([
         supabase.from("profiles").select("full_name, city, state").eq("id", user.id).maybeSingle(),
@@ -146,12 +144,12 @@ export default function SellPage() {
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <Logo size="sm" />
-          <span className="text-sm text-gray-500">{isThrift ? "Share a thrift sale" : "Sell an item"}</span>
+          <span className="text-sm text-gray-500">Sell an item</span>
         </div>
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">{isThrift ? "Post a thrift find" : "List something for sale"}</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">List something for sale</h1>
         <p className="text-gray-500 text-sm mb-6">
           You're posting as a <strong>private seller</strong> — no business account needed. Local neighbors can message you and make offers.
         </p>
