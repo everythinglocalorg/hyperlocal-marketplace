@@ -9,6 +9,7 @@ import ShareQrModal, { QrGlyph, type ShareSlide } from "@/components/ShareQrModa
 import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { BRAND_ORIGIN } from "@/lib/domains";
 import { useFavorites } from "@/lib/favorites";
+import { MessageCircle, Bell, Heart, Menu } from "lucide-react";
 
 // Routes that render their own full-page chrome (own nav/sidebar) and should NOT
 // show the global browse header.
@@ -168,24 +169,24 @@ export default function GlobalHeader() {
               )}
               {/* Icons show for everyone — guests get routed to log in when a page
                   needs an account. (Replaces the old green "Log in" button.) */}
-              <Link href="/messages" data-tour="messages" title="Messages" className="relative text-xl leading-none">
-                💬
+              <Link href="/messages" data-tour="messages" title="Messages" className="relative text-gray-700 hover:text-gray-900 transition-colors">
+                <MessageCircle className="w-6 h-6" strokeWidth={2} />
                 {msgUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
                     {msgUnread > 9 ? "9+" : msgUnread}
                   </span>
                 )}
               </Link>
-              <Link href="/notifications" data-tour="notifications" title="Notifications" className="relative text-xl leading-none">
-                🔔
+              <Link href="/notifications" data-tour="notifications" title="Notifications" className="relative text-gray-700 hover:text-gray-900 transition-colors">
+                <Bell className="w-6 h-6" strokeWidth={2} />
                 {notifUnread > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
                     {notifUnread > 9 ? "9+" : notifUnread}
                   </span>
                 )}
               </Link>
-              <Link href="/wishlist" data-tour="wishlist" title="Wish List" className="relative text-xl leading-none">
-                💚
+              <Link href="/wishlist" data-tour="wishlist" title="Wish List" className="relative text-green-600 hover:text-green-700 transition-colors">
+                <Heart className="w-6 h-6" strokeWidth={2} />
                 {wishlistCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-green-600 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 px-1 flex items-center justify-center">
                     {wishlistCount > 9 ? "9+" : wishlistCount}
@@ -195,7 +196,7 @@ export default function GlobalHeader() {
               {/* ☰ menu — Dashboard, nav, and Log Out/Log In in one place. */}
               <div className="relative" ref={menuRef}>
                 <button onClick={() => setMenuOpen((v) => !v)} data-tour="menu" aria-label="Menu" aria-expanded={menuOpen} className="p-1 -mr-1 text-gray-700 hover:text-gray-900 transition-colors">
-                  <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" /></svg>
+                  <Menu className="w-7 h-7" strokeWidth={1.8} />
                 </button>
                 {menuOpen && (
                   <div className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-100 rounded-xl shadow-lg z-50 overflow-hidden py-1">
