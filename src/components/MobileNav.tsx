@@ -11,7 +11,9 @@ import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 // Inbox · My Space (your dashboard). Hidden on full-chrome flows (auth,
 // onboarding, proposal) where a tab bar would get in the way. The Sell "+"
 // opens the same storefront-vs-private-seller chooser as the desktop quick-add.
-const HIDDEN_PREFIXES = ["/login", "/signup", "/reset-password", "/auth", "/callback", "/onboarding", "/proposal"];
+// Kept visible on /onboarding so new businesses aren't stranded with no way
+// back. Still hidden on the true full-screen auth flows.
+const HIDDEN_PREFIXES = ["/login", "/signup", "/reset-password", "/auth", "/callback", "/proposal"];
 
 export default function MobileNav() {
   const pathname = usePathname() || "/";
@@ -32,7 +34,7 @@ export default function MobileNav() {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 flex items-stretch px-2 pb-[env(safe-area-inset-bottom)]">
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-gray-100 flex items-stretch px-2 pb-[calc(env(safe-area-inset-bottom)+6px)]">
         <Link href="/" className={`${base} ${isHome ? on : off}`}>
           <Home className="w-6 h-6" strokeWidth={2} />
           <span className="text-[10px] font-medium">Home</span>
