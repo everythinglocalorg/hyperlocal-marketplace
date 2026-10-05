@@ -2399,6 +2399,11 @@ function ListingsTab({
                 {cats.length > 0 && (
                   <input type="checkbox" aria-label={`Select ${l.title}`} checked={selectedIds.has(l.id)} onChange={() => toggleSelect(l.id)} className="mt-1 accent-green-600" />
                 )}
+                <div className="shrink-0 w-12 h-12 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+                  {l.images?.[0]
+                    ? <img src={l.images[0]} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-gray-300 text-lg">🛍️</span>}
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -2476,19 +2481,28 @@ function ListingsTab({
                     </td>
                   )}
                   <td className="px-6 py-3">
-                    <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">{l.title}</p>
-                    {cats.length > 0 ? (
-                      <select
-                        value={l.listing_category_id ?? ""}
-                        onChange={(e) => assignCategory([l.id], e.target.value || null)}
-                        className="mt-1 text-xs text-gray-500 border border-gray-200 rounded-lg px-1.5 py-0.5 max-w-[170px] focus:outline-none focus:ring-1 focus:ring-green-500"
-                      >
-                        <option value="">Uncategorized</option>
-                        {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                      </select>
-                    ) : (
-                      <p className="text-xs text-gray-400">{l.category}</p>
-                    )}
+                    <div className="flex items-center gap-3">
+                      <div className="shrink-0 w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center">
+                        {l.images?.[0]
+                          ? <img src={l.images[0]} alt="" className="w-full h-full object-cover" />
+                          : <span className="text-gray-300">🛍️</span>}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate max-w-[180px]">{l.title}</p>
+                        {cats.length > 0 ? (
+                          <select
+                            value={l.listing_category_id ?? ""}
+                            onChange={(e) => assignCategory([l.id], e.target.value || null)}
+                            className="mt-1 text-xs text-gray-500 border border-gray-200 rounded-lg px-1.5 py-0.5 max-w-[170px] focus:outline-none focus:ring-1 focus:ring-green-500"
+                          >
+                            <option value="">Uncategorized</option>
+                            {cats.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                          </select>
+                        ) : (
+                          <p className="text-xs text-gray-400">{l.category}</p>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className="text-xs capitalize text-gray-500">{l.type}</span>
