@@ -1,61 +1,68 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import RedirectClient from "./RedirectClient";
+import ProductPageClient from "./ProductPageClient";
 
 type Props = { params: Promise<{ id: string }> };
 
+const LISTING_FIELDS =
+  "id, title, description, type, price, price_label, condition, quantity, images, category, tags, cta_type, cta_url, sold_at, created_at, vendor:vendors(id, slug, business_name, city, state, logo_url, latitude, longitude, rating, review_count, is_business, phone, menu_pdf_url)";
+
 async function loadListing(id: string) {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("listings")
-    .select("id, title, description, images, price, vendor:vendors(slug, business_name, city, state, logo_url)")
-    .eq("id", id)
-    .maybeSingle();
+  const { data } = await supabase.from("listings").select(LISTING_FIELDS).eq("id", id).maybeSingle();
   if (!data) return null;
   const vendor = Array.isArray(data.vendor) ? data.vendor[0] : data.vendor;
   return { ...data, vendor };
 }
 
-// Link-preview metadata so sharing a product in chats/messages shows the
-// listing photo (falls back gracefully to a text card if it has no image).
+// Link-preview metadata so sharing a product shows the photo.
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const listing = await loadListing(id);
   if (!listing) return { title: "Listing — Everything Local" };
-
   const biz = listing.vendor?.business_name ?? "Everything Local";
   const title = `${listing.title} — ${biz}`;
   const description =
     listing.description ||
     `${listing.title} from ${biz}${listing.vendor?.city ? ` in ${listing.vendor.city}, ${listing.vendor.state}` : ""} on Everything Local.`;
-  // Real photo → business logo → branded card as last resort
   const image = listing.images?.[0] || listing.vendor?.logo_url || "/api/og";
-
   return {
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      images: image ? [{ url: image, alt: listing.title }] : undefined,
-    },
-    twitter: {
-      card: image ? "summary_large_image" : "summary",
-      title,
-      description,
-      images: image ? [image] : undefined,
-    },
+    openGraph: { title, description, type: "website", images: image ? [{ url: image, alt: listing.title }] : undefined },
+    twitter: { card: image ? "summary_large_image" : "summary", title, description, images: image ? [image] : undefined },
   };
 }
 
-export default async function ListingRedirectPage({ params }: Props) {
+export default async function ListingPage({ params }: Props) {
   const { id } = await params;
+  const supabase = await createClient();
   const listing = await loadListing(id);
-  if (!listing?.vendor?.slug) notFound();
+  if (!listing?.vendor) notFound();
 
-  // Human visitors are forwarded to the vendor page; link-unfurl bots read the
-  // Open Graph tags above (the listing photo) from this page's HTML first.
-  return <RedirectClient to={`/vendors/${listing.vendor.slug}`} title={listing.title} />;
+  // Current user (for the buy / offer / message flows).
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("id, full_name, email").eq("id", user.id).maybeSingle()
+    : { data: null };
+
+  // More local finds — other active listings from the same seller.
+  const { data: more } = await supabase
+    .from("listings")
+    .select("id, title, price, price_label, images, type")
+    .eq("vendor_id", listing.vendor.id)
+    .eq("is_active", true)
+    .neq("id", listing.id)
+    .order("created_at", { ascending: false })
+    .limit(6);
+
+  return (
+    <ProductPageClient
+      listing={listing}
+      vendor={listing.vendor}
+      currentUser={profile ?? null}
+      more={more ?? []}
+    />
+  );
 }

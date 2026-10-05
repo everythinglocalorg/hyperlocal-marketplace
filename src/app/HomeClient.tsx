@@ -537,7 +537,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
                   const slug = vendor?.slug;
                   if (!slug) return null;
                   return (
-                    <Link key={l.id} href={`/vendors/${slug}`} className="group" onClick={() => { try { sessionStorage.setItem("el_home_scroll", String(window.scrollY)); } catch { /* noop */ } }}>
+                    <Link key={l.id} href={`/listings/${l.id}`} className="group" onClick={() => { try { sessionStorage.setItem("el_home_scroll", String(window.scrollY)); } catch { /* noop */ } }}>
                       <div className="w-full aspect-square rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden relative">
                         {l.boosted && <span className="absolute bottom-2 left-2 z-10 bg-amber-400 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">★ Featured</span>}
                         {vendor?.business_name && (

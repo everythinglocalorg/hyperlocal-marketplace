@@ -300,16 +300,18 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
     supabase.rpc("increment_listing_clicks", { listing_id_in: listingId }).then(() => {});
   }
 
+  // Clicking a listing now opens its full product page (keeps the buyer "in"
+  // the product, Depop-style) instead of a quick-view popup.
   function openDetail(l: any) {
     const vendor = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
     if (!vendor) return;
-    setDetailCtx({ listing: l, vendor });
+    trackListingClick(l.id);
+    router.push(`/listings/${l.id}`);
   }
 
-  // Keyword results only carry a summary — fetch the full row, then open.
-  async function openDetailById(listingId: string) {
-    const { data } = await supabase.from("listings").select(LISTING_SELECT).eq("id", listingId).single();
-    if (data) openDetail(data);
+  function openDetailById(listingId: string) {
+    trackListingClick(listingId);
+    router.push(`/listings/${listingId}`);
   }
 
   async function openBooking(ctx: ListingCtx) {
