@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -26,18 +26,36 @@ function SignupForm() {
   const [success, setSuccess] = useState(false);
   const [resendState, setResendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [captchaToken, setCaptchaToken] = useState("");
+  // Hold a submit made before Turnstile issued its token; fire it automatically
+  // once the token lands (one click/Enter, no "complete verification" bounce).
+  const [pendingSignup, setPendingSignup] = useState(false);
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
 
   const supabase = createClient();
 
-  async function handleEmailSignup(e: React.FormEvent) {
+  useEffect(() => {
+    if (pendingSignup && captchaToken) {
+      setPendingSignup(false);
+      submitSignup();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSignup, captchaToken]);
+
+  function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
+    // Token not ready yet — hold and auto-submit when it arrives.
     if (CAPTCHA_ON && !captchaToken) {
-      setError("Please complete the verification below.");
+      setError(null);
+      setLoading(true);
+      setPendingSignup(true);
       return;
     }
+    submitSignup();
+  }
+
+  async function submitSignup() {
     setLoading(true);
     setError(null);
 
@@ -277,7 +295,7 @@ function SignupForm() {
 
         <button
           type="submit"
-          disabled={loading || (CAPTCHA_ON && !captchaToken)}
+          disabled={loading}
           className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
         >
           {loading ? "Creating account..." : "Create free account"}

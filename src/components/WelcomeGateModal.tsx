@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -29,11 +29,22 @@ export default function WelcomeGateModal({ open, onClose, next, required }: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState("");
+  // Hold a submit made before Turnstile issued its token; fire it automatically
+  // once the token lands (one click, no "complete verification" bounce).
+  const [pendingSignup, setPendingSignup] = useState(false);
   // Code (OTP) step after the account is created.
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (open && pendingSignup && captchaToken) {
+      setPendingSignup(false);
+      submitSignup();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pendingSignup, captchaToken]);
 
   if (!open) return null;
   const loginHref = `/login${next ? `?next=${encodeURIComponent(next)}` : ""}`;
@@ -44,9 +55,19 @@ export default function WelcomeGateModal({ open, onClose, next, required }: {
     try { window.turnstile?.reset(); } catch { /* noop */ }
   }
 
-  async function handleSignup(e: React.FormEvent) {
+  function handleSignup(e: React.FormEvent) {
     e.preventDefault();
-    if (CAPTCHA_ON && !captchaToken) { setError("Please complete the verification below."); return; }
+    // Token not ready yet — hold and auto-submit when it arrives.
+    if (CAPTCHA_ON && !captchaToken) {
+      setError(null);
+      setLoading(true);
+      setPendingSignup(true);
+      return;
+    }
+    submitSignup();
+  }
+
+  async function submitSignup() {
     setLoading(true);
     setError(null);
     const { data, error } = await supabase.auth.signUp({
@@ -211,7 +232,7 @@ export default function WelcomeGateModal({ open, onClose, next, required }: {
 
                   <button
                     type="submit"
-                    disabled={loading || (CAPTCHA_ON && !captchaToken)}
+                    disabled={loading}
                     className="w-full bg-green-600 text-white text-base font-bold py-3.5 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50"
                   >
                     {loading ? "Joining…" : "Join Your Community"}

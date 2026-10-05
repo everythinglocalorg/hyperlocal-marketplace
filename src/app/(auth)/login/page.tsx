@@ -29,6 +29,7 @@ export default function LoginPage() {
   // intent here and fire the login automatically the moment the token lands —
   // so it's one click (or Enter), never a "complete verification" bounce.
   const [pendingLogin, setPendingLogin] = useState(false);
+  const [pendingReset, setPendingReset] = useState(false);
 
   const supabase = createClient();
 
@@ -39,6 +40,14 @@ export default function LoginPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingLogin, captchaToken]);
+
+  useEffect(() => {
+    if (pendingReset && captchaToken) {
+      setPendingReset(false);
+      submitPasswordReset();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingReset, captchaToken]);
 
   // Turnstile tokens are single-use — after any auth attempt, clear the token
   // and ask the widget for a fresh one so a retry (or resend) still verifies.
@@ -134,12 +143,19 @@ export default function LoginPage() {
     setResendState(error ? "error" : "sent");
   }
 
-  async function handlePasswordReset(e: React.FormEvent) {
+  function handlePasswordReset(e: React.FormEvent) {
     e.preventDefault();
+    // Token not ready yet — hold and auto-submit when it arrives.
     if (CAPTCHA_ON && !captchaToken) {
-      setResetError("Please complete the verification below.");
+      setResetError(null);
+      setLoading(true);
+      setPendingReset(true);
       return;
     }
+    submitPasswordReset();
+  }
+
+  async function submitPasswordReset() {
     setLoading(true);
     setResetError(null);
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -221,7 +237,7 @@ export default function LoginPage() {
               <TurnstileWidget onVerify={setCaptchaToken} />
               <button
                 type="submit"
-                disabled={loading || (CAPTCHA_ON && !captchaToken)}
+                disabled={loading}
                 className="w-full bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 transition-colors disabled:opacity-50"
               >
                 {loading ? "Sending..." : "Send code"}
