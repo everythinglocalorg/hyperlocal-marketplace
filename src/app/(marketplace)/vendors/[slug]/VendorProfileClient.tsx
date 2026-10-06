@@ -27,6 +27,7 @@ import { StoreTheme, normalizeTheme, fontStack, textScalePx, buildGoogleFontsHre
 import { renderRichText } from "@/lib/richtext";
 import { isFoodTruck, normalizeFoodTruck, isLive, upcomingStops, TRUCK_STATUS_META, externalOrderUrl } from "@/lib/foodtruck";
 import FoodOrderModal from "@/components/FoodOrderModal";
+import { useCart } from "@/lib/cart";
 
 type BlockKind = "heading" | "text" | "image" | "image-text" | "quote" | "button";
 type PageBlock = {
@@ -226,6 +227,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const [showOrderModal, setShowOrderModal] = useState(false);
   // Running pickup order built by tapping + on item tiles (order-enabled stores).
   const [orderQty, setOrderQty] = useState<Record<string, number>>({});
+  const cart = useCart();
   const [siteMenuOpen, setSiteMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [citySlug, setCitySlug] = useState(DEFAULT_CITY_SLUG);
@@ -641,9 +643,23 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   // Food trucks AND restaurants take built-in pickup orders when they have priced
   // menu items — this drives the "Order Now" buttons + the order modal. (Food
   // trucks keep their external-link option; restaurants use the built-in modal.)
-  const canOrderPickup = (truckIsFoodTruck || isRestaurant || listings.some((l) => l.cta_type === "order")) && listings.some((l) => l.price != null && l.quantity !== 0);
+  // Pickup ordering is ONLY for "Order Now" items (food trucks order their whole
+  // menu). Plain "Buy" products use the shopping cart instead.
+  const canOrderPickup = truckIsFoodTruck || listings.some((l) => l.cta_type === "order" && l.price != null && l.quantity !== 0);
   // Quick-add running order (tap + on a tile). Sold-out items (quantity 0) excluded.
-  const isOrderable = (l: { price: number | null; quantity?: number | null }) => canOrderPickup && l.price != null && l.quantity !== 0;
+  const isOrderable = (l: { price: number | null; quantity?: number | null; cta_type?: string | null }) =>
+    canOrderPickup && l.price != null && l.quantity !== 0 && (truckIsFoodTruck || l.cta_type === "order");
+  // Plain products (Buy) get a quick add-to-cart instead of the pickup order.
+  const isCartable = (l: { price: number | null; quantity?: number | null; cta_type?: string | null; type?: string }) =>
+    l.price != null && l.quantity !== 0 && !isOrderable(l) && (l.cta_type === "buy" || (!l.cta_type && l.type === "product"));
+  function quickAddToCart(l: Listing) {
+    if (l.price == null) return;
+    cart.addItem(
+      { id: vendor.id, name: vendor.business_name, slug: vendor.slug, pickupInfo: vendor.pickup_info, dropInfo: vendor.drop_info },
+      { listingId: l.id, title: l.title, price: Number(l.price), image: l.images?.[0] ?? null },
+    );
+    cart.open();
+  }
   const addToOrder = (id: string, d = 1) => setOrderQty((q) => {
     const n = Math.max(0, (q[id] ?? 0) + d);
     const next = { ...q };
@@ -715,7 +731,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
     <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
-    {showOrderModal && <FoodOrderModal vendor={{ id: vendor.id, business_name: vendor.business_name }} listings={listings.map((l) => ({ id: l.id, title: l.title, price: l.price, quantity: l.quantity }))} currentUser={currentUser} prepay={foodTruck?.prepay ?? false} initialQty={orderQty} onPlaced={() => setOrderQty({})} onClose={() => setShowOrderModal(false)} />}
+    {showOrderModal && <FoodOrderModal vendor={{ id: vendor.id, business_name: vendor.business_name }} listings={listings.filter((l) => truckIsFoodTruck || l.cta_type === "order").map((l) => ({ id: l.id, title: l.title, price: l.price, quantity: l.quantity }))} currentUser={currentUser} prepay={foodTruck?.prepay ?? false} initialQty={orderQty} onPlaced={() => setOrderQty({})} onClose={() => setShowOrderModal(false)} />}
 
     {/* Running-order bar — appears once items are added via the + on tiles. */}
     {canOrderPickup && orderCount > 0 && (
@@ -1217,6 +1233,10 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                           ) : (
                             <button onClick={() => addToOrder(listing.id, 1)} aria-label="Add to order" className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full bg-green-600 text-white shadow-md flex items-center justify-center hover:bg-green-700 text-xl leading-none">+</button>
                           )
+                        )}
+                        {/* Plain products: quick add to cart (separate from pickup orders) */}
+                        {isCartable(listing) && (
+                          <button onClick={() => quickAddToCart(listing)} aria-label="Add to cart" title="Add to cart" className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full bg-gray-900 text-white shadow-md flex items-center justify-center hover:bg-gray-700 text-sm leading-none">🛒</button>
                         )}
                       </div>
                       <button onClick={() => openDetail(listing)} className="text-left w-full">
