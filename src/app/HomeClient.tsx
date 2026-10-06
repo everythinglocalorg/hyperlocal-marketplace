@@ -265,7 +265,10 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
         setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
         supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", u.id).eq("is_read", false)
           .then(({ count }) => setNotifUnread(count ?? 0));
-        if (profile?.default_city) resolvedCitySlug = profile.default_city;
+        // The user's explicit city pick (saved to localStorage) stays put until
+        // they change it again; only fall back to their profile default when none
+        // is saved (e.g. a fresh device).
+        if (!savedCitySlug && profile?.default_city) resolvedCitySlug = profile.default_city;
         if (typeof profile?.default_radius === "number") setRadius(profile.default_radius);
       }
       setAuthChecked(true);
