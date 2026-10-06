@@ -9,7 +9,9 @@ import { fetchCityCenter, distanceMiles, LS_CITY_KEY } from "@/lib/cities";
 import BuyNowModal from "@/components/BuyNowModal";
 import MakeOfferModal from "@/components/MakeOfferModal";
 import MessageModal from "@/components/MessageModal";
+import FoodOrderModal from "@/components/FoodOrderModal";
 import PaymentOptions, { type PaymentHandles } from "@/components/PaymentOptions";
+import { normalizeFoodTruck } from "@/lib/foodtruck";
 import { consumeBackTo } from "@/lib/backNav";
 
 type Vendor = {
@@ -18,6 +20,7 @@ type Vendor = {
   business_name: string;
   city: string | null;
   state: string | null;
+  address: string | null;
   logo_url: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -27,6 +30,10 @@ type Vendor = {
   phone: string | null;
   menu_pdf_url: string | null;
   payment_handles: PaymentHandles | null;
+  category: string | null;
+  pickup_info: string | null;
+  food_truck: unknown;
+  stripe_connect_enabled: boolean | null;
 };
 
 type Listing = {
@@ -75,13 +82,20 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
   const favorites = useFavorites();
   const saved = favorites.isSaved(listing.id);
 
-  const [modal, setModal] = useState<null | "buy" | "book" | "estimate" | "offer" | "message">(null);
+  const [modal, setModal] = useState<null | "buy" | "book" | "estimate" | "offer" | "message" | "order">(null);
   const [distanceMi, setDistanceMi] = useState<number | null>(null);
   const [activeImg, setActiveImg] = useState(0);
+  const [orderQty, setOrderQty] = useState(1);
 
   const images = (listing.images ?? []).filter(Boolean);
   const isSold = !!listing.sold_at || listing.quantity === 0;
   const isPrivate = vendor.is_business === false;
+
+  // Pickup ordering for "Order Now" items: tap +, place one ticket, pay in person.
+  const isOrderItem = (listing.cta_type || "").toLowerCase() === "order" && listing.price != null && !isSold;
+  const pickupLabel = vendor.pickup_info?.trim() || vendor.address?.trim()
+    || [vendor.city, vendor.state].filter(Boolean).join(", ") || vendor.business_name;
+  const prepay = (() => { try { return !!normalizeFoodTruck(vendor.food_truck).prepay && vendor.stripe_connect_enabled === true; } catch { return false; } })();
 
   // Distance from the buyer's saved city to the seller.
   useEffect(() => {
@@ -270,21 +284,43 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
 
       {/* Sticky action bar (sits above the mobile bottom nav) */}
       {!isSold && (
-        <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-30 bg-white border-t border-gray-200 px-4 py-3">
-          <div className="max-w-2xl mx-auto flex items-center gap-2">
-            <div className="shrink-0 mr-1">
-              <p className="text-base font-extrabold text-gray-900 leading-none">{priceText(priceNum, listing.price_label, listing.type)}</p>
+        isOrderItem ? (
+          /* ── Premium pickup-order bar: pickup spot + cost + quick qty ── */
+          <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-30 bg-white border-t border-gray-200 px-4 pt-2.5 pb-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
+            <div className="max-w-2xl mx-auto">
+              <div className="flex items-center justify-between gap-2 text-xs mb-2">
+                <span className="min-w-0 truncate text-gray-500">📍 Pickup · <span className="text-gray-800 font-medium">{pickupLabel}</span></span>
+                <span className="shrink-0 font-semibold text-green-700">{prepay ? "Pay by card" : "Pay in person"}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="shrink-0 inline-flex items-center border border-gray-200 rounded-full">
+                  <button type="button" onClick={() => setOrderQty((q) => Math.max(1, q - 1))} aria-label="Remove one" className="w-9 h-9 text-gray-600 hover:bg-gray-50 rounded-l-full text-xl leading-none">−</button>
+                  <span className="w-7 text-center text-sm font-bold">{orderQty}</span>
+                  <button type="button" onClick={() => setOrderQty((q) => q + 1)} aria-label="Add one" className="w-9 h-9 text-gray-600 hover:bg-gray-50 rounded-r-full text-xl leading-none">+</button>
+                </div>
+                <button type="button" onClick={() => setModal("order")} className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-bold text-white bg-green-600 rounded-full py-3 hover:bg-green-700 shadow-lg shadow-green-600/25">
+                  Place order{priceNum != null ? ` · $${(Number(priceNum) * orderQty).toLocaleString()}` : ""}
+                </button>
+              </div>
             </div>
-            {showOffer && (
-              <button type="button" onClick={() => setModal("offer")} className="flex-1 text-sm font-semibold text-gray-900 border border-gray-300 rounded-full py-2.5 hover:bg-gray-50">
-                Make offer
-              </button>
-            )}
-            <button type="button" onClick={primary.run} className="flex-1 text-sm font-bold text-white bg-green-600 rounded-full py-2.5 hover:bg-green-700">
-              {primary.label}
-            </button>
           </div>
-        </div>
+        ) : (
+          <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-30 bg-white border-t border-gray-200 px-4 py-3">
+            <div className="max-w-2xl mx-auto flex items-center gap-2">
+              <div className="shrink-0 mr-1">
+                <p className="text-base font-extrabold text-gray-900 leading-none">{priceText(priceNum, listing.price_label, listing.type)}</p>
+              </div>
+              {showOffer && (
+                <button type="button" onClick={() => setModal("offer")} className="flex-1 text-sm font-semibold text-gray-900 border border-gray-300 rounded-full py-2.5 hover:bg-gray-50">
+                  Make offer
+                </button>
+              )}
+              <button type="button" onClick={primary.run} className="flex-1 text-sm font-bold text-white bg-green-600 rounded-full py-2.5 hover:bg-green-700">
+                {primary.label}
+              </button>
+            </div>
+          </div>
+        )
       )}
 
       {/* Modals */}
@@ -293,6 +329,16 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
       {modal === "estimate" && <BuyNowModal listing={listing} vendor={vendor} currentUser={currentUser} inquiryType="estimate" onClose={() => setModal(null)} />}
       {modal === "offer" && <MakeOfferModal listing={listing} vendor={vendor} currentUser={currentUser} onClose={() => setModal(null)} />}
       {modal === "message" && <MessageModal listing={{ id: listing.id, title: listing.title }} vendor={vendor} currentUser={currentUser} onClose={() => setModal(null)} />}
+      {modal === "order" && (
+        <FoodOrderModal
+          vendor={{ id: vendor.id, business_name: vendor.business_name }}
+          listings={[{ id: listing.id, title: listing.title, price: listing.price, quantity: listing.quantity }]}
+          currentUser={currentUser ? { id: currentUser.id, full_name: currentUser.full_name } : null}
+          prepay={prepay}
+          initialQty={{ [listing.id]: orderQty }}
+          onClose={() => setModal(null)}
+        />
+      )}
     </div>
   );
 }
