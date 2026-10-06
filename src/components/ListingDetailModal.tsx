@@ -142,13 +142,15 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
   // vendor can take card payments, it goes to the single-item buy instead.
   const canCartBuy = !!cartVendor && listing.price != null;
   function runBuy() {
-    if (!paymentsEnabled && canCartBuy) addToCart();
+    // Buy → the cart (which messages the seller to arrange pickup & payment), not
+    // an inquiry. Falls back to the single-item flow only when there's no cart.
+    if (canCartBuy) addToCart();
     else onBuy();
   }
 
   function runCta() {
     if (ctaAction === "book") onBook();
-    else if (ctaAction === "order") { if (!paymentsEnabled && canCartBuy) addToCart(); else (onOrder ?? onBuy)(); }
+    else if (ctaAction === "order") { if (canCartBuy) addToCart(); else (onOrder ?? onBuy)(); }
     else if (ctaAction === "buy") runBuy();
     else if (ctaAction === "apply") {
       // Opens the owner's external application link; falls back to Message if unset.
@@ -169,6 +171,8 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
     const item = {
       listingId: listing.id, title: listing.title, price: Number(listing.price),
       image: listing.images?.[0] ?? null,
+      // Order-Now items check out as a pickup ticket; everything else is a buy.
+      kind: (ctaAction === "order" ? "order" : "buy") as "order" | "buy",
       porchPickup: !!listing.porch_pickup, localDrop: !!listing.local_drop,
       // Effective location: this listing's override, else the store default.
       pickupInfo: (listing.pickup_info?.trim() || cartVendor.pickupInfo) ?? null,

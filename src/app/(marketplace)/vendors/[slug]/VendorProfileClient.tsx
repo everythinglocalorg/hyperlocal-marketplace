@@ -656,18 +656,46 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     if (l.price == null) return;
     cart.addItem(
       { id: vendor.id, name: vendor.business_name, slug: vendor.slug, pickupInfo: vendor.pickup_info, dropInfo: vendor.drop_info },
-      { listingId: l.id, title: l.title, price: Number(l.price), image: l.images?.[0] ?? null },
+      { listingId: l.id, title: l.title, price: Number(l.price), image: l.images?.[0] ?? null, kind: "buy", pickupInfo: vendor.pickup_info, dropInfo: vendor.drop_info },
     );
     cart.open();
   }
+
+  // Pickup orders: food trucks keep their own quick modal (local orderQty); every
+  // other order-store adds to the SHARED cart, so items persist across pages and
+  // the whole order is completed at checkout.
+  const orderCartVendor = { id: vendor.id, name: vendor.business_name, slug: vendor.slug, pickupInfo: vendor.pickup_info, dropInfo: null };
+  const storeCart = cart.carts.find((c) => c.vendor.id === vendor.id) ?? null;
+  const cartOrderItems = storeCart?.items.filter((i) => i.kind === "order") ?? [];
   const addToOrder = (id: string, d = 1) => setOrderQty((q) => {
     const n = Math.max(0, (q[id] ?? 0) + d);
     const next = { ...q };
     if (n) next[id] = n; else delete next[id];
     return next;
   });
-  const orderCount = Object.values(orderQty).reduce((a, b) => a + b, 0);
-  const orderTotal = listings.reduce((s, l) => s + (orderQty[l.id] ? (Number(l.price) || 0) * orderQty[l.id] : 0), 0);
+  function orderQtyFor(l: Listing) {
+    return truckIsFoodTruck ? (orderQty[l.id] ?? 0) : (cartOrderItems.find((i) => i.listingId === l.id)?.qty ?? 0);
+  }
+  function bumpOrder(l: Listing, d: number) {
+    if (truckIsFoodTruck) { addToOrder(l.id, d); return; }
+    if (l.price == null) return;
+    if (d > 0) {
+      cart.addItem(orderCartVendor, { listingId: l.id, title: l.title, price: Number(l.price), image: l.images?.[0] ?? null, kind: "order", pickupInfo: vendor.pickup_info }, 1);
+    } else {
+      const q = orderQtyFor(l);
+      if (q <= 1) cart.removeItem(vendor.id, l.id); else cart.setQty(vendor.id, l.id, q - 1);
+    }
+  }
+  const orderCount = truckIsFoodTruck
+    ? Object.values(orderQty).reduce((a, b) => a + b, 0)
+    : cartOrderItems.reduce((a, i) => a + i.qty, 0);
+  const orderTotal = truckIsFoodTruck
+    ? listings.reduce((s, l) => s + (orderQty[l.id] ? (Number(l.price) || 0) * orderQty[l.id] : 0), 0)
+    : cartOrderItems.reduce((s, i) => s + i.price * i.qty, 0);
+  function openOrderFlow() {
+    if (requireAccount()) return;
+    if (truckIsFoodTruck) setShowOrderModal(true); else cart.open();
+  }
   const foodTruckSection = foodTruck ? (() => {
     const live = isLive(foodTruck);
     const meta = TRUCK_STATUS_META[foodTruck.status];
@@ -694,7 +722,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 🧾 Order now ↗
               </a>
             ) : (
-              <button onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }}
+              <button onClick={openOrderFlow}
                 className="mt-3 w-full inline-flex items-center justify-center gap-2 bg-green-600 text-white font-bold px-5 py-3 rounded-xl hover:bg-green-700 transition-colors">
                 🧾 Order for pickup
               </button>
@@ -740,7 +768,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
           <p className="text-sm font-bold text-gray-900 leading-tight">{orderCount} item{orderCount === 1 ? "" : "s"} · ${orderTotal.toFixed(2)}</p>
           <p className="text-[11px] text-gray-500">Pay in person at pickup</p>
         </div>
-        <button onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }} className="shrink-0 bg-green-600 text-white font-bold px-6 py-3 rounded-full hover:bg-green-700 transition-colors">
+        <button onClick={openOrderFlow} className="shrink-0 bg-green-600 text-white font-bold px-6 py-3 rounded-full hover:bg-green-700 transition-colors">
           Place order →
         </button>
       </div>
@@ -775,8 +803,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
           if (canOrderPickup) {
             const ext = foodTruck ? externalOrderUrl(foodTruck) : null;
             if (ext) { window.open(ext, "_blank", "noopener,noreferrer"); return; }
-            if (requireAccount()) return;
-            setShowOrderModal(true);
+            openOrderFlow();
             return;
           }
           if (effectiveCta === "order" && ctaOrderUrl) { window.open(ctaOrderUrl, "_blank", "noopener,noreferrer"); return; }
@@ -921,7 +948,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                     Order Now →
                   </a>
                 ) : (
-                  <button onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
+                  <button onClick={openOrderFlow} className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
                     Order Now →
                   </button>
                 )
@@ -1095,7 +1122,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 </a>
               ) : (
                 <button
-                  onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }}
+                  onClick={openOrderFlow}
                   className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20"
                 >
                   Order Now →
@@ -1224,14 +1251,14 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                         )}
                         {/* Quick-add + for pickup-order stores */}
                         {isOrderable(listing) && (
-                          orderQty[listing.id] ? (
+                          orderQtyFor(listing) ? (
                             <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/95 backdrop-blur rounded-full shadow-md px-1 py-0.5">
-                              <button onClick={() => addToOrder(listing.id, -1)} aria-label="Remove one" className="w-6 h-6 rounded-full text-gray-700 hover:bg-gray-100 text-base leading-none">−</button>
-                              <span className="w-4 text-center text-xs font-bold">{orderQty[listing.id]}</span>
-                              <button onClick={() => addToOrder(listing.id, 1)} aria-label="Add one" className="w-6 h-6 rounded-full text-gray-700 hover:bg-gray-100 text-base leading-none">+</button>
+                              <button onClick={() => bumpOrder(listing, -1)} aria-label="Remove one" className="w-6 h-6 rounded-full text-gray-700 hover:bg-gray-100 text-base leading-none">−</button>
+                              <span className="w-4 text-center text-xs font-bold">{orderQtyFor(listing)}</span>
+                              <button onClick={() => bumpOrder(listing, 1)} aria-label="Add one" className="w-6 h-6 rounded-full text-gray-700 hover:bg-gray-100 text-base leading-none">+</button>
                             </div>
                           ) : (
-                            <button onClick={() => addToOrder(listing.id, 1)} aria-label="Add to order" className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full bg-green-600 text-white shadow-md flex items-center justify-center hover:bg-green-700 text-xl leading-none">+</button>
+                            <button onClick={() => bumpOrder(listing, 1)} aria-label="Add to order" className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full bg-green-600 text-white shadow-md flex items-center justify-center hover:bg-green-700 text-xl leading-none">+</button>
                           )
                         )}
                         {/* Plain products: quick add to cart (separate from pickup orders) */}

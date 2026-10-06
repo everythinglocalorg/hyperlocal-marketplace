@@ -9,9 +9,8 @@ import { fetchCityCenter, distanceMiles, LS_CITY_KEY } from "@/lib/cities";
 import BuyNowModal from "@/components/BuyNowModal";
 import MakeOfferModal from "@/components/MakeOfferModal";
 import MessageModal from "@/components/MessageModal";
-import FoodOrderModal from "@/components/FoodOrderModal";
 import PaymentOptions, { type PaymentHandles } from "@/components/PaymentOptions";
-import { normalizeFoodTruck } from "@/lib/foodtruck";
+import { useCart } from "@/lib/cart";
 import { consumeBackTo } from "@/lib/backNav";
 
 type Vendor = {
@@ -82,20 +81,34 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
   const favorites = useFavorites();
   const saved = favorites.isSaved(listing.id);
 
-  const [modal, setModal] = useState<null | "buy" | "book" | "estimate" | "offer" | "message" | "order">(null);
+  const [modal, setModal] = useState<null | "buy" | "book" | "estimate" | "offer" | "message">(null);
   const [distanceMi, setDistanceMi] = useState<number | null>(null);
   const [activeImg, setActiveImg] = useState(0);
-  const [orderQty, setOrderQty] = useState(1);
+  const [orderQty, setOrderQty] = useState(0);
+  const [added, setAdded] = useState(false);
+  const cart = useCart();
 
   const images = (listing.images ?? []).filter(Boolean);
   const isSold = !!listing.sold_at || listing.quantity === 0;
   const isPrivate = vendor.is_business === false;
 
-  // Pickup ordering for "Order Now" items: tap +, place one ticket, pay in person.
+  // Pickup ordering for "Order Now" items: add to cart, then complete the whole
+  // order (one pickup ticket, pay in person).
   const isOrderItem = (listing.cta_type || "").toLowerCase() === "order" && listing.price != null && !isSold;
   const pickupLabel = vendor.pickup_info?.trim() || vendor.address?.trim()
     || [vendor.city, vendor.state].filter(Boolean).join(", ") || vendor.business_name;
-  const prepay = (() => { try { return !!normalizeFoodTruck(vendor.food_truck).prepay && vendor.stripe_connect_enabled === true; } catch { return false; } })();
+
+  function addOrderToCart() {
+    if (listing.price == null || orderQty < 1) return;
+    cart.addItem(
+      { id: vendor.id, name: vendor.business_name, slug: vendor.slug, pickupInfo: vendor.pickup_info, dropInfo: null },
+      { listingId: listing.id, title: listing.title, price: Number(listing.price), image: images[0] ?? null, kind: "order", pickupInfo: vendor.pickup_info },
+      orderQty,
+    );
+    setOrderQty(0);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1600);
+  }
 
   // Distance from the buyer's saved city to the seller.
   useEffect(() => {
@@ -144,6 +157,18 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
 
   // Offer only makes sense for a priced good sold by a private seller.
   const showOffer = isPrivate && priceNum != null && !["estimate", "call", "menu", "book", "rent", "apply"].includes(cta);
+
+  // Plain "Buy" products add to the cart (which messages the seller to arrange
+  // pickup & payment) — no inquiry record.
+  const isBuyItem = !isOrderItem && !isSold && priceNum != null && (cta === "buy" || (!cta && listing.type !== "service"));
+  function addBuyToCart() {
+    if (priceNum == null) return;
+    cart.addItem(
+      { id: vendor.id, name: vendor.business_name, slug: vendor.slug, pickupInfo: vendor.pickup_info, dropInfo: null },
+      { listingId: listing.id, title: listing.title, price: Number(priceNum), image: images[0] ?? null, kind: "buy", pickupInfo: vendor.pickup_info },
+    );
+    cart.open();
+  }
 
   const stars = Math.round(vendor.rating ?? 0);
   const miles = distanceMi != null ? (distanceMi < 10 ? distanceMi.toFixed(1) : Math.round(distanceMi).toString()) : null;
@@ -285,21 +310,28 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
       {/* Sticky action bar (sits above the mobile bottom nav) */}
       {!isSold && (
         isOrderItem ? (
-          /* ── Premium pickup-order bar: pickup spot + cost + quick qty ── */
+          /* ── Premium pickup-order bar: pickup spot + cost + add to cart ── */
           <div className="fixed inset-x-0 bottom-16 md:bottom-0 z-30 bg-white border-t border-gray-200 px-4 pt-2.5 pb-3 shadow-[0_-4px_24px_rgba(0,0,0,0.08)]">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center justify-between gap-2 text-xs mb-2">
                 <span className="min-w-0 truncate text-gray-500">📍 Pickup · <span className="text-gray-800 font-medium">{pickupLabel}</span></span>
-                <span className="shrink-0 font-semibold text-green-700">{prepay ? "Pay by card" : "Pay in person"}</span>
+                <span className="shrink-0 font-semibold text-green-700">Pay in person</span>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="shrink-0 inline-flex items-center border border-gray-200 rounded-full">
-                  <button type="button" onClick={() => setOrderQty((q) => Math.max(1, q - 1))} aria-label="Remove one" className="w-9 h-9 text-gray-600 hover:bg-gray-50 rounded-l-full text-xl leading-none">−</button>
-                  <span className="w-7 text-center text-sm font-bold">{orderQty}</span>
+              {/* Quantity on its own row with a live total (starts at $0.00) */}
+              <div className="flex items-center justify-between mb-2.5">
+                <div className="inline-flex items-center border border-gray-200 rounded-full">
+                  <button type="button" onClick={() => setOrderQty((q) => Math.max(0, q - 1))} aria-label="Remove one" className="w-9 h-9 text-gray-600 hover:bg-gray-50 rounded-l-full text-xl leading-none disabled:opacity-30" disabled={orderQty === 0}>−</button>
+                  <span className="w-10 text-center text-sm font-bold">{orderQty}</span>
                   <button type="button" onClick={() => setOrderQty((q) => q + 1)} aria-label="Add one" className="w-9 h-9 text-gray-600 hover:bg-gray-50 rounded-r-full text-xl leading-none">+</button>
                 </div>
-                <button type="button" onClick={() => setModal("order")} className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-bold text-white bg-green-600 rounded-full py-3 hover:bg-green-700 shadow-lg shadow-green-600/25">
-                  Place order{priceNum != null ? ` · $${(Number(priceNum) * orderQty).toLocaleString()}` : ""}
+                <span className="text-lg font-black text-gray-900">${((Number(priceNum) || 0) * orderQty).toFixed(2)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <button type="button" onClick={addOrderToCart} disabled={orderQty < 1} className="inline-flex items-center justify-center gap-1.5 text-sm font-bold rounded-full py-3 border-2 border-green-600 text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors">
+                  {added ? "Added ✓" : "Add to cart"}
+                </button>
+                <button type="button" onClick={() => cart.open()} className="inline-flex items-center justify-center gap-1.5 text-sm font-bold text-white bg-green-600 rounded-full py-3 hover:bg-green-700 shadow-lg shadow-green-600/25">
+                  Complete order{cart.count > 0 ? ` (${cart.count})` : ""}
                 </button>
               </div>
             </div>
@@ -315,9 +347,15 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
                   Make offer
                 </button>
               )}
-              <button type="button" onClick={primary.run} className="flex-1 text-sm font-bold text-white bg-green-600 rounded-full py-2.5 hover:bg-green-700">
-                {primary.label}
-              </button>
+              {isBuyItem ? (
+                <button type="button" onClick={addBuyToCart} className="flex-1 text-sm font-bold text-white bg-green-600 rounded-full py-2.5 hover:bg-green-700">
+                  Add to cart
+                </button>
+              ) : (
+                <button type="button" onClick={primary.run} className="flex-1 text-sm font-bold text-white bg-green-600 rounded-full py-2.5 hover:bg-green-700">
+                  {primary.label}
+                </button>
+              )}
             </div>
           </div>
         )
@@ -329,16 +367,6 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
       {modal === "estimate" && <BuyNowModal listing={listing} vendor={vendor} currentUser={currentUser} inquiryType="estimate" onClose={() => setModal(null)} />}
       {modal === "offer" && <MakeOfferModal listing={listing} vendor={vendor} currentUser={currentUser} onClose={() => setModal(null)} />}
       {modal === "message" && <MessageModal listing={{ id: listing.id, title: listing.title }} vendor={vendor} currentUser={currentUser} onClose={() => setModal(null)} />}
-      {modal === "order" && (
-        <FoodOrderModal
-          vendor={{ id: vendor.id, business_name: vendor.business_name }}
-          listings={[{ id: listing.id, title: listing.title, price: listing.price, quantity: listing.quantity }]}
-          currentUser={currentUser ? { id: currentUser.id, full_name: currentUser.full_name } : null}
-          prepay={prepay}
-          initialQty={{ [listing.id]: orderQty }}
-          onClose={() => setModal(null)}
-        />
-      )}
     </div>
   );
 }

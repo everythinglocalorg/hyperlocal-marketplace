@@ -23,16 +23,21 @@ export default function CartDrawer() {
   const [error, setError] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [fulfillment, setFulfillment] = useState<"porch_pickup" | "local_drop" | "">("");
+  const [payPref, setPayPref] = useState<"in person" | "Venmo" | "Cash">("in person");
   // Captured at order time so the confirmation can show it after the cart clears.
   const [confirmed, setConfirmed] = useState<{ label: string; locations: string[] } | null>(null);
 
   const activeStore = carts.find((c) => c.vendor.id === activeStoreId) ?? null;
   const activeItems = activeStore?.items ?? [];
+  // Pickup "order" items check out as a food_orders ticket (pay in person);
+  // everything else is a "buy" lead (purchase_inquiries).
+  const orderItems = activeItems.filter((i) => i.kind === "order");
+  const buyItems = activeItems.filter((i) => i.kind !== "order");
+  const isOrderCheckout = orderItems.length > 0 && buyItems.length === 0;
 
-  // A method is only offered if EVERY item in the active store's cart supports it.
-  // Porch Pickup = buyer collects; Local Drop = seller drops off.
-  const allPorch = activeItems.length > 0 && activeItems.every((i) => i.porchPickup);
-  const allDrop = activeItems.length > 0 && activeItems.every((i) => i.localDrop);
+  // Porch/Local-Drop fulfillment only applies to BUY items.
+  const allPorch = buyItems.length > 0 && buyItems.every((i) => i.porchPickup);
+  const allDrop = buyItems.length > 0 && buyItems.every((i) => i.localDrop);
   const fulfillmentOpts = [
     ...(allPorch ? [{ id: "porch_pickup" as const, label: "🏡 Porch Pickup", hint: "You pick it up" }] : []),
     ...(allDrop ? [{ id: "local_drop" as const, label: "🚗 Local Drop", hint: "Meet at their spot" }] : []),
@@ -70,42 +75,63 @@ export default function CartDrawer() {
   // The location(s) to reveal for the chosen method — usually one shared spot.
   const fLocations: string[] = (() => {
     if (!chosenFulfillment) return [];
-    const vals = activeItems.map((i) => (chosenFulfillment === "porch_pickup" ? i.pickupInfo : i.dropInfo)).filter(Boolean) as string[];
+    const vals = buyItems.map((i) => (chosenFulfillment === "porch_pickup" ? i.pickupInfo : i.dropInfo)).filter(Boolean) as string[];
     return [...new Set(vals)];
   })();
 
   async function placeOrder() {
     if (!activeStore) return;
-    if (!name.trim() || !email.trim()) { setError("Name and email are required."); return; }
-    if (fulfillmentOpts.length > 0 && !chosenFulfillment) { setError("Choose how you'd like to get your order."); return; }
+    if (!name.trim()) { setError("Your name is required."); return; }
+    if (buyItems.length > 0 && !userId) { setError("Please sign in to message the seller and arrange your purchase."); return; }
     setSubmitting(true);
     setError("");
-    const fLabel = chosenFulfillment === "porch_pickup" ? "🏡 Porch Pickup" : chosenFulfillment === "local_drop" ? "🚗 Local Drop" : null;
-    // One order request per line item so each shows up against its listing.
-    const rows = activeStore.items.map((it) => {
-      const itLoc = chosenFulfillment === "porch_pickup" ? it.pickupInfo : chosenFulfillment === "local_drop" ? it.dropInfo : null;
-      const row: Record<string, unknown> = {
-        listing_id: it.listingId,
-        vendor_id: activeStore.vendor.id,
-        buyer_id: userId,
-        buyer_name: name.trim(),
-        buyer_email: email.trim(),
-        buyer_phone: phone.trim() || null,
-        message: `Cart order — Qty ${it.qty} × ${it.title} (${formatPrice(it.price)} ea)${fLabel ? ` · ${fLabel}${itLoc ? ` (${itLoc})` : ""}` : ""}${note.trim() ? ` · ${note.trim()}` : ""}`,
-        inquiry_type: "buy",
-        listing_title: it.title,
-        is_read: false,
-      };
-      // Only attach the column when set, so checkout still works before the
-      // supabase/local_pickup.sql migration is applied.
-      if (chosenFulfillment) row.fulfillment = chosenFulfillment;
-      return row;
-    });
-    const { error: err } = await supabase.from("purchase_inquiries").insert(rows);
+
+    // 1) Pickup "order" items → one food_orders ticket (server recomputes prices,
+    //    pings the vendor, and routes to Stripe when the store prepays).
+    if (orderItems.length > 0) {
+      try {
+        const res = await fetch("/api/food-trucks/order", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vendorId: activeStore.vendor.id,
+            name: name.trim(), phone: phone.trim() || null, notes: note.trim() || null,
+            items: orderItems.map((i) => ({ listing_id: i.listingId, qty: i.qty })),
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { setError(data.error ?? "Couldn't place your order."); setSubmitting(false); return; }
+        if (data.url) { window.location.href = data.url; return; } // prepay → Stripe Checkout
+      } catch { setError("Couldn't reach the server. Try again."); setSubmitting(false); return; }
+    }
+
+    // 2) Buy items → open a messenger thread from the buyer to the seller stating
+    //    the purchase + preferred payment, then take the buyer to that chat to
+    //    arrange meet-up. No inquiry record is created.
+    if (buyItems.length > 0 && userId) {
+      try {
+        const vId = activeStore.vendor.id;
+        const { data: convo } = await supabase.from("conversations").select("id").eq("buyer_id", userId).eq("vendor_id", vId).is("listing_id", null).maybeSingle();
+        let convId = convo?.id ?? null;
+        if (!convId) {
+          const { data: nc } = await supabase.from("conversations").insert({ listing_id: null, vendor_id: vId, buyer_id: userId, listing_title: null }).select("id").single();
+          convId = nc?.id ?? null;
+        }
+        if (!convId) { setError("Couldn't open a message thread. Try again."); setSubmitting(false); return; }
+        const lines = buyItems.map((it) => `• ${it.qty} × ${it.title} — ${formatPrice(it.price * it.qty)}`).join("\n");
+        const total = buyItems.reduce((s, i) => s + i.price * i.qty, 0);
+        const payText = payPref === "in person" ? "pay in person" : `pay with ${payPref}`;
+        const msg = `🛒 Hi! I'd like to buy:\n${lines}\nTotal: ${formatPrice(total)}\n\nI'd like to ${payText}. Can we arrange a time to meet up?${note.trim() ? `\n\nNote: ${note.trim()}` : ""}`;
+        await fetch("/api/messages/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversation_id: convId, body: msg, buyer_name: name.trim() }) });
+        clearStore(vId);
+        close();
+        window.location.href = `/messages?c=${convId}`;
+        return;
+      } catch { setError("Couldn't reach the server. Try again."); setSubmitting(false); return; }
+    }
+
+    // Order-only checkout → confirmation screen.
     setSubmitting(false);
-    if (err) { setError("Something went wrong. Please try again."); return; }
-    if (fLabel) setConfirmed({ label: fLabel, locations: fLocations });
-    else setConfirmed(null);
+    setConfirmed(isOrderCheckout ? { label: "🧾 Pickup order", locations: [] } : null);
     clearStore(activeStore.vendor.id);
     setView("done");
   }
@@ -125,7 +151,7 @@ export default function CartDrawer() {
         {view === "done" ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
             <div className="text-5xl mb-4">🎉</div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Order request sent!</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{confirmed?.label === "🧾 Pickup order" ? "Order placed!" : "Order request sent!"}</h3>
             {confirmed && (
               <div className="w-full max-w-xs rounded-xl bg-green-50 border border-green-100 px-4 py-3 mb-4 text-left">
                 <p className="text-xs font-semibold text-green-700 mb-0.5">{confirmed.label}</p>
@@ -136,7 +162,7 @@ export default function CartDrawer() {
                 )}
               </div>
             )}
-            <p className="text-sm text-gray-500 mb-6">The store will reach out to finalize your order and payment.</p>
+            <p className="text-sm text-gray-500 mb-6">{confirmed?.label === "🧾 Pickup order" ? "Pay in person when you pick up — the store will have it ready." : "The store will reach out to finalize your order and payment."}</p>
             {carts.length > 0 ? (
               <button onClick={() => setView("cart")} className="bg-green-600 text-white font-semibold px-8 py-3 rounded-full hover:bg-green-700 transition-colors">Back to cart ({carts.length} more)</button>
             ) : (
@@ -166,42 +192,35 @@ export default function CartDrawer() {
                   <div className="text-sm font-semibold text-gray-700 shrink-0">{formatPrice(it.price * it.qty)}</div>
                 </div>
               ))}
-              {fulfillmentOpts.length > 0 && (
+              {isOrderCheckout && (
+                <div className="rounded-xl bg-green-50 border border-green-100 px-3 py-2.5">
+                  <p className="text-[11px] font-semibold text-green-700 mb-0.5">📍 Pickup</p>
+                  <p className="text-xs text-green-800 whitespace-pre-line">{orderItems[0]?.pickupInfo || `Pick up at ${activeStore?.vendor.name ?? "the store"}`}</p>
+                  <p className="text-[11px] text-green-700 mt-1 font-medium">Pay in person at pickup</p>
+                </div>
+              )}
+              {buyItems.length > 0 && (
                 <div>
-                  <p className="text-xs font-medium text-gray-500 mb-1.5">How would you like to get your order? <span className="text-red-400">*</span></p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {fulfillmentOpts.map((o) => {
-                      const active = chosenFulfillment === o.id;
+                  <p className="text-xs font-medium text-gray-500 mb-1.5">How would you like to pay the seller?</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["in person", "Venmo", "Cash"] as const).map((p) => {
+                      const active = payPref === p;
                       return (
-                        <button key={o.id} type="button" onClick={() => setFulfillment(o.id)}
-                          className={`text-left px-3 py-2 rounded-xl border text-sm transition-colors ${active ? "border-green-500 bg-green-50" : "border-gray-200 hover:border-gray-300"}`}>
-                          <span className={`block font-semibold text-[13px] ${active ? "text-green-700" : "text-gray-700"}`}>{o.label}</span>
-                          <span className="block text-[11px] text-gray-400">{o.hint}</span>
+                        <button key={p} type="button" onClick={() => setPayPref(p)}
+                          className={`px-3 py-2 rounded-xl border text-sm font-semibold capitalize transition-colors ${active ? "border-green-500 bg-green-50 text-green-700" : "border-gray-200 text-gray-700 hover:border-gray-300"}`}>
+                          {p}
                         </button>
                       );
                     })}
                   </div>
-                  {chosenFulfillment && fLocations.length > 0 && (
-                    <div className="mt-2 rounded-xl bg-green-50 border border-green-100 px-3 py-2">
-                      <p className="text-[11px] font-semibold text-green-700 mb-0.5">
-                        {chosenFulfillment === "porch_pickup" ? "🏡 Pickup location" : "🚗 Meet-up spot"}
-                      </p>
-                      {fLocations.map((loc, i) => (
-                        <p key={i} className="text-xs text-green-800 whitespace-pre-line">{loc}</p>
-                      ))}
-                    </div>
-                  )}
-                  {chosenFulfillment && fLocations.length === 0 && (
-                    <p className="mt-1.5 text-[11px] text-gray-400">The store will share the {chosenFulfillment === "porch_pickup" ? "pickup" : "meet-up"} details after you order.</p>
-                  )}
+                  <p className="text-[11px] text-gray-400 mt-1.5">We&apos;ll message the seller so you can arrange pickup &amp; payment.</p>
                 </div>
               )}
               <div className="grid grid-cols-2 gap-2.5">
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name *" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
-              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email *" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500" />
-              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Notes for the store (optional)" className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
+              <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder={buyItems.length > 0 ? "Add a note for the seller (optional)" : "Notes for the store (optional)"} className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none" />
               {error && <p className="text-xs text-red-500">{error}</p>}
             </div>
             <div className="border-t border-gray-100 px-5 py-4 shrink-0" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
@@ -210,9 +229,9 @@ export default function CartDrawer() {
                 <span className="text-lg font-black text-gray-900">{formatPrice(storeSubtotal(activeStore))}</span>
               </div>
               <button onClick={placeOrder} disabled={submitting} className="w-full bg-green-600 text-white font-black py-3.5 rounded-2xl hover:bg-green-700 disabled:opacity-50 transition-colors">
-                {submitting ? "Sending…" : "Send order request →"}
+                {submitting ? "Sending…" : isOrderCheckout ? "Complete order →" : "Message seller →"}
               </button>
-              <p className="text-[11px] text-gray-400 text-center mt-2">The store confirms your order &amp; payment.</p>
+              <p className="text-[11px] text-gray-400 text-center mt-2">{isOrderCheckout ? "Pay in person at pickup — the store confirms your order." : "We'll open a chat so you can arrange pickup & payment."}</p>
             </div>
           </>
         ) : (

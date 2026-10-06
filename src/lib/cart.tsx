@@ -8,7 +8,9 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 // per store and check each one out on its own (each vendor's payments / pickup
 // run through that store). Totals in the floating button aggregate every store.
 
-export type CartItem = { listingId: string; title: string; price: number; image: string | null; qty: number; porchPickup?: boolean; localDrop?: boolean; pickupInfo?: string | null; dropInfo?: string | null };
+// kind drives checkout: "buy" → purchase_inquiries (lead), "order" → a food_orders
+// pickup ticket (pay in person / card). Undefined is treated as "buy".
+export type CartItem = { listingId: string; title: string; price: number; image: string | null; qty: number; kind?: "buy" | "order"; porchPickup?: boolean; localDrop?: boolean; pickupInfo?: string | null; dropInfo?: string | null };
 export type CartVendor = { id: string; name: string; slug: string; pickupInfo?: string | null; dropInfo?: string | null };
 export type StoreCart = { vendor: CartVendor; items: CartItem[] };
 type CartState = { carts: Record<string, StoreCart> };
