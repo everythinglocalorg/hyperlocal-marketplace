@@ -224,6 +224,8 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   const [showRefer, setShowRefer] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ id: string; full_name: string | null; email?: string; role?: string | null } | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  // Running pickup order built by tapping + on item tiles (order-enabled stores).
+  const [orderQty, setOrderQty] = useState<Record<string, number>>({});
   const [siteMenuOpen, setSiteMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [citySlug, setCitySlug] = useState(DEFAULT_CITY_SLUG);
@@ -640,6 +642,16 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   // menu items — this drives the "Order Now" buttons + the order modal. (Food
   // trucks keep their external-link option; restaurants use the built-in modal.)
   const canOrderPickup = (truckIsFoodTruck || isRestaurant || listings.some((l) => l.cta_type === "order")) && listings.some((l) => l.price != null && l.quantity !== 0);
+  // Quick-add running order (tap + on a tile). Sold-out items (quantity 0) excluded.
+  const isOrderable = (l: { price: number | null; quantity?: number | null }) => canOrderPickup && l.price != null && l.quantity !== 0;
+  const addToOrder = (id: string, d = 1) => setOrderQty((q) => {
+    const n = Math.max(0, (q[id] ?? 0) + d);
+    const next = { ...q };
+    if (n) next[id] = n; else delete next[id];
+    return next;
+  });
+  const orderCount = Object.values(orderQty).reduce((a, b) => a + b, 0);
+  const orderTotal = listings.reduce((s, l) => s + (orderQty[l.id] ? (Number(l.price) || 0) * orderQty[l.id] : 0), 0);
   const foodTruckSection = foodTruck ? (() => {
     const live = isLive(foodTruck);
     const meta = TRUCK_STATUS_META[foodTruck.status];
@@ -703,10 +715,23 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
     {/* Modals */}
     {messageListing && <MessageModal listing={{ id: messageListing.id, title: messageListing.title }} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setMessageListing(null)} />}
     <WelcomeGateModal open={!!gateNext} next={gateNext ?? undefined} onClose={() => setGateNext(null)} />
-    {showOrderModal && <FoodOrderModal vendor={{ id: vendor.id, business_name: vendor.business_name }} listings={listings.map((l) => ({ id: l.id, title: l.title, price: l.price, quantity: l.quantity }))} currentUser={currentUser} prepay={foodTruck?.prepay ?? false} onClose={() => setShowOrderModal(false)} />}
+    {showOrderModal && <FoodOrderModal vendor={{ id: vendor.id, business_name: vendor.business_name }} listings={listings.map((l) => ({ id: l.id, title: l.title, price: l.price, quantity: l.quantity }))} currentUser={currentUser} prepay={foodTruck?.prepay ?? false} initialQty={orderQty} onPlaced={() => setOrderQty({})} onClose={() => setShowOrderModal(false)} />}
+
+    {/* Running-order bar — appears once items are added via the + on tiles. */}
+    {canOrderPickup && orderCount > 0 && (
+      <div className="fixed bottom-0 inset-x-0 z-50 bg-white border-t border-gray-200 px-4 py-3 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.1)]" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-gray-900 leading-tight">{orderCount} item{orderCount === 1 ? "" : "s"} · ${orderTotal.toFixed(2)}</p>
+          <p className="text-[11px] text-gray-500">Pay in person at pickup</p>
+        </div>
+        <button onClick={() => { if (requireAccount()) return; setShowOrderModal(true); }} className="shrink-0 bg-green-600 text-white font-bold px-6 py-3 rounded-full hover:bg-green-700 transition-colors">
+          Place order →
+        </button>
+      </div>
+    )}
 
     {/* Sticky mobile CTA bar — clean icon+label nav on the left, primary action pill on the right */}
-    <div className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+    <div className={`lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200 px-4 py-2.5 flex items-center justify-between gap-3 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] ${canOrderPickup && orderCount > 0 ? "hidden" : ""}`}>
       <div className="flex items-center gap-6">
         {isRestaurant && vendor.menu_pdf_url && (
           <a href={vendor.menu_pdf_url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-0.5 text-gray-700 hover:text-gray-900 transition-colors">
@@ -1171,22 +1196,38 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
                 {/* Clean minimal product grid — square image + name; click opens the detail popup (Buy/Book/Message live there) */}
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-4 gap-y-6">
                   {(activeProductCat ? orderedListings.filter((l) => l.listing_category_id === activeProductCat) : orderedListings).map((listing) => (
-                    <button key={listing.id} onClick={() => openDetail(listing)} className="text-left group">
+                    <div key={listing.id} className="text-left group">
                       <div className="relative aspect-square rounded-xl bg-white border border-gray-100 overflow-hidden mb-2 flex items-center justify-center">
-                        {listing.images?.[0]
-                          ? <img src={listing.images[0]} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                          : <span className="text-3xl text-gray-300">{TYPE_ICON[listing.type] ?? "📦"}</span>}
+                        <button onClick={() => openDetail(listing)} aria-label={listing.title} className="absolute inset-0 w-full h-full flex items-center justify-center">
+                          {listing.images?.[0]
+                            ? <img src={listing.images[0]} alt={listing.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            : <span className="text-3xl text-gray-300">{TYPE_ICON[listing.type] ?? "📦"}</span>}
+                        </button>
                         {listing.is_featured && (
                           <span className="absolute top-2 right-2 bg-amber-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">⭐</span>
                         )}
+                        {/* Quick-add + for pickup-order stores */}
+                        {isOrderable(listing) && (
+                          orderQty[listing.id] ? (
+                            <div className="absolute bottom-1.5 right-1.5 flex items-center gap-0.5 bg-white/95 backdrop-blur rounded-full shadow-md px-1 py-0.5">
+                              <button onClick={() => addToOrder(listing.id, -1)} aria-label="Remove one" className="w-6 h-6 rounded-full text-gray-700 hover:bg-gray-100 text-base leading-none">−</button>
+                              <span className="w-4 text-center text-xs font-bold">{orderQty[listing.id]}</span>
+                              <button onClick={() => addToOrder(listing.id, 1)} aria-label="Add one" className="w-6 h-6 rounded-full text-gray-700 hover:bg-gray-100 text-base leading-none">+</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => addToOrder(listing.id, 1)} aria-label="Add to order" className="absolute bottom-1.5 right-1.5 w-8 h-8 rounded-full bg-green-600 text-white shadow-md flex items-center justify-center hover:bg-green-700 text-xl leading-none">+</button>
+                          )
+                        )}
                       </div>
-                      <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">{listing.title}</p>
-                      {(listing.price != null || listing.price_label) && (
-                        <p className="text-xs font-semibold text-green-700 mt-0.5">
-                          {listing.price != null ? `$${Number(listing.price).toFixed(0)}` : listing.price_label}
-                        </p>
-                      )}
-                    </button>
+                      <button onClick={() => openDetail(listing)} className="text-left w-full">
+                        <p className="text-sm font-semibold text-gray-900 leading-tight line-clamp-2">{listing.title}</p>
+                        {(listing.price != null || listing.price_label) && (
+                          <p className="text-xs font-semibold text-green-700 mt-0.5">
+                            {listing.price != null ? `$${Number(listing.price).toFixed(0)}` : listing.price_label}
+                          </p>
+                        )}
+                      </button>
+                    </div>
                   ))}
                 </div>
 
