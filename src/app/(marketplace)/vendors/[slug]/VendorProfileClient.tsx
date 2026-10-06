@@ -639,7 +639,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   // Food trucks AND restaurants take built-in pickup orders when they have priced
   // menu items — this drives the "Order Now" buttons + the order modal. (Food
   // trucks keep their external-link option; restaurants use the built-in modal.)
-  const canOrderPickup = (truckIsFoodTruck || isRestaurant) && listings.some((l) => l.price != null && l.quantity !== 0);
+  const canOrderPickup = (truckIsFoodTruck || isRestaurant || listings.some((l) => l.cta_type === "order")) && listings.some((l) => l.price != null && l.quantity !== 0);
   const foodTruckSection = foodTruck ? (() => {
     const live = isLive(foodTruck);
     const meta = TRUCK_STATUS_META[foodTruck.status];
