@@ -174,12 +174,9 @@ export default function ListingDetailModal({ listing, vendorPhone, menuPdfUrl, v
       pickupInfo: (listing.pickup_info?.trim() || cartVendor.pickupInfo) ?? null,
       dropInfo: (listing.drop_info?.trim() || cartVendor.dropInfo) ?? null,
     };
-    const res = cart.addItem(cartVendor, item);
-    if (res === "conflict") {
-      const ok = window.confirm(`Your cart has items from ${cart.vendor?.name}. You can only order from one store at a time — start a new cart with ${cartVendor.name}?`);
-      if (!ok) return;
-      cart.startNewCart(cartVendor, item);
-    }
+    // Each store keeps its own cart, so this just adds to this store's cart —
+    // no cross-store conflict to resolve anymore.
+    cart.addItem(cartVendor, item);
     onClose();
     cart.open();
   }

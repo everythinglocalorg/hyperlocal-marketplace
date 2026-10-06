@@ -202,6 +202,9 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
   // (owners can have several), not just their first.
   const upgradeHref = `/dashboard/vendor/upgrade?vendor=${vendor.id}`;
   const isFoodTruckVendor = isFoodTruck(vendor.category) || hasFoodTruckSetup((vendor as { food_truck?: unknown }).food_truck);
+  // Restaurants take pickup orders through the same food_orders ticket flow, so
+  // they get the Orders kitchen board too (but NOT the Food Truck "Go Live" tab).
+  const takesPickupOrders = isFoodTruckVendor || vendor.category === "Restaurants";
   // Individual/private sellers (is_business=false) get a slimmed dashboard —
   // business-only tabs are hidden until they upgrade to a business storefront.
   const isBusiness = (vendor as { is_business?: boolean }).is_business !== false;
@@ -1146,7 +1149,7 @@ export default function VendorDashboardClient({ vendor, profile, isPremium, feat
 
           {tab === "orders" && isBusiness && (
             <>
-              {isFoodTruckVendor && <FoodOrdersTab vendorId={vendor.id} supabase={supabase} />}
+              {takesPickupOrders && <FoodOrdersTab vendorId={vendor.id} supabase={supabase} />}
               <AllOrdersList vendorId={vendor.id} supabase={supabase} />
             </>
           )}

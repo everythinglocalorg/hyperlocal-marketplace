@@ -96,7 +96,7 @@ export default function FoodOrderModal({ vendor, listings, currentUser, prepay =
                 className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-40">
                 {submitting ? "Placing…" : lineItems.length === 0 ? "Add items to order" : prepay ? `Pay by card · $${total.toFixed(2)}` : `Place pickup order · $${total.toFixed(2)}`}
               </button>
-              <p className="text-[11px] text-gray-400 text-center mt-2">{prepay ? "You'll pay securely by card on the next screen." : "Pay at the truck when you pick up."}</p>
+              <p className="text-[11px] text-gray-400 text-center mt-2">{prepay ? "You'll pay securely by card on the next screen." : "Pay when you pick up."}</p>
             </div>
           </>
         )}

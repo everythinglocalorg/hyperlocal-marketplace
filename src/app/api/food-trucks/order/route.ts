@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { createClient } from "@supabase/supabase-js";
 import { stripe } from "@/lib/stripe";
-import { normalizeFoodTruck } from "@/lib/foodtruck";
+import { normalizeFoodTruck, hasFoodTruckSetup } from "@/lib/foodtruck";
 
 // Customer places a pickup order with a food truck. Server recomputes the total
 // from live listing prices, saves the ticket, and either sends the customer to
@@ -26,7 +26,10 @@ export async function POST(req: Request) {
   const db = admin();
   const { data: vendor } = await db
     .from("vendors").select("id, business_name, slug, user_id, category, food_truck, stripe_connect_account_id, stripe_connect_enabled").eq("id", vendorId).maybeSingle();
-  if (!vendor || vendor.category !== "Food Trucks") {
+  // Food trucks AND restaurants take pickup orders through this flow; so does any
+  // vendor that's set up food-truck-style ordering on a non-standard category.
+  const takesOrders = !!vendor && (vendor.category === "Food Trucks" || vendor.category === "Restaurants" || hasFoodTruckSetup(vendor.food_truck));
+  if (!vendor || !takesOrders) {
     return NextResponse.json({ error: "This vendor isn't taking orders." }, { status: 404 });
   }
 

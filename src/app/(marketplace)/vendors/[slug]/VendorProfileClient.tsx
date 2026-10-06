@@ -636,6 +636,10 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
   // Food-truck live status + weekly schedule (only for Food Trucks vendors).
   const truckIsFoodTruck = isFoodTruck(vendor.category);
   const foodTruck = truckIsFoodTruck ? normalizeFoodTruck(vendor.food_truck) : null;
+  // Food trucks AND restaurants take built-in pickup orders when they have priced
+  // menu items — this drives the "Order Now" buttons + the order modal. (Food
+  // trucks keep their external-link option; restaurants use the built-in modal.)
+  const canOrderPickup = (truckIsFoodTruck || isRestaurant) && listings.some((l) => l.price != null && l.quantity !== 0);
   const foodTruckSection = foodTruck ? (() => {
     const live = isLive(foodTruck);
     const meta = TRUCK_STATUS_META[foodTruck.status];
@@ -725,9 +729,9 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
       </div>
       <button
         onClick={() => {
-          // Food trucks: the primary action is ordering (external link if set,
-          // otherwise the built-in pickup order modal). Message is the secondary.
-          if (truckIsFoodTruck) {
+          // Food trucks & restaurants: the primary action is ordering (external
+          // link if a truck set one, otherwise the built-in pickup order modal).
+          if (canOrderPickup) {
             const ext = foodTruck ? externalOrderUrl(foodTruck) : null;
             if (ext) { window.open(ext, "_blank", "noopener,noreferrer"); return; }
             if (requireAccount()) return;
@@ -740,7 +744,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
         }}
         className="shrink-0 bg-gray-900 text-white font-semibold text-sm px-6 py-3 rounded-full hover:bg-gray-800 transition-colors"
       >
-        {effectiveCta ? CTA_LABELS[effectiveCta] : "Message"}
+        {canOrderPickup ? "Order Now" : effectiveCta ? CTA_LABELS[effectiveCta] : "Message"}
       </button>
     </div>
     {showMessageModal && <MessageModal listing={null} vendor={{ id: vendor.id, business_name: vendor.business_name }} currentUser={currentUser} onClose={() => setShowMessageModal(false)} />}
@@ -870,7 +874,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
               >
                 💬 Message
               </button>
-              {truckIsFoodTruck ? (
+              {canOrderPickup ? (
                 foodTruck && externalOrderUrl(foodTruck) ? (
                   <a href={externalOrderUrl(foodTruck) as string} target="_blank" rel="noopener noreferrer" className="bg-gray-900 text-white text-sm font-bold px-3 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-1">
                     Order Now →
@@ -1043,7 +1047,7 @@ export default function VendorProfileClient({ vendor, listings, listingCategorie
               <a href={ctaOrderUrl} target="_blank" rel="noopener noreferrer" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
                 {CTA_LABELS.order} →
               </a>
-            ) : truckIsFoodTruck ? (
+            ) : canOrderPickup ? (
               foodTruck && externalOrderUrl(foodTruck) ? (
                 <a href={externalOrderUrl(foodTruck) as string} target="_blank" rel="noopener noreferrer" className="bg-green-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-600/20">
                   Order Now →
