@@ -3640,6 +3640,7 @@ function AllOrdersList({ vendorId, supabase }: { vendorId: string; supabase: any
   type Row = { id: string; date: string; customer: string; item: string; amount: number; paid: boolean; source: string };
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -3674,6 +3675,11 @@ function AllOrdersList({ vendorId, supabase }: { vendorId: string; supabase: any
 
   const srcColor: Record<string, string> = { Product: "bg-blue-100 text-blue-700", Sold: "bg-emerald-100 text-emerald-700", Rental: "bg-amber-100 text-amber-700", Pickup: "bg-green-100 text-green-700" };
 
+  // Stable, searchable order number per transaction, derived from its row id.
+  const numbered = rows.map((r) => ({ ...r, orderNo: r.id.slice(1).replace(/-/g, "").slice(0, 8).toUpperCase() }));
+  const q = query.trim().toLowerCase();
+  const visible = q ? numbered.filter((r) => `${r.orderNo} ${r.item} ${r.customer} ${r.source}`.toLowerCase().includes(q)) : numbered;
+
   return (
     <div className="p-6 max-w-3xl">
       <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2"><Receipt className="w-5 h-5 text-gray-500" strokeWidth={2} /> Orders &amp; Sold Items</h2>
@@ -3686,23 +3692,41 @@ function AllOrdersList({ vendorId, supabase }: { vendorId: string; supabase: any
           <p className="text-gray-500 text-sm">No orders or sales yet.</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {rows.map((r) => (
-            <div key={r.id} className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-3">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-gray-900 text-sm truncate">{r.item}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${srcColor[r.source] ?? "bg-gray-100 text-gray-600"}`}>{r.source}</span>
+        <>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by order #, item, or customer…"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          {visible.length === 0 ? (
+            <p className="text-center py-10 text-sm text-gray-400">No orders match “{query}”.</p>
+          ) : (
+            <div className="space-y-3">
+              {visible.map((r) => (
+                <div key={r.id} className="bg-white border border-gray-100 rounded-xl p-4">
+                  {/* Order number + type */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs font-semibold text-gray-500">Order #{r.orderNo}</span>
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${srcColor[r.source] ?? "bg-gray-100 text-gray-600"}`}>{r.source}</span>
+                  </div>
+                  <div className="border-t border-gray-100 my-2.5" />
+                  {/* Item + amount */}
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-gray-900 text-sm">{r.item}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{r.customer} · {new Date(r.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-gray-900 text-sm">{formatPrice(r.amount)}</p>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${r.paid ? "bg-green-600 text-white" : "bg-amber-100 text-amber-700"}`}>{r.paid ? "💳 Paid" : "💵 Unpaid"}</span>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 mt-0.5">{r.customer} · {new Date(r.date).toLocaleDateString()}</p>
-              </div>
-              <div className="text-right shrink-0">
-                <p className="font-bold text-gray-900 text-sm">{formatPrice(r.amount)}</p>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${r.paid ? "bg-green-600 text-white" : "bg-amber-100 text-amber-700"}`}>{r.paid ? "💳 Paid" : "💵 Unpaid"}</span>
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
