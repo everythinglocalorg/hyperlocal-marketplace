@@ -3643,12 +3643,18 @@ function AllOrdersList({ vendorId, supabase }: { vendorId: string; supabase: any
 
   useEffect(() => {
     (async () => {
-      const [buys, offers, rentals] = await Promise.all([
+      const [buys, offers, rentals, pickups] = await Promise.all([
         supabase.from("purchase_inquiries").select("id, listing_title, buyer_name, amount_paid, paid_at, created_at, listing:listings(title, price)").eq("vendor_id", vendorId).eq("inquiry_type", "buy").order("created_at", { ascending: false }).limit(200),
         supabase.from("thrift_offers").select("id, listing_title, buyer_name, amount, counter_amount, paid_at, created_at").eq("vendor_id", vendorId).in("status", ["accepted", "paid"]).order("created_at", { ascending: false }).limit(200),
         supabase.from("rental_bookings").select("id, duration_label, total_price, payment_status, waiver_signer_name, created_at, listing:listings(title)").eq("vendor_id", vendorId).neq("status", "cancelled").order("created_at", { ascending: false }).limit(200),
+        supabase.from("food_orders").select("id, customer_name, total, items, payment_status, created_at").eq("vendor_id", vendorId).neq("payment_status", "pending").order("created_at", { ascending: false }).limit(200),
       ]);
       const out: Row[] = [];
+      for (const f of (pickups.data ?? []) as any[]) {
+        const items = Array.isArray(f.items) ? f.items : [];
+        const itemText = items.map((i: any) => `${i.qty ?? 1}× ${i.title ?? "item"}`).join(", ") || "Pickup order";
+        out.push({ id: "f" + f.id, date: f.created_at, customer: f.customer_name || "Customer", item: itemText, amount: Number(f.total ?? 0), paid: f.payment_status === "paid", source: "Pickup" });
+      }
       for (const b of (buys.data ?? []) as any[]) {
         const l = Array.isArray(b.listing) ? b.listing[0] : b.listing;
         out.push({ id: "b" + b.id, date: b.created_at, customer: b.buyer_name || "Customer", item: b.listing_title || l?.title || "Item", amount: Number(b.amount_paid ?? l?.price ?? 0), paid: !!b.paid_at, source: "Product" });
@@ -3666,12 +3672,12 @@ function AllOrdersList({ vendorId, supabase }: { vendorId: string; supabase: any
     })();
   }, [vendorId, supabase]);
 
-  const srcColor: Record<string, string> = { Product: "bg-blue-100 text-blue-700", Sold: "bg-emerald-100 text-emerald-700", Rental: "bg-amber-100 text-amber-700" };
+  const srcColor: Record<string, string> = { Product: "bg-blue-100 text-blue-700", Sold: "bg-emerald-100 text-emerald-700", Rental: "bg-amber-100 text-amber-700", Pickup: "bg-green-100 text-green-700" };
 
   return (
     <div className="p-6 max-w-3xl">
       <h2 className="text-xl font-bold text-gray-900 mb-1 flex items-center gap-2"><Receipt className="w-5 h-5 text-gray-500" strokeWidth={2} /> Orders &amp; Sold Items</h2>
-      <p className="text-gray-400 text-sm mb-5">Product orders, sold thrift items, and rental bookings — all in one place.</p>
+      <p className="text-gray-400 text-sm mb-5">Pickup orders, product orders, sold thrift items, and rental bookings — all in one place.</p>
       {loading ? (
         <div className="space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-16 bg-white rounded-xl animate-pulse" />)}</div>
       ) : rows.length === 0 ? (
