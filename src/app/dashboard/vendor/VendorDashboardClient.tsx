@@ -179,6 +179,7 @@ type Customer = {
 
 const NAV: { id: Tab; label: string; Icon: LucideIcon; premiumOnly?: boolean; adminOnly?: boolean; foodTruckOnly?: boolean; businessOnly?: boolean }[] = [
   { id: "overview", label: "Overview", Icon: LayoutDashboard },
+  { id: "listings", label: "Listings", Icon: Package },
   { id: "foodtruck", label: "Food Truck", Icon: Truck, foodTruckOnly: true },
   { id: "orders", label: "Orders", Icon: Receipt, businessOnly: true },
   { id: "referrals", label: "Referrals", Icon: Gift },
