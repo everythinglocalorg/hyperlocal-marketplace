@@ -26,16 +26,23 @@ export async function POST(req: Request) {
   const db = admin();
   const { data: vendor } = await db
     .from("vendors").select("id, business_name, slug, user_id, category, food_truck, stripe_connect_account_id, stripe_connect_enabled").eq("id", vendorId).maybeSingle();
-  // Food trucks AND restaurants take pickup orders through this flow; so does any
-  // vendor that's set up food-truck-style ordering on a non-standard category.
-  const takesOrders = !!vendor && (vendor.category === "Food Trucks" || vendor.category === "Restaurants" || hasFoodTruckSetup(vendor.food_truck));
-  if (!vendor || !takesOrders) {
+  if (!vendor) {
     return NextResponse.json({ error: "This vendor isn't taking orders." }, { status: 404 });
   }
 
   // Never trust client prices — rebuild from the vendor's own listings.
   const ids = (items as InItem[]).map((i) => i.listing_id).filter(Boolean) as string[];
-  const { data: listings } = await db.from("listings").select("id, title, price, quantity").in("id", ids).eq("vendor_id", vendorId);
+  const { data: listings } = await db.from("listings").select("id, title, price, quantity, cta_type").in("id", ids).eq("vendor_id", vendorId);
+
+  // A vendor takes pickup orders if it's a food truck / restaurant / food-products
+  // seller, has food-truck ordering set up, OR any ordered item is an "Order Now"
+  // item (cta_type "order") — category-independent, matching the storefront.
+  const categoryTakesOrders = vendor.category === "Food Trucks" || vendor.category === "Restaurants" || vendor.category === "Food Products" || hasFoodTruckSetup(vendor.food_truck);
+  const hasOrderItem = (listings ?? []).some((l) => (l.cta_type || "") === "order");
+  if (!categoryTakesOrders && !hasOrderItem) {
+    return NextResponse.json({ error: "This vendor isn't taking orders." }, { status: 404 });
+  }
+
   // Drop sold-out items (quantity 0) so a stale client can't order them.
   const byId = new Map((listings ?? []).filter((l) => l.quantity !== 0).map((l) => [l.id, l]));
   const clean = (items as InItem[])

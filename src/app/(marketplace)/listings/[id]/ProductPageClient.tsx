@@ -317,14 +317,14 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
                 <span className="min-w-0 truncate text-gray-500">📍 Pickup · <span className="text-gray-800 font-medium">{pickupLabel}</span></span>
                 <span className="shrink-0 font-semibold text-green-700">Pay in person</span>
               </div>
-              {/* Quantity on its own row with a live total (starts at $0.00) */}
-              <div className="flex items-center justify-between mb-2.5">
+              {/* Quantity row — the total is shown on the cart / complete-order page */}
+              <div className="flex items-center gap-3 mb-2.5">
                 <div className="inline-flex items-center border border-gray-200 rounded-full">
                   <button type="button" onClick={() => setOrderQty((q) => Math.max(0, q - 1))} aria-label="Remove one" className="w-9 h-9 text-gray-600 hover:bg-gray-50 rounded-l-full text-xl leading-none disabled:opacity-30" disabled={orderQty === 0}>−</button>
                   <span className="w-10 text-center text-sm font-bold">{orderQty}</span>
                   <button type="button" onClick={() => setOrderQty((q) => q + 1)} aria-label="Add one" className="w-9 h-9 text-gray-600 hover:bg-gray-50 rounded-r-full text-xl leading-none">+</button>
                 </div>
-                <span className="text-lg font-black text-gray-900">${((Number(priceNum) || 0) * orderQty).toFixed(2)}</span>
+                <span className="text-sm text-gray-500">Qty to add</span>
               </div>
               <div className="grid grid-cols-2 gap-2.5">
                 <button type="button" onClick={addOrderToCart} disabled={orderQty < 1} className="inline-flex items-center justify-center gap-1.5 text-sm font-bold rounded-full py-3 border-2 border-green-600 text-green-700 hover:bg-green-50 disabled:opacity-40 transition-colors">
