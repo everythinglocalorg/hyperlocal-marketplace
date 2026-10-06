@@ -1,14 +1,17 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart";
 import { formatPrice } from "@/lib/utils";
 
 // Floating cart pill — appears on any page once the cart has items. The many
 // page-specific headers make a single header slot unreliable, so this lives
-// globally (in the root layout) and opens the shared CartDrawer.
+// globally (in the root layout) and opens the shared CartDrawer. Hidden on the
+// product page, which has its own bottom action bar (it would overlap it).
 export default function CartButton() {
   const { count, subtotal, open } = useCart();
-  if (count === 0) return null;
+  const pathname = usePathname();
+  if (count === 0 || pathname?.startsWith("/listings/")) return null;
   return (
     <button
       onClick={open}
