@@ -367,7 +367,12 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
         : null;
       return { ...l, __dist: dist };
     };
-    setRecentListings([...boostedListings, ...restListings].map(withDist).slice(0, 60));
+    // Closest first within the radius (paid boosts still lead). Items without
+    // coordinates sort last so real nearby listings always come up first.
+    const restByDistance = restListings
+      .map(withDist)
+      .sort((a: any, b: any) => (a.__dist ?? Infinity) - (b.__dist ?? Infinity));
+    setRecentListings([...boostedListings.map(withDist), ...restByDistance].slice(0, 60));
 
     // Boosted businesses lead the New Businesses row.
     let boostedVendors: any[] = [];

@@ -535,7 +535,11 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
             })();
 
         const [listingRes, vendorRes] = await Promise.all([q, vendorReq]);
-        const inRange = (listingRes.data ?? []).filter(listingInRange);
+        // Closest first (paid/featured still lead); no-coords items sort last.
+        const inRange = (listingRes.data ?? []).filter(listingInRange).sort((a: any, b: any) => {
+          if (!!b.is_featured !== !!a.is_featured) return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+          return (listingDistance(a) ?? Infinity) - (listingDistance(b) ?? Infinity);
+        });
         let browseVendors: Vendor[] = vendorRes.data ?? [];
         if (!resolvedCoords && activeCityObj) {
           browseVendors = browseVendors.filter((v) => normalizeState(v.state ?? "") === activeCityObj.state);
@@ -611,7 +615,10 @@ export default function SearchClient({ initialCity, initialRadius }: { initialCi
           }),
         ]);
 
-        const filteredListings = (listingRes.data ?? []).filter(listingInRange);
+        const filteredListings = (listingRes.data ?? []).filter(listingInRange).sort((a: any, b: any) => {
+          if (!!b.is_featured !== !!a.is_featured) return (b.is_featured ? 1 : 0) - (a.is_featured ? 1 : 0);
+          return (listingDistance(a) ?? Infinity) - (listingDistance(b) ?? Infinity);
+        });
 
         // RPC already returns only vendors within radius, sorted by distance.
         let nearbyVendors: Vendor[] = vendorRes.data ?? [];
