@@ -10,6 +10,7 @@ import { DEFAULT_CITY_SLUG, LS_CITY_KEY } from "@/lib/cities";
 import { BRAND_ORIGIN } from "@/lib/domains";
 import { useFavorites } from "@/lib/favorites";
 import { MessageCircle, Heart, Menu } from "lucide-react";
+import { useTypedPlaceholder, SEARCH_EXAMPLES } from "@/components/TypedText";
 
 // Routes that render their own full-page chrome (own nav/sidebar) and should NOT
 // show the global browse header.
@@ -41,6 +42,8 @@ export default function GlobalHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const headerSearchRef = useRef<HTMLInputElement>(null);
+  useTypedPlaceholder(headerSearchRef, SEARCH_EXAMPLES);
   const { wishlistCount } = useFavorites();
 
   // Close the mobile menu on outside click or when the route changes.
@@ -156,6 +159,7 @@ export default function GlobalHeader() {
             >
               <svg className="w-4 h-4 text-green-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.3-4.3M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" /></svg>
               <input
+                ref={headerSearchRef}
                 value={headerQ}
                 onChange={(e) => setHeaderQ(e.target.value)}
                 placeholder="Search Everything Local"

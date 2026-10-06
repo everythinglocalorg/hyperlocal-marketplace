@@ -97,6 +97,17 @@ export default function ProductPageClient({ listing, vendor, currentUser, more }
     } catch { /* no saved city */ }
   }, [vendor.latitude, vendor.longitude]);
 
+  // Remember this listing's category so the home "Things you might like" feed can
+  // adapt to what the visitor has recently viewed (most recent first, max 6).
+  useEffect(() => {
+    if (!listing.category) return;
+    try {
+      const prev: string[] = JSON.parse(localStorage.getItem("el_recent_cats") || "[]");
+      const next = [listing.category, ...prev.filter((c) => c !== listing.category)].slice(0, 6);
+      localStorage.setItem("el_recent_cats", JSON.stringify(next));
+    } catch { /* noop */ }
+  }, [listing.category]);
+
   // Primary CTA derived from the listing's own cta_type.
   const cta = (listing.cta_type || "").toLowerCase();
   const priceNum = listing.price;

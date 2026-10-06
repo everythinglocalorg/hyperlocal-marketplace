@@ -14,6 +14,7 @@ import QrCode from "@/components/QrCode";
 import WishlistGrid from "@/components/WishlistGrid";
 import PaymentOptions from "@/components/PaymentOptions";
 import { createClient } from "@/lib/supabase/client";
+import { CATEGORIES } from "@/types";
 
 type Profile = {
   id: string;
@@ -221,6 +222,17 @@ export default function BuyerDashboardClient({ profile, bookings, offers, rental
   const [showDropdown, setShowDropdown] = useState(false);
   const [localProfile, setLocalProfile] = useState({ full_name: profile.full_name, avatar_url: profile.avatar_url, phone: profile.phone });
   const supabase = createClient();
+
+  // Interests power the home "Things you might like" feed.
+  const [interests, setInterests] = useState<string[]>(Array.isArray((profile as any).interests) ? (profile as any).interests : []);
+  const [savingInterests, setSavingInterests] = useState(false);
+  const [savedInterests, setSavedInterests] = useState(false);
+  function toggleInterest(c: string) { setInterests((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]); }
+  async function saveInterests() {
+    setSavingInterests(true);
+    await supabase.from("profiles").update({ interests }).eq("id", profile.id);
+    setSavingInterests(false); setSavedInterests(true); setTimeout(() => setSavedInterests(false), 2500);
+  }
   const [conversations, setBuyerConversations] = useState<any[]>([]);
   const [activeConvId, setActiveBuyerConvId] = useState<string | null>(null);
   const [convMessages, setBuyerConvMessages] = useState<any[]>([]);
@@ -788,6 +800,26 @@ export default function BuyerDashboardClient({ profile, bookings, offers, rental
             <p className="text-gray-500 text-sm mb-6">
               Your public stamp of approval — the local businesses you stand behind. Share your profile to put your neighbors onto your favorites and help great local spots get recognized.
             </p>
+
+            {/* Interests — powers the home "Things you might like" feed */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+              <h2 className="font-semibold text-gray-900">Your interests</h2>
+              <p className="text-xs text-gray-500 mt-0.5 mb-3">Pick what you’re into — we’ll surface more of it in “Things you might like” on your home page.</p>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((c) => {
+                  const on = interests.includes(c);
+                  return (
+                    <button key={c} type="button" onClick={() => toggleInterest(c)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${on ? "bg-green-600 border-green-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-green-300"}`}>
+                      {c}
+                    </button>
+                  );
+                })}
+              </div>
+              <button onClick={saveInterests} disabled={savingInterests} className="mt-4 bg-green-600 text-white text-sm font-semibold px-5 py-2.5 rounded-full hover:bg-green-700 disabled:opacity-50 transition-colors">
+                {savingInterests ? "Saving…" : savedInterests ? "Saved ✓" : "Save interests"}
+              </button>
+            </div>
 
             {/* Profile photo + identity */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6 flex items-center gap-4">

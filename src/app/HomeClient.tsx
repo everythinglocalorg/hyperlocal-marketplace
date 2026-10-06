@@ -12,6 +12,7 @@ import { resolveCity, normalizeState, fetchCityCenter, distanceMiles, DEFAULT_CI
 import CitySelector from "@/components/CitySelector";
 import AtMentionDropdown from "@/components/AtMentionDropdown";
 import SearchPredictive from "@/components/search/SearchPredictive";
+import { useTypedPlaceholder, SEARCH_EXAMPLES } from "@/components/TypedText";
 import { LocalProPriceInline } from "@/components/LocalProPrice";
 import VendorLogo from "@/components/vendor/VendorLogo";
 import TypedRotator from "@/components/TypedRotator";
@@ -177,11 +178,15 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
   // immediately; the mount effect below re-personalizes to the visitor's saved city.
   const [recentListings, setRecentListings] = useState<any[]>(initialListings);
   const [newVendors, setNewVendors] = useState<any[]>(initialVendors);
+  const [recommended, setRecommended] = useState<any[]>([]);
+  const [recommendTitle, setRecommendTitle] = useState("Things you might like");
   const [mapMarkers, setMapMarkers] = useState<MapMarker[]>([]);
   const [activeCity, setActiveCity] = useState(DEFAULT_CITY_SLUG);
   const [radius, setRadius] = useState(50);
   const [showTour, setShowTour] = useState(false);
   const scrollRestored = useRef(false);
+  const heroSearchRef = useRef<HTMLInputElement>(null);
+  useTypedPlaceholder(heroSearchRef, SEARCH_EXAMPLES);
 
   // After returning from a listing, drop the feed back where they left off.
   useEffect(() => {
@@ -259,7 +264,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
       if (u) {
         const { data: profile } = await supabase
           .from("profiles")
-          .select("full_name, role, city, state, default_city, default_radius")
+          .select("full_name, role, city, state, default_city, default_radius, interests")
           .eq("id", u.id)
           .single();
         setUser({ id: u.id, name: profile?.full_name ?? u.email ?? null, role: profile?.role ?? null });
@@ -270,12 +275,39 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
         // is saved (e.g. a fresh device).
         if (!savedCitySlug && profile?.default_city) resolvedCitySlug = profile.default_city;
         if (typeof profile?.default_radius === "number") setRadius(profile.default_radius);
+        loadRecommended(Array.isArray(profile?.interests) ? profile.interests : [], resolvedCitySlug);
       }
       setAuthChecked(true);
       setActiveCity(resolvedCitySlug);
       loadCityData(resolvedCitySlug);
     });
   }, []);
+
+  // "Things you might like" — personalized by the interests a user checks in
+  // their profile, blended with the categories of listings they've recently
+  // viewed (kept in localStorage). Falls back gracefully when there's nothing.
+  async function loadRecommended(interests: string[], slug: string) {
+    let recentCats: string[] = [];
+    try { recentCats = JSON.parse(localStorage.getItem("el_recent_cats") || "[]"); } catch { /* noop */ }
+    const cats = Array.from(new Set([...(interests || []), ...recentCats])).filter(Boolean).slice(0, 12);
+    if (cats.length === 0) { setRecommended([]); return; }
+    setRecommendTitle(interests.length ? "Things you might like" : "Based on what you've viewed");
+    const supabase = createClient();
+    const cityObj = resolveCity(slug);
+    const { data } = await supabase
+      .from("listings")
+      .select("id, title, price, price_label, images, type, category, vendor:vendors(business_name, slug, city, state)")
+      .eq("is_active", true)
+      .in("category", cats)
+      .order("created_at", { ascending: false })
+      .limit(60);
+    const inCity = (data ?? []).filter((l: any) => {
+      const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+      if (!v?.slug) return false;
+      return !cityObj || (v.city?.toLowerCase() === cityObj.city.toLowerCase());
+    });
+    setRecommended(inCity.slice(0, 8));
+  }
 
   // Load recent listings + new vendors within `radius` miles of a city's center.
   // Vendors without coordinates fall back to an exact city/state match.
@@ -566,6 +598,7 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
             <form onSubmit={handleSearch} data-tour="search" className="bg-white rounded-2xl shadow-xl ring-1 ring-black/5 border border-gray-100 p-2.5 flex flex-col sm:flex-row sm:items-center gap-2 mb-4">
               <div className="relative flex-1 min-w-0">
                 <input
+                  ref={heroSearchRef}
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -730,6 +763,38 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
               </div>
               </>
               )}
+            </div>
+          )}
+
+          {/* Things you might like — personalized by profile interests + recently viewed */}
+          {!inline && recommended.length > 0 && (
+            <div className="max-w-5xl mx-auto mt-8 px-4">
+              <h2 className="text-lg font-bold text-gray-900 mb-4">{recommendTitle}</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                {recommended.map((l) => {
+                  const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
+                  return (
+                    <Link key={l.id} href={`/listings/${l.id}`} className="group">
+                      <div className="w-full aspect-square rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden relative">
+                        {v?.business_name && (
+                          <span className="absolute top-2 left-2 z-10 max-w-[70%] truncate bg-white/95 backdrop-blur-sm text-gray-900 text-[11px] font-medium px-2.5 py-1 rounded-full shadow-[0_1px_4px_rgba(0,0,0,0.14)]">{v.business_name}</span>
+                        )}
+                        <GemHeart listingId={l.id} />
+                        {l.images?.[0]
+                          ? <img src={l.images[0]} alt={l.title} loading="lazy" decoding="async" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                          : <span className="text-3xl text-gray-300">🛍️</span>}
+                      </div>
+                      <div className="pt-2 px-0.5">
+                        <p className="text-xs font-semibold text-gray-900 line-clamp-1">{l.title}</p>
+                        <p className="text-[11px] text-gray-500 truncate mt-0.5">{l.category}</p>
+                        {l.price != null
+                          ? <p className="text-xs font-semibold text-gray-900 mt-0.5">${Number(l.price).toFixed(2)}</p>
+                          : l.price_label && <p className="text-xs text-gray-500 mt-0.5">{l.price_label}</p>}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           )}
 
