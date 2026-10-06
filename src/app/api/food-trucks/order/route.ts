@@ -107,7 +107,8 @@ export async function POST(req: Request) {
       actor_id: user.id,
       type: "food_order",
       title: "🧾 New pickup order",
-      body: `${clean.length} item${clean.length === 1 ? "" : "s"} · $${total.toFixed(2)}${name ? ` · ${name}` : ""}`,
+      // List the actual items ordered so the seller sees exactly what to prep.
+      body: `${clean.map((i) => `${i.qty}× ${i.title}`).join(", ").slice(0, 160)} · $${total.toFixed(2)}${name ? ` · ${name}` : ""}`,
       // Target the exact vendor so multi-business owners land on the right
       // Orders board instead of their first (non-truck) vendor.
       link: `/dashboard/vendor?vendor=${vendorId}&tab=orders`,

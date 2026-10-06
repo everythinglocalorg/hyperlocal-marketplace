@@ -110,16 +110,19 @@ export async function POST(req: NextRequest) {
           .from("food_orders")
           .update({ payment_status: "paid" })
           .eq("id", session.metadata.order_id)
-          .select("vendor_id, customer_name, total")
+          .select("vendor_id, customer_name, total, items")
           .maybeSingle();
         if (fo?.vendor_id) {
           const { data: v } = await supabase.from("vendors").select("user_id").eq("id", fo.vendor_id).maybeSingle();
           if (v?.user_id) {
+            const itemsText = Array.isArray(fo.items)
+              ? (fo.items as { qty?: number; title?: string }[]).map((i) => `${i.qty ?? 1}× ${i.title ?? "item"}`).join(", ").slice(0, 160)
+              : "";
             await supabase.from("notifications").insert({
               user_id: v.user_id,
               type: "food_order",
               title: "💳 New paid order",
-              body: `$${Number(fo.total ?? 0).toFixed(2)}${fo.customer_name ? ` · ${fo.customer_name}` : ""} — paid`,
+              body: `${itemsText ? itemsText + " · " : ""}$${Number(fo.total ?? 0).toFixed(2)}${fo.customer_name ? ` · ${fo.customer_name}` : ""} — paid`,
               link: `/dashboard/vendor?vendor=${fo.vendor_id}&tab=orders`,
               is_read: false,
             });

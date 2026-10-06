@@ -476,25 +476,28 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, activeCity, radius]);
 
-  // "View all" for the active bubble — show the whole category in place.
-  async function runViewAll() {
+  // "View all" for a bubble — show the whole category in place. Takes the filter
+  // explicitly so switching bubbles while in this view refreshes it correctly.
+  async function runViewAll(cat: CatFilter | null = activeCategory) {
     setInlineLoading(true);
-    setInline({ title: `All ${activeCategory?.label ?? "listings"}`, cards: [], source: "all" });
+    setInline({ title: `All ${cat?.label ?? "listings"}`, cards: [], source: "all" });
     const supabase = createClient();
     let q = supabase
       .from("listings")
-      .select("id, title, price, price_label, images, type, vendor:vendors(business_name, slug, city, state)")
+      .select("id, title, price, price_label, images, type, category, description, vendor:vendors(business_name, slug, city, state, category)")
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(120);
-    if (activeCategory?.type) q = q.eq("type", activeCategory.type);
-    else if (activeCategory?.category) q = q.eq("category", activeCategory.category);
+    if (cat?.type) q = q.eq("type", cat.type);
+    else if (cat?.category) q = q.eq("category", cat.category);
     const { data } = await q;
-    const cards: InlineCard[] = (data ?? []).map((l: any) => {
+    // Keyword-only bubbles (e.g. Home Goods / Yard share one category) narrow further client-side.
+    const rows = (data ?? []).filter((l: any) => matchFilter(l, cat));
+    const cards: InlineCard[] = rows.map((l: any) => {
       const v = Array.isArray(l.vendor) ? l.vendor[0] : l.vendor;
       return { id: l.id, href: `/listings/${l.id}`, image: l.images?.[0] ?? null, title: l.title, subtitle: v?.city ? `${v.city}, ${v.state}` : "", vendorName: v?.business_name ?? null, price: l.price, priceLabel: l.price_label };
     });
-    setInline({ title: `All ${activeCategory?.label ?? "listings"}`, cards, source: "all" });
+    setInline({ title: `All ${cat?.label ?? "listings"}`, cards, source: "all" });
     setInlineLoading(false);
   }
 
@@ -524,6 +527,9 @@ export default function HomeClient({ initialListings, initialVendors, initialBlo
   function pickCategory(f: CatFilter | null) {
     track("category_pill_click", { category: f?.label ?? "All", source: "homepage" });
     setActiveCategory(f);
+    // If a "View all" list is already open, switching bubbles refreshes it for the
+    // new category instead of staying stuck on the first one.
+    if (inline?.source === "all") runViewAll(f);
   }
 
   // "View all →" carries the active filter through to the full discovery page.
